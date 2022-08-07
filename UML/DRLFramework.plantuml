@@ -1,0 +1,61 @@
+@startuml DRL Framework
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+scale 2
+title DRL Framework
+
+Agent Environment [
+    Environment
+]
+
+class Agent {
+    - algorithm
+    - policy
+    - trajectory
+    + act(state)
+    + update(experience)
+}
+
+class Algorithm {
+    - hyperparameters
+    - neural networks
+    + train(batch)
+    + get_pdparam(state)
+    + update_hyperparameters(time_step)
+}
+
+class Policy {
+    - hyperparameters
+    + get_policy_distribution(pdparam)
+    + update_hyperparameters(time_step)
+}
+
+class Trajectory {
+    - states
+    - actions
+    - rewards
+    - terminateds
+    - next_state_buffer
+    - max_count
+    + add(experience)
+    + sample()
+    + can_train()
+}
+
+class Experience {
+    + state
+    + action
+    + next_state
+    + reward
+    + terminated
+}
+
+Agent::algorithm *-- Algorithm
+Agent::policy o-- Policy
+Agent::trajectory *-- Trajectory
+
+Environment <-- Agent::act : 1st << action >>
+Environment --> Agent::update : 2nd << experience >>
+
+@enduml

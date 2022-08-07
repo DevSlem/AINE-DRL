@@ -1,0 +1,44 @@
+@startuml DRL Module
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+scale 2
+title Module
+
+package aine_drl [
+    main DRL package name
+]
+
+package agent [
+    agents to interact with a rl environment
+    can access directly from aine_drl
+]
+
+package drl_algorithm [
+    DRL algorithms
+]
+
+package policy [
+    policy for action probaility distributions
+]
+
+package experience [
+    store, manage and sample experiences
+]
+
+package drl_util [
+    DRL utilities
+]
+
+package util [
+    general utilities
+]
+
+aine_drl --> agent
+aine_drl --> drl_algorithm
+aine_drl --> policy
+aine_drl --> experience
+aine_drl --> drl_util
+aine_drl --> util
+
+@enduml
