@@ -16,7 +16,7 @@ class FixedCountTrajectory(Trajectory):
         """
         assert max_count_per_env > 0 and env_count > 0
         self.env_count = env_count
-        self.max_count = env_count * max_count_per_env
+        self.max_count = env_count * max_count_per_env # maximum element count of flattend array
         self.reset()
         
     @aine_api
@@ -26,14 +26,14 @@ class FixedCountTrajectory(Trajectory):
         
     @aine_api
     def reset(self):
-        self._count = 0
-        self.recent_idx = -1
+        self._count = 0 # total experience count of all environments
+        self.recent_idx = -1 # index of the most recent experience
         
         self.states = [None] * self.max_count
         self.actions = [None] * self.max_count
         self.rewards = [None] * self.max_count
         self.terminateds = [None] * self.max_count
-        self.next_state_buffer = [None] * self.env_count
+        self.next_state_buffer = [None] * self.env_count # most recently added next state
         
     @aine_api
     def add(self, experiences: Union[Experience, List[Experience]]):
