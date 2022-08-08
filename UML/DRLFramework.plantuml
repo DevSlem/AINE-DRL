@@ -17,7 +17,7 @@ class Agent {
     + update(experience)
 }
 
-class Algorithm {
+class DRLAlgorithm {
     - hyperparameters
     - neural networks
     + train(batch)
@@ -51,7 +51,7 @@ class Experience {
     + terminated
 }
 
-Agent::algorithm *-- Algorithm
+Agent::algorithm *-- DRLAlgorithm
 Agent::policy o-- Policy
 Agent::trajectory *-- Trajectory
 
