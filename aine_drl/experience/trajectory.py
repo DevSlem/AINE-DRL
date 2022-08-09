@@ -15,7 +15,7 @@ class Trajectory(ABC):
         """
         Returns stored experiences count.
         """
-        pass
+        raise NotImplementedError
     
     @aine_api
     @property
@@ -24,7 +24,7 @@ class Trajectory(ABC):
         """
         Returns wheter you can train or not.
         """
-        pass
+        raise NotImplementedError
     
     @aine_api
     @abstractmethod
@@ -32,25 +32,27 @@ class Trajectory(ABC):
         """
         Reset the trajectory.
         """
-        pass
+        raise NotImplementedError
     
     @aine_api
     @abstractmethod
     def add(self, experiences: Union[Experience, List[Experience]]):
-        """Add one or more experiences.
-
+        """
+        Add one or more experiences.
+        
         Args:
             experiences (Experience | List[Experience]): 
             both single or list are okay, but be sure that count equals to environment count
         """
-        pass
+        raise NotImplementedError
         
     @aine_api
     @abstractmethod
     def sample(self) -> ExperienceBatch:
-        """Sample from the trajectory. You should call this function only if can train.
+        """
+        Sample from the trajectory. You should call this function only if can train.
 
         Returns:
             ExperienceBatch: sampled experience batch
         """
-        pass
+        raise NotImplementedError
