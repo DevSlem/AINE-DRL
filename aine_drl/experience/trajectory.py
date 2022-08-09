@@ -48,7 +48,7 @@ class Trajectory(ABC):
     @aine_api
     @abstractmethod
     def sample(self) -> ExperienceBatch:
-        """Sample from the trajectory.
+        """Sample from the trajectory. You should call this function only if can train.
 
         Returns:
             ExperienceBatch: sampled experience batch

@@ -1,4 +1,4 @@
 from .experience import *
 from .trajectory import *
-from .episodic_trajectory import *
-from .fixedcount_trajectory import *
+from .montecarlo_trajectory import *
+from .batch_trajectory import *

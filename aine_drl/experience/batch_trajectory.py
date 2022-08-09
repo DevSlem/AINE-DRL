@@ -4,19 +4,19 @@ import aine_drl.util as util
 from aine_drl.experience import Experience, Trajectory
 import numpy as np
 
-class FixedCountTrajectory(Trajectory):
+class BatchTrajectory(Trajectory):
     """
-    It's a trajectory abstract class that has the maximum element count.
+    It's a batch trajectory abstract class for the batch learning. It has the maximum experience count.
     """
-    def __init__(self, max_count_per_env: int, env_count: int = 1) -> None:
+    def __init__(self, max_count: int, env_count: int = 1) -> None:
         """
         Args:
             max_count_per_env (int): maximum count of experiences stored per environment
             env_count (int, optional): environment count. Defaults to 1.
         """
-        assert max_count_per_env > 0 and env_count > 0
+        assert max_count > 0 and env_count > 0
         self.env_count = env_count
-        self.max_count = env_count * max_count_per_env # maximum element count of flattend array
+        self.max_count = max_count # maximum element count of flattend array
         self.reset()
         
     @aine_api
@@ -39,8 +39,6 @@ class FixedCountTrajectory(Trajectory):
     def add(self, experiences: Union[Experience, List[Experience]]):
         if isinstance(experiences, Experience):
             experiences = [experiences]
-            
-        assert len(experiences) == self.env_count
         
         for i, ex in enumerate(experiences):
             self.recent_idx = (self.recent_idx + 1) % self.max_count
