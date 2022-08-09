@@ -6,6 +6,7 @@ import numpy as np
 class MonteCarloTrajectory(Trajectory):
     """
     It's a simple trajectory for on-policy Monte Carlo methods. It allows only one environment.
+    It samples whole trajectory when the trajectory is terminated.
     """
     def __init__(self) -> None:
         self.reset()
@@ -52,18 +53,15 @@ class MonteCarloTrajectory(Trajectory):
     @aine_api
     def sample(self) -> ExperienceBatch:
         # if the trajectory has been terminated, then sample an experience batch (i.e. whole trajectory) and return it.
-        if self._can_train:
-            self.states.append(self.next_state_buffer)
-            experience_batch = ExperienceBatch(
-                np.array(self.states[:-1]), # states
-                np.array(self.actions),
-                np.array(self.states[1:]), # next states
-                np.array(self.rewards),
-                np.array(self.terminateds)
-            )
-            # because it's on-policy method, all experiences which are used to train must be discarded.
-            self.reset()
-            return experience_batch
-            
-        return None
+        self.states.append(self.next_state_buffer)
+        experience_batch = ExperienceBatch.create(
+            self.states[:-1], # states
+            self.actions,
+            self.states[1:], # next states
+            self.rewards,
+            self.terminateds
+        )
+        # because it's on-policy method, all experiences which are used to train must be discarded.
+        self.reset()
+        return experience_batch
     
