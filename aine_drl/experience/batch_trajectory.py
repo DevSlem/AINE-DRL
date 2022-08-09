@@ -1,7 +1,6 @@
 from typing import Union, List
 from aine_drl import aine_api
 from aine_drl.experience import Experience, Trajectory
-import numpy as np
 
 class BatchTrajectory(Trajectory):
     """
