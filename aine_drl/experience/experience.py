@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from typing import NamedTuple
 
@@ -20,3 +21,18 @@ class ExperienceBatch(NamedTuple):
     next_states: np.ndarray
     rewards: np.ndarray
     terminateds: np.ndarray
+    
+    @staticmethod
+    def create(states, actions, next_states, rewards, terminateds) -> ExperienceBatch:
+        """
+        Helper method to create an ExperienceBatch instance. 
+        This method converts each argument into numpy array.
+        """
+        experience_batch = ExperienceBatch(
+            np.array(states),
+            np.array(actions),
+            np.array(next_states),
+            np.array(rewards),
+            np.array(terminateds)
+        )
+        return experience_batch
