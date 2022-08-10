@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import List
 from aine_drl.experience import BatchTrajectory, Experience, ExperienceBatch
 import numpy as np
 import aine_drl.util as util
@@ -34,9 +34,7 @@ class ExperienceReplay(BatchTrajectory):
         self.current_epoch = 0
         
     @aine_api
-    def add(self, experiences: Union[Experience, List[Experience]]):
-        if isinstance(experiences, Experience):
-            experiences = [experiences]
+    def add(self, experiences: List[Experience]):
         super().add(experiences)
         self.added_ex_count += len(experiences)
     

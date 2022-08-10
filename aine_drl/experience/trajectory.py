@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, List
+from typing import List
 from aine_drl import aine_api
 from aine_drl.experience import Experience, ExperienceBatch
 
@@ -36,13 +36,12 @@ class Trajectory(ABC):
     
     @aine_api
     @abstractmethod
-    def add(self, experiences: Union[Experience, List[Experience]]):
+    def add(self, experiences: List[Experience]):
         """
-        Add one or more experiences.
-        
+        Add experiences from the one-step transition. The element count of experiences must be the environment count.
+
         Args:
-            experiences (Experience | List[Experience]): 
-            both single or list are okay, but be sure that count equals to environment count
+            experiences (List[Experience]): experiences of environments
         """
         raise NotImplementedError
         
@@ -50,7 +49,7 @@ class Trajectory(ABC):
     @abstractmethod
     def sample(self) -> ExperienceBatch:
         """
-        Sample from the trajectory. You should call this function only if can train.
+        Sample from the trajectory. You should call this function only while can train.
 
         Returns:
             ExperienceBatch: sampled experience batch
