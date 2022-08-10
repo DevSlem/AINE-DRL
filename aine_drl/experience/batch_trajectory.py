@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import List
 from aine_drl import aine_api
 from aine_drl.experience import Experience, Trajectory
 
@@ -34,10 +34,8 @@ class BatchTrajectory(Trajectory):
         self.next_state_buffer = [None] * self.env_count # most recently added next state
         
     @aine_api
-    def add(self, experiences: Union[Experience, List[Experience]]):
-        if isinstance(experiences, Experience):
-            experiences = [experiences]
-        
+    def add(self, experiences: List[Experience]):
+        assert len(experiences) == self.env_count
         for i, ex in enumerate(experiences):
             self.recent_idx = (self.recent_idx + 1) % self.max_count
             self._count = min(self._count + 1, self.max_count)
@@ -46,5 +44,5 @@ class BatchTrajectory(Trajectory):
             self.actions[self.recent_idx] = ex.action
             self.rewards[self.recent_idx] = ex.reward
             self.terminateds[self.recent_idx] = ex.terminated
-            self.next_state_buffer[self.recent_idx % self.env_count] = ex.next_state
+            self.next_state_buffer[i] = ex.next_state
     

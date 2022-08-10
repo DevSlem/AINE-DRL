@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, List
+from typing import List
 from aine_drl import aine_api
 from aine_drl.experience import Experience, ExperienceBatch
 
@@ -36,7 +36,7 @@ class Trajectory(ABC):
     
     @aine_api
     @abstractmethod
-    def add(self, experiences: Union[Experience, List[Experience]]):
+    def add(self, experiences: List[Experience]):
         """
         Add one or more experiences.
         
