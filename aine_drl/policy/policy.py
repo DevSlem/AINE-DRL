@@ -4,6 +4,9 @@ import torch
 from torch.distributions import Distribution
 
 class Policy(ABC):
+    """
+    Policy abstract class. It returns policy distribution.
+    """
     
     @aine_api
     @abstractmethod

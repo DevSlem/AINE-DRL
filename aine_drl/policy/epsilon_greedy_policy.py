@@ -6,6 +6,9 @@ import torch
 from torch.distributions import Distribution
 
 class EpsilonGreedyPolicy(Policy):
+    """
+    Epsilon greedy policy. `pdparam` is Q value that is action value function. It only works when the action is discrete. 
+    """
     def __init__(self, epsilon: float, epsilon_decay: Decay = None) -> None:
         assert epsilon >= 0 and epsilon <= 1
         self.epsilon = epsilon

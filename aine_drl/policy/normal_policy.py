@@ -5,7 +5,7 @@ from aine_drl.util.decorator import aine_api
 
 class NormalPolicy(Policy):
     """
-    Noraml distribution policy
+    Noraml distribution policy for the continuous action.
     """
     
     @aine_api

@@ -5,7 +5,7 @@ from aine_drl.util.decorator import aine_api
 
 class CategoricalPolicy(Policy):
     """
-    Simple categorical policy.
+    Simple categorical policy for the discrete action.
     """
     
     @aine_api

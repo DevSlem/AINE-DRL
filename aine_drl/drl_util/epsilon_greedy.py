@@ -3,9 +3,8 @@ from torch.distributions import Categorical
 
 class EpsilonGreedy(Categorical):
     """
-    Epsilon greedy policy. 
+    Epsilon greedy distribution. 
     The greater epsilon value, the more random the action is selected. 
-    It only works when the action is discrete.
     """
     
     def __init__(self, q_values: torch.Tensor, epsilon: float, validate_args=None):
