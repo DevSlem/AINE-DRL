@@ -1,8 +1,9 @@
 from abc import ABC
-from typing import Union, List
+from typing import List
 from aine_drl.experience import Trajectory, Experience
-import numpy as np
+from aine_drl.policy import Policy
 from aine_drl.util.decorator import aine_api
+import numpy as np
 
 class Agent(ABC):
     def __init__(self, 
@@ -14,15 +15,16 @@ class Agent(ABC):
         self.trajectory = trajectory
         
     @aine_api
-    def update(self, experience: Union[Experience, List[Experience]]):
+    def update(self, experience: List[Experience]):
         """
-        Update the agent. It means store data, train the DRL algorithm, etc.
+        Update the agent. It stores data, trains the DRL algorithm, etc.
 
         Args:
-            experience (Union[Experience, List[Experience]]): single experience or list, recommended to match the length to the count of environments.
+            experience (List[Experience]): experiences of which the element count must be the environment count.
         """
         self.trajectory.add(experience)
-        self._train_algorithm()
+        if self._train_algorithm():
+            self.policy.update_hyperparams(time_step)
     
     @aine_api
     def act(self, states: np.ndarray) -> np.ndarray:
@@ -37,8 +39,10 @@ class Agent(ABC):
         """
         pass
     
-    def _train_algorithm(self):
+    def _train_algorithm(self) -> bool:
+        can_train = self.trajectory.can_train
         while self.trajectory.can_train:
             batch = self.trajectory.sample()
             # train the algorithm
             # self.drl_algorithm.train(batch)
+        return can_train
