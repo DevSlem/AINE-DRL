@@ -7,7 +7,7 @@ class Policy(ABC):
     
     @aine_api
     @abstractmethod
-    def get_policy_distribution(pdparam: torch.Tensor) -> Distribution:
+    def get_policy_distribution(self, pdparam: torch.Tensor) -> Distribution:
         """
         Returns policy distribution that is action probability distribution.
 
@@ -20,7 +20,7 @@ class Policy(ABC):
         raise NotImplementedError
     
     @aine_api
-    def update_hyperparams(time_step: int):
+    def update_hyperparams(self, time_step: int):
         """
         Update hyperparameters if they exists.
 
