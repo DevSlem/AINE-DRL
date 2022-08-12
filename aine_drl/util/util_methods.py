@@ -39,3 +39,14 @@ def cumulative_average(data_list, data_count: int = 0) -> list:
         averages.append(np.mean(data_list[s:e]))
         
     return averages
+
+def check_freq(value: int, frequency: int, constant_increment: int = 1) -> bool:
+    """
+    Check if the value is reached to the frequency. 
+    It's analogous to (value % frequency == 0), 
+    but it considers constant increment of the value.
+
+    Args:
+        constant_increment (int): constant increment of the value. Defaults to 1.
+    """
+    return value % frequency < constant_increment
