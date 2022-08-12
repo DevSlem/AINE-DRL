@@ -13,24 +13,22 @@ class Agent(ABC):
                  drl_algorithm: DRLAlgorithm, 
                  policy: Policy, 
                  trajectory: Trajectory,
-                 env_count: int = 1,
+                 clock: Clock,
                  summary_freq: int = 1) -> None:
         """
         Args:
             drl_algorithm (DRLAlgorithm): DRL algorithm
             policy (Policy): policy
             trajectory (Trajectory): tajectory
-            env_count (int, optional): environment count. Defaults to 1.
             summary_freq (int, optional): summary frequency which must be greater than `env_count`. Defaults to 1.
         """
-        assert env_count > 0 and summary_freq >= env_count
+        assert summary_freq > 0
         self.drl_algorithm = drl_algorithm
         self.policy = policy
         self.trajectory = trajectory
-        self.env_count = env_count
         self.summary_freq = summary_freq
         self.summary_count = 0
-        self.clock = Clock(env_count)
+        self.clock = clock
         
     @aine_api
     def update(self, experience: List[Experience]):
@@ -47,7 +45,7 @@ class Agent(ABC):
         if experience[0].terminated:
             self.clock.tick_episode()
         # if can log data
-        if self.clock.time_step >= (self.summary_count + 1) * self.summary_freq:
+        if self.clock.check_time_step_freq(self.summary_freq):
             self.drl_algorithm.log_data(self.clock.time_step)
             self.policy.log_data(self.clock.time_step)
             self.summary_count += 1
@@ -57,17 +55,17 @@ class Agent(ABC):
             self.policy.update_hyperparams(self.clock.time_step)
     
     @aine_api
-    def act(self, states: np.ndarray) -> np.ndarray:
+    def act(self, state: np.ndarray) -> np.ndarray:
         """
-        Returns actions from the state batch
+        Returns an action from the state.
 
         Args:
-            states (np.ndarray): state batch
+            state (np.ndarray): single state or state batch
 
         Returns:
             np.ndarray: actions
         """
-        pdparam = self.drl_algorithm.get_pdparam(torch.from_numpy(states))
+        pdparam = self.drl_algorithm.get_pdparam(torch.from_numpy(state))
         dist = self.policy.get_policy_distribution(pdparam)
         return dist.sample()
     
