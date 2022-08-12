@@ -31,3 +31,7 @@ class Policy(ABC):
             time_step (int): current time step during training
         """
         pass
+    
+    @aine_api
+    def log_data(self, time_step: int):
+        pass

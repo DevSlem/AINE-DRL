@@ -28,7 +28,8 @@ class GlobalLogger:
 def set_logger(logger: Logger):
     GlobalLogger.logger = logger
     
-def log(key, value, t):
+def log_data(key, value, t):
+    assert GlobalLogger.logger is not None, "You must call set_logger() method before call it."
     GlobalLogger.logger.log(key, value, t)
     
 def close_logger():
