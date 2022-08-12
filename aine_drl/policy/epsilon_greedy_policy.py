@@ -2,6 +2,7 @@ from lib2to3.pytree import Node
 from aine_drl.policy import Policy
 from aine_drl.drl_util import EpsilonGreedy
 from aine_drl.util import aine_api, Decay, NoDecay
+import aine_drl.util as util
 import torch
 from torch.distributions import Distribution
 
@@ -22,3 +23,6 @@ class EpsilonGreedyPolicy(Policy):
     def update_hyperparams(self, time_step: int):
         self.epsilon = self.epsilon_decay(time_step)
         
+    @aine_api
+    def log_data(self, time_step: int):
+        util.log_data("epsilon", self.epsilon, time_step)
