@@ -1,6 +1,6 @@
 from aine_drl.policy import Policy
-from aine_drl.drl_util import EpsilonGreedy
-from aine_drl.util import aine_api, Decay, NoDecay
+from aine_drl.drl_util import EpsilonGreedy, Decay, NoDecay
+from aine_drl.util import aine_api
 import aine_drl.util as util
 import torch
 from torch.distributions import Distribution
