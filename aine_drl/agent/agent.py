@@ -1,10 +1,10 @@
 from abc import ABC
 from typing import List
-from aine_drl.experience import Trajectory, Experience
+from aine_drl.trajectory import Trajectory
 from aine_drl.drl_algorithm import DRLAlgorithm
 from aine_drl.policy import Policy
 from aine_drl.util import aine_api
-from aine_drl.drl_util import Clock
+from aine_drl.drl_util import Clock, Experience
 import numpy as np
 import torch
 
@@ -20,7 +20,7 @@ class Agent(ABC):
             drl_algorithm (DRLAlgorithm): DRL algorithm
             policy (Policy): policy
             trajectory (Trajectory): tajectory
-            summary_freq (int, optional): summary frequency which must be greater than `env_count`. Defaults to 1.
+            summary_freq (int, optional): summary frequency. Defaults to 1.
         """
         assert summary_freq > 0
         self.drl_algorithm = drl_algorithm

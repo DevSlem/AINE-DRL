@@ -1,0 +1,29 @@
+DQNAgent:
+  training:
+    max_steps: 5000
+    summary_freq: 100
+
+DQNAgent:
+  drl_algorithm: DQN
+  policy: EpsilonGreedyPolicy
+  trajectory: ExperienceReplay
+
+DQN:
+  gamma: 0.99
+  target_net_update_type: replace
+  update_freq: 16
+
+EpsilonGreedyPolicy:
+  epsilon_decay: LinearDecay
+
+LinearDecay:
+  start_value: 0.5
+  end_value: 0.01
+  start_t: 100
+  end_t: 5000
+
+ExperienceReplay:
+  training_freq: 4
+  batch_size: 32
+  max_count: 1000
+  epoch: 3

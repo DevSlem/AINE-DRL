@@ -1,8 +1,8 @@
 from aine_drl.drl_algorithm import DRLAlgorithm
-from aine_drl.experience import ExperienceBatch
 from aine_drl.util import aine_api
 import aine_drl.util as util
-from aine_drl.drl_util import Clock, copy_network, polyak_update, get_model_device
+from aine_drl.drl_util import ExperienceBatch, Clock
+import aine_drl.drl_util as drl_util
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -34,17 +34,17 @@ class DQN(DRLAlgorithm):
         assert gamma >= 0 and gamma <= 1
         
         self.dqn_spec = dqn_spec
-        self.device = get_model_device(dqn_spec.q_net)
+        self.device = drl_util.get_model_device(dqn_spec.q_net)
         self.clock = clock
         self.gamma = gamma
         
         if target_net_update_type == TargetNetUpdateType.REPLACE:
             self.update_freq = kwargs["update_freq"] if "update_freq" in kwargs.keys() else 1
-            self.net_updater = copy_network
+            self.net_updater = drl_util.copy_network
         elif target_net_update_type == TargetNetUpdateType.POLYAK:
             self.update_freq = 1
             polyak_ratio = kwargs["polyak_ratio"] if "polyak_ratio" in kwargs.keys() else 0.5
-            self.net_updater = lambda s, t: polyak_update(s, t, polyak_ratio)
+            self.net_updater = lambda s, t: drl_util.polyak_update(s, t, polyak_ratio)
         else:
             raise ValueError
     

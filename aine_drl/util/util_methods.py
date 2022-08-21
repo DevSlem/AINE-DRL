@@ -50,3 +50,6 @@ def check_freq(value: int, frequency: int, constant_increment: int = 1) -> bool:
         constant_increment (int): constant increment of the value. Defaults to 1.
     """
     return value % frequency < constant_increment
+
+def except_dict_element(dictionary: dict, key) -> dict:
+    return {k: v for k, v in dictionary.items() if k != key}

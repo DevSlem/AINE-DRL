@@ -1,6 +1,7 @@
 from typing import List
 from aine_drl import aine_api
-from aine_drl.experience import Experience, Trajectory
+from aine_drl.drl_util import Experience
+from aine_drl.trajectory import Trajectory
 
 class BatchTrajectory(Trajectory):
     """

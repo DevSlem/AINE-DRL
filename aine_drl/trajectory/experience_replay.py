@@ -1,5 +1,6 @@
 from typing import List
-from aine_drl.experience import BatchTrajectory, Experience, ExperienceBatch
+from aine_drl.drl_util import Experience, ExperienceBatch
+from aine_drl.trajectory import BatchTrajectory
 import numpy as np
 import aine_drl.util as util
 from aine_drl.util.decorator import aine_api

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 from aine_drl import aine_api
-from aine_drl.experience import Experience, ExperienceBatch
+from aine_drl.drl_util import Experience, ExperienceBatch
 
 class Trajectory(ABC):
     """

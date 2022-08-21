@@ -1,4 +1,5 @@
-from aine_drl.experience import BatchTrajectory, ExperienceBatch
+from aine_drl.drl_util import ExperienceBatch
+from aine_drl.trajectory import BatchTrajectory
 from aine_drl.util.decorator import aine_api
 
 class OnPolicyTrajectory(BatchTrajectory):
