@@ -38,7 +38,7 @@ class Trajectory(ABC):
     @abstractmethod
     def add(self, experiences: List[Experience]):
         """
-        Add experiences from the one-step transition. The element count of experiences must be the environment count.
+        Add experiences from the one-step transition. The number of experiences must be the same as the number of environments.
 
         Args:
             experiences (List[Experience]): experiences of environments

@@ -18,14 +18,14 @@ class EpsilonGreedy(Categorical):
         
         self._epsilon = epsilon
         
-        action_count = q_values.shape[-1]
+        num_action = q_values.shape[-1]
         # epsilon-greedy probabilities
-        greedy_action_prob = 1.0 - epsilon + epsilon / action_count
-        non_greedy_action_prob = epsilon / action_count
+        greedy_action_prob = 1.0 - epsilon + epsilon / num_action
+        non_greedy_action_prob = epsilon / num_action
         # get greedy action
         greedy_action = q_values.argmax(-1)
         # set epsilon greedy probability distribution
-        action_idx = torch.arange(action_count)
+        action_idx = torch.arange(num_action)
         x, y = torch.meshgrid(greedy_action, action_idx)
         dist = torch.empty_like(q_values).unsqueeze_(0)
         dist[..., x == y] = greedy_action_prob # greedy action

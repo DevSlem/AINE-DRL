@@ -1,4 +1,3 @@
-from abc import ABC
 from typing import List
 from aine_drl.trajectory import Trajectory
 from aine_drl.drl_algorithm import DRLAlgorithm
@@ -8,13 +7,12 @@ from aine_drl.drl_util import Clock, Experience
 import numpy as np
 import torch
 
-class Agent(ABC):
+class Agent:
     def __init__(self, 
                  drl_algorithm: DRLAlgorithm, 
                  policy: Policy, 
                  trajectory: Trajectory,
-                 clock: Clock,
-                 summary_freq: int = 1) -> None:
+                 clock: Clock) -> None:
         """
         Args:
             drl_algorithm (DRLAlgorithm): DRL algorithm
@@ -22,12 +20,9 @@ class Agent(ABC):
             trajectory (Trajectory): tajectory
             summary_freq (int, optional): summary frequency. Defaults to 1.
         """
-        assert summary_freq > 0
         self.drl_algorithm = drl_algorithm
         self.policy = policy
         self.trajectory = trajectory
-        self.summary_freq = summary_freq
-        self.summary_count = 0
         self.clock = clock
         
     @aine_api
@@ -36,7 +31,7 @@ class Agent(ABC):
         Update the agent. It stores data, trains the DRL algorithm, etc.
 
         Args:
-            experience (List[Experience]): experiences of which the element count must be the environment count.
+            experience (List[Experience]): the number of experiences must be the same as the number of environments.
         """
         # set trajectory
         self.trajectory.add(experience)
@@ -45,10 +40,9 @@ class Agent(ABC):
         if experience[0].terminated:
             self.clock.tick_episode()
         # if can log data
-        if self.clock.check_time_step_freq(self.summary_freq):
+        if self.clock.check_time_step_freq:
             self.drl_algorithm.log_data(self.clock.time_step)
             self.policy.log_data(self.clock.time_step)
-            self.summary_count += 1
         # try training algorithm
         if self._try_train_algorithm():
             self.drl_algorithm.update_hyperparams(self.clock.time_step)

@@ -6,8 +6,9 @@ class Clock:
     Don't use it yet. It needs to be implemented.
     """
     
-    def __init__(self, env_count: int) -> None:
-        self.env_count = env_count
+    def __init__(self, num_env: int, frequency: int) -> None:
+        self.num_env = num_env
+        self.frequency = frequency
         self.reset()
     
     def reset(self):
@@ -38,9 +39,16 @@ class Clock:
     def real_time(self) -> int:
         return int(self._real_time)
     
+    @property
+    def check_time_step_freq(self) -> bool:
+        """
+        Check if the time step is reached to the frequency. It considers multiple environments.
+        """
+        return check_freq(self.time_step, self.frequency, self.num_env)
+    
     def tick_time_step(self):
         self._episode_len += 1
-        self._time_step += self.env_count
+        self._time_step += self.num_env
         self._real_time = self._get_real_time()
         
     def tick_episode(self):
@@ -49,12 +57,6 @@ class Clock:
         
     def tick_training_step(self):
         self._training_step += 1
-        
-    def check_time_step_freq(self, frequency: int) -> bool:
-        """
-        Check if the time step is reached to the frequency. It considers multiple environments.
-        """
-        return check_freq(self.time_step, frequency, self.env_count)
         
     def _get_real_time(self):
         return time.time() - self._real_start_time
