@@ -7,14 +7,14 @@ class BatchTrajectory(Trajectory):
     """
     It's a batch trajectory abstract class for the batch learning. It can store `max_num_exp` experiences.
     """
-    def __init__(self, max_num_exp: int, num_env: int = 1) -> None:
+    def __init__(self, max_num_exp: int, num_envs: int = 1) -> None:
         """
         Args:
             max_num_exp (int): maximum number of experiences to be stored
-            num_env (int, optional): number of environments. Defaults to 1.
+            num_envs (int, optional): number of environments. Defaults to 1.
         """
-        assert max_num_exp > 0 and num_env > 0
-        self.num_env = num_env
+        assert max_num_exp > 0 and num_envs > 0
+        self.num_envs = num_envs
         self.max_num_exp = max_num_exp # maximum number of elements
         self.reset()
         
@@ -32,11 +32,11 @@ class BatchTrajectory(Trajectory):
         self.actions = [None] * self.max_num_exp
         self.rewards = [None] * self.max_num_exp
         self.terminateds = [None] * self.max_num_exp
-        self.next_state_buffer = [None] * self.num_env # most recently added next state
+        self.next_state_buffer = [None] * self.num_envs # most recently added next state
         
     @aine_api
     def add(self, experiences: List[Experience]):
-        assert len(experiences) == self.num_env
+        assert len(experiences) == self.num_envs
         for i, ex in enumerate(experiences):
             self.recent_idx = (self.recent_idx + 1) % self.max_num_exp
             self._count = min(self._count + 1, self.max_num_exp)

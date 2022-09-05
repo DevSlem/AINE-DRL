@@ -68,7 +68,8 @@ class DQN(DRLAlgorithm):
     
     @aine_api
     def log_data(self, time_step: int):
-        util.log_data("learning rate", self.dqn_spec.lr_scheduler.get_lr(), time_step)
+        if self.dqn_spec.lr_scheduler is not None:
+            util.log_data("learning rate", self.dqn_spec.lr_scheduler.get_lr(), time_step)
     
     def compute_td_loss(self, batch: ExperienceBatch):
         states, actions, next_states, rewards, terminateds = batch.to_tensor(self.device)

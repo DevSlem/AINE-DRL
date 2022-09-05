@@ -38,7 +38,7 @@ class ExperienceBatch(NamedTuple):
         )
         return experience_batch
     
-    def to_tensor(self, device: torch.device = None):
+    def to_tensor(self, device: torch.device = None, dtype = torch.float32):
         """
         Converts into tensor.
 
@@ -48,9 +48,9 @@ class ExperienceBatch(NamedTuple):
         Returns:
             tuple of Tensors: states, actions, next_states, rewards, terminateds
         """
-        states = torch.from_numpy(self.states).to(device=device)
-        actions = torch.from_numpy(self.actions).to(device=device)
-        next_states = torch.from_numpy(self.next_states).to(device=device)
-        rewards = torch.from_numpy(self.rewards).to(device=device)
-        terminateds = torch.from_numpy(self.terminateds).to(device=device)
+        states = torch.from_numpy(self.states).to(device=device, dtype=dtype)
+        actions = torch.from_numpy(self.actions).to(device=device, dtype=dtype)
+        next_states = torch.from_numpy(self.next_states).to(device=device, dtype=dtype)
+        rewards = torch.from_numpy(self.rewards).to(device=device, dtype=dtype)
+        terminateds = torch.from_numpy(self.terminateds).to(device=device, dtype=dtype)
         return states, actions, next_states, rewards, terminateds
