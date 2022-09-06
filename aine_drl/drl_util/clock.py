@@ -1,12 +1,13 @@
 import time
+from aine_drl.util import check_freq
 
 class Clock:
     """
     Don't use it yet. It needs to be implemented.
     """
     
-    def __init__(self, env_count: int) -> None:
-        self.env_count = env_count
+    def __init__(self, num_envs: int) -> None:
+        self.num_envs = num_envs
         self.reset()
     
     def reset(self):
@@ -34,12 +35,12 @@ class Clock:
         return self._training_step
     
     @property
-    def real_time(self) -> int:
-        return int(self._real_time)
+    def real_time(self) -> float:
+        return self._real_time
     
     def tick_time_step(self):
         self._episode_len += 1
-        self._time_step += self.env_count
+        self._time_step += self.num_envs
         self._real_time = self._get_real_time()
         
     def tick_episode(self):
@@ -49,6 +50,11 @@ class Clock:
     def tick_training_step(self):
         self._training_step += 1
         
+    def check_time_step_freq(self, frequency: int) -> bool:
+        """
+        Check if the time step is reached to the frequency. It considers multiple environments.
+        """
+        return check_freq(self.time_step, frequency, self.num_envs)
+        
     def _get_real_time(self):
         return time.time() - self._real_start_time
-        

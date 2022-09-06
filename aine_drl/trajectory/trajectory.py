@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 from aine_drl import aine_api
-from aine_drl.experience import Experience, ExperienceBatch
+from aine_drl.drl_util import Experience, ExperienceBatch
 
 class Trajectory(ABC):
     """
@@ -38,7 +38,7 @@ class Trajectory(ABC):
     @abstractmethod
     def add(self, experiences: List[Experience]):
         """
-        Add experiences from the one-step transition. The element count of experiences must be the environment count.
+        Add experiences from the one-step transition. The number of experiences must be the same as the number of environments.
 
         Args:
             experiences (List[Experience]): experiences of environments

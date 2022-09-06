@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from aine_drl.experience import ExperienceBatch
+from aine_drl.drl_util import ExperienceBatch
 from aine_drl.util import aine_api
 import torch
 
@@ -12,7 +12,7 @@ class DRLAlgorithm(ABC):
     @abstractmethod
     def train(self, batch: ExperienceBatch):
         """
-        Train the algorithm.
+        Trains the algorithm.
 
         Args:
             batch (ExperienceBatch): training data

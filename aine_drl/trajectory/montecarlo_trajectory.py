@@ -1,4 +1,5 @@
-from aine_drl.experience import Experience, ExperienceBatch, Trajectory
+from aine_drl.drl_util import Experience, ExperienceBatch
+from aine_drl.trajectory import Trajectory
 from typing import List
 from aine_drl import aine_api
 import numpy as np
@@ -8,9 +9,9 @@ class MonteCarloTrajectory(Trajectory):
     It's a trajectory for on-policy Monte Carlo methods.
     It samples whole trajectories when the episode is terminated, so the returned trajectory is the episode of the environment.
     """
-    def __init__(self, env_count: int = 1) -> None:
+    def __init__(self, num_envs: int = 1) -> None:
         self.reset()
-        self.env_count = env_count
+        self.num_envs = num_envs
         
     @aine_api
     @property
@@ -21,24 +22,24 @@ class MonteCarloTrajectory(Trajectory):
     @property
     def can_train(self) -> bool:
         # if all episodes are terminated
-        return np.array(self._can_train).sum() == self.env_count
+        return np.array(self._can_train).sum() == self.num_envs
         
     @aine_api
     def reset(self):
         self._count = 0 # total experience count
-        self._can_train = [False] * self.env_count
+        self._can_train = [False] * self.num_envs
         self.returned_trajectory = 0
         
-        # shape: (env_count, episode length)
-        self.states = [[] for _ in range(self.env_count)]
-        self.actions = [[] for _ in range(self.env_count)]
-        self.rewards = [[] for _ in range(self.env_count)]
-        self.terminateds = [[] for _ in range(self.env_count)]
-        self.next_state_buffer = [None] * self.env_count
+        # shape: (num_envs, episode length)
+        self.states = [[] for _ in range(self.num_envs)]
+        self.actions = [[] for _ in range(self.num_envs)]
+        self.rewards = [[] for _ in range(self.num_envs)]
+        self.terminateds = [[] for _ in range(self.num_envs)]
+        self.next_state_buffer = [None] * self.num_envs
         
     @aine_api
     def add(self, experiences: List[Experience]):
-        assert len(experiences) == self.env_count
+        assert len(experiences) == self.num_envs
         for i, ex in enumerate(experiences):
             # if the episode of the environment has been terminated, skip
             if self._can_train[i]:
@@ -72,7 +73,7 @@ class MonteCarloTrajectory(Trajectory):
         )
         self.returned_trajectory += 1
         # if all trajectories has been returned, then reset
-        if self.returned_trajectory == self.env_count:
+        if self.returned_trajectory == self.num_envs:
             self.reset()
         return experience_batch
     

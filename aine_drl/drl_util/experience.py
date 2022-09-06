@@ -1,6 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from typing import NamedTuple
+import torch
 
 class Experience(NamedTuple):
     """
@@ -36,3 +37,20 @@ class ExperienceBatch(NamedTuple):
             np.array(terminateds)
         )
         return experience_batch
+    
+    def to_tensor(self, device: torch.device = None, dtype = torch.float32):
+        """
+        Converts into tensor.
+
+        Args:
+            device (torch.device, optional): tensor device. Defaults to None.
+
+        Returns:
+            tuple of Tensors: states, actions, next_states, rewards, terminateds
+        """
+        states = torch.from_numpy(self.states).to(device=device, dtype=dtype)
+        actions = torch.from_numpy(self.actions).to(device=device, dtype=dtype)
+        next_states = torch.from_numpy(self.next_states).to(device=device, dtype=dtype)
+        rewards = torch.from_numpy(self.rewards).to(device=device, dtype=dtype)
+        terminateds = torch.from_numpy(self.terminateds).to(device=device, dtype=dtype)
+        return states, actions, next_states, rewards, terminateds
