@@ -1,5 +1,7 @@
 import operator
 import numpy as np
+import datetime
+import os
 
 def get_batch(arr, idxs) -> np.ndarray:
     """
@@ -53,3 +55,28 @@ def check_freq(value: int, frequency: int, constant_increment: int = 1) -> bool:
 
 def except_dict_element(dictionary: dict, key) -> dict:
     return {k: v for k, v in dictionary.items() if k != key}
+
+def add_datetime_suffix(basename: str, delimiter: str = '_') -> str:
+    """ Add a datetime suffix wtih delimiter to the basename. (e.g. basename_220622_140322) """
+    suffix = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+    return delimiter.join([basename, suffix])
+
+def exists_dir(directory) -> bool:
+    return os.path.exists(directory)
+
+def add_dir_num_suffix(basedir: str, start_num: int = 1, num_left: str = "", num_right: str = "") -> str:
+    """ Add a number suffix to the base directory. (e.g. basedir4) """
+    num = start_num
+    dir = f"{basedir}{num_left}{num}{num_right}"
+    while exists_dir(dir):
+        num += 1
+        dir = f"{basedir}{num_left}{num}{num_right}"
+    return dir
+
+def create_dir(directory):
+    """ If there's no directory, create it. """
+    try:
+        if not exists_dir(directory):
+            os.makedirs(directory)
+    except OSError:
+        print("Error: Failed to create the directory.")
