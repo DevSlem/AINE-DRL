@@ -27,7 +27,6 @@ class QValueNet(nn.Module):
     def forward(self, states):
         return self.layers(states)
 
-
 def main():
     total_training_step = 100000
     training_freq = 32
@@ -54,9 +53,7 @@ def main():
     dqn_agent = aine_drl.Agent(dqn, epsilon_greedy, exp_replay, clock, summary_freq=100)
     gym_training = aine_drl.GymTraining(env, dqn_agent)
     
-    util.set_logger(util.TensorBoardLogger(SummaryWriter("results/dqn_test")))
     gym_training.train(total_training_step)
-    util.close_logger()
     
 if __name__ == '__main__':
     main()
