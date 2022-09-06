@@ -1,7 +1,7 @@
 from argparse import ArgumentTypeError
 from gym import Env
 from gym.vector import VectorEnv
-from typing import Union
+from typing import List, Union
 from aine_drl.agent import Agent
 from aine_drl.drl_algorithm import DRLAlgorithm
 from aine_drl.policy import Policy
@@ -20,7 +20,8 @@ class GymAgent(Agent):
                  trajectory: Trajectory, 
                  clock: Clock, 
                  summary_freq: int = 10,
-                 env_id: str = None) -> None:
+                 env_id: str = None,
+                 seed: Union[int, List[int], None] = None) -> None:
         """
         Gym agent class.
 
@@ -32,6 +33,7 @@ class GymAgent(Agent):
             clock (Clock): time step checker
             summary_freq (int, optional): summary frequency to log data. Defaults to 10.
             env_id (str, optional): custom environment id. Defaults to `gym_env` id.
+            seed (Union[int, List[int], None], optional): gym environment random seed. if it's None, checks global random seed.
         """
         if isinstance(gym_env, VectorEnv):
             self.num_envs = gym_env.num_envs
@@ -48,6 +50,7 @@ class GymAgent(Agent):
         self.gym_env = gym_env
         if get_global_env_id() == "":
             set_global_env_id(self.env_id)
+        self.seed = seed if seed is not None else util.get_seed()
             
         super().__init__(drl_algorithm, policy, trajectory, clock, summary_freq)
         
@@ -61,7 +64,7 @@ class GymAgent(Agent):
     
     def _train(self, total_training_step: int, start_step: int = 0):
         gym_env = self.gym_env
-        states = gym_env.reset()
+        states = gym_env.reset(seed=self.seed)
         for _ in range(start_step, total_training_step, self.num_envs):
             actions = self.act(states)
             # take action and observe
@@ -86,4 +89,7 @@ class GymAgent(Agent):
                 )]
             self.update(exp_list)
             # update states
-            states = next_states
+            if (not self.is_vector_env) and terminateds:
+                states = gym_env.reset(seed=self.seed)
+            else:
+                states = next_states
