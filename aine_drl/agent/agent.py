@@ -1,5 +1,4 @@
-import enum
-from typing import List, Tuple
+from typing import List
 from aine_drl.trajectory import Trajectory
 from aine_drl.drl_algorithm import DRLAlgorithm
 from aine_drl.policy import Policy
@@ -47,13 +46,11 @@ class Agent:
             self.total_rewards[i] += exp.reward
         # set clock
         self.clock.tick_time_step()
-        terminated_exp = self._terminated_exp(experiences)
-        # if any environment is terminated
-        if terminated_exp >= 0:
-            if self.clock.episode_len > 500:
+        if experiences[0].terminated:
+            if self.clock.episode_len >= 480:
                 print(f"episode length: {self.clock.episode_len}")
             self.episode_lengths.append(self.clock.episode_len)
-            self.episode_rewards.append(self.total_rewards[terminated_exp])
+            self.episode_rewards.append(self.total_rewards[0])
             self.clock.tick_episode()
             self._reset_total_rewards()
         # if can log data
@@ -109,12 +106,6 @@ class Agent:
             util.log_data("average reward", np.mean(self.episode_rewards), time_step)
             self.episode_lengths.clear()
             self.episode_rewards.clear()
-            
-    def _terminated_exp(self, experiences: List[Experience]) -> int:
-        for i, exp in enumerate(experiences):
-            if exp.terminated:
-                return i
-        return -1
     
     def _reset_total_rewards(self):
         self.total_rewards = [0] * self.clock.num_envs
