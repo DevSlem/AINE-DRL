@@ -1,7 +1,28 @@
 import operator
+from typing import Union
 import numpy as np
 import datetime
 import os
+import torch
+import torch.backends.cudnn as cudnn
+import random
+
+_random_seed = None
+
+def seed(value: int):
+    global _random_seed
+    _random_seed = value
+    torch.manual_seed(value)
+    torch.cuda.manual_seed(value)
+    torch.cuda.manual_seed_all(value)
+    np.random.seed(value)
+    cudnn.benchmark = False
+    cudnn.deterministic = True
+    random.seed(value)
+    
+def get_seed() -> Union[int, None]:
+    global _random_seed
+    return _random_seed
 
 def get_batch(arr, idxs) -> np.ndarray:
     """

@@ -60,3 +60,5 @@ def close_logger():
         _logger.close()
         _logger = None
     
+def print_title() -> str:
+    return "[AINE-DRL]"

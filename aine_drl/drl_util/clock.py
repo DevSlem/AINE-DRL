@@ -35,8 +35,8 @@ class Clock:
         return self._training_step
     
     @property
-    def real_time(self) -> int:
-        return int(self._real_time)
+    def real_time(self) -> float:
+        return self._real_time
     
     def tick_time_step(self):
         self._episode_len += 1
