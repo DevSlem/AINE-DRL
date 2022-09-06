@@ -1,3 +1,6 @@
+import sys
+sys.path.append(".")
+
 import gym.vector
 import aine_drl
 import aine_drl.drl_algorithm as drl
@@ -57,3 +60,4 @@ def main():
     
 if __name__ == '__main__':
     main()
+    
