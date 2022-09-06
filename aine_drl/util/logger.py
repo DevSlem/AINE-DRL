@@ -30,15 +30,16 @@ class TensorBoardLogger(Logger):
     @staticmethod
     def get_log_dir():
         """ Returns the log directory. """
-        dir = f"results/{aine_drl.get_env_id()}"
+        dir = f"results/{aine_drl.get_global_env_id()}"
         return dir if not util.exists_dir(dir) else util.add_dir_num_suffix(dir, num_left="_")
 
 _logger: Logger = None
     
-def set_logger(logger: Logger = TensorBoardLogger(SummaryWriter(TensorBoardLogger.get_log_dir()))):
+def set_logger(logger: Logger = None):
     """ Sets the global logger. Defaults to TensorBoardLogger. """
     global _logger
-    assert logger is not None
+    if logger is None:
+        logger = TensorBoardLogger(SummaryWriter(TensorBoardLogger.get_log_dir()))
     _logger = logger
     
 def get_logger() -> Logger:

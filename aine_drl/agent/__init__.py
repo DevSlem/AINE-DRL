@@ -1,2 +1,2 @@
 from .agent import *
-from .gym_training import *
+from .gym_agent import *

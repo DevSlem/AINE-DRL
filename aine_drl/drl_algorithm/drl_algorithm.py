@@ -12,7 +12,7 @@ class DRLAlgorithm(ABC):
     @abstractmethod
     def train(self, batch: ExperienceBatch):
         """
-        Train the algorithm.
+        Trains the algorithm.
 
         Args:
             batch (ExperienceBatch): training data

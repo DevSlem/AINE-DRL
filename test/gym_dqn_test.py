@@ -3,14 +3,8 @@ sys.path.append(".")
 
 import gym.vector
 import aine_drl
-import aine_drl.drl_algorithm as drl
-import aine_drl.policy as policy
-import aine_drl.trajectory as traj
-import aine_drl.drl_util as drl_util
-import aine_drl.util as util
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.tensorboard import SummaryWriter
 
 class QValueNet(nn.Module):
     def __init__(self, obs_shape, action_count) -> None:
@@ -40,23 +34,28 @@ def main():
     q_net = QValueNet(obs_shape, action_count)
     target_net = QValueNet(obs_shape, action_count)
     optimizer = optim.Adam(q_net.parameters(), lr=0.001)
-    dqn_spec = drl.DQNSpec(
+    dqn_spec = aine_drl.DQNSpec(
         q_net,
         target_net,
         optimizer
     )
-    clock = drl_util.Clock(num_envs)
-    dqn = drl.DQN(
+    clock = aine_drl.Clock(num_envs)
+    dqn = aine_drl.DQN(
         dqn_spec,
         clock,
         update_freq=256
     )
-    epsilon_greedy = policy.EpsilonGreedyPolicy(drl_util.LinearDecay(0.3, 0.01, 0, total_training_step))
-    exp_replay = traj.ExperienceReplay(training_freq, 32, 1000, num_envs, 3)
-    dqn_agent = aine_drl.Agent(dqn, epsilon_greedy, exp_replay, clock, summary_freq=100)
-    gym_training = aine_drl.GymTraining(env, dqn_agent)
-    
-    gym_training.train(total_training_step)
+    epsilon_greedy = aine_drl.EpsilonGreedyPolicy(aine_drl.LinearDecay(0.3, 0.01, 0, total_training_step))
+    exp_replay = aine_drl.ExperienceReplay(training_freq, 32, 1000, num_envs, 3)
+    agnet = aine_drl.GymAgent(
+        env,
+        dqn,
+        epsilon_greedy,
+        exp_replay,
+        clock,
+        summary_freq=100
+    )
+    agnet.train(total_training_step)
     
 if __name__ == '__main__':
     main()

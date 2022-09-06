@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import List
 from aine_drl.trajectory import Trajectory
 from aine_drl.drl_algorithm import DRLAlgorithm
@@ -8,7 +9,10 @@ from aine_drl.drl_util import Clock, Experience
 import numpy as np
 import torch
 
-class Agent:
+class Agent(ABC):
+    """
+    Deep reinforcement learning agent.
+    """
     def __init__(self, 
                  drl_algorithm: DRLAlgorithm, 
                  policy: Policy, 
@@ -16,11 +20,14 @@ class Agent:
                  clock: Clock,
                  summary_freq: int = 10) -> None:
         """
+        Deep reinforcement learning agent.
+        
         Args:
             drl_algorithm (DRLAlgorithm): DRL algorithm
-            policy (Policy): policy
-            trajectory (Trajectory): tajectory
-            summary_freq (int, optional): summary frequency. Defaults to 1.
+            policy (Policy): policy to sample actions
+            trajectory (Trajectory): trajectory to sample training batches
+            clock (Clock): time step checker
+            summary_freq (int, optional): summary frequency to log data. Defaults to 10.
         """
         self.drl_algorithm = drl_algorithm
         self.policy = policy
@@ -30,6 +37,17 @@ class Agent:
         self.episode_lengths = []
         self.episode_rewards = []
         self._reset_total_rewards()
+        
+    @aine_api
+    @abstractmethod
+    def train(self, total_time_step: int, start_step: int = 0):
+        """Start training.
+
+        Args:
+            total_training_step (int): total time step
+            start_step (int, optional): training start step. Defaults to 0.
+        """
+        raise NotImplementedError
         
     @aine_api
     def update(self, experiences: List[Experience]):
@@ -86,6 +104,19 @@ class Agent:
                                next_states: np.ndarray,
                                rewards: np.ndarray,
                                terminateds: np.ndarray) -> List[Experience]:
+        """
+        Changes the numpy batch to the list of Experience instances.
+
+        Args:
+            states (np.ndarray): state batch
+            actions (np.ndarray): action batch
+            next_states (np.ndarray): next_state batch
+            rewards (np.ndarray): reward batch
+            terminateds (np.ndarray): terminated batch
+
+        Returns:
+            List[Experience]: list of Experience instances
+        """
         exp_list = []
         for s, a, ns, r, t in zip(states, actions, next_states, rewards, terminateds):
             exp_list.append(Experience(s, a, ns, r, t))
