@@ -7,7 +7,7 @@ from aine_drl.drl_algorithm import DRLAlgorithm
 from aine_drl.policy import Policy
 from aine_drl.trajectory import Trajectory
 from aine_drl.drl_util import Experience, Clock
-import aine_drl
+from aine_drl import get_global_env_id, set_global_env_id
 import aine_drl.util as util
 from aine_drl.util.decorator import aine_api
 
@@ -46,8 +46,8 @@ class GymAgent(Agent):
         assert gym_env.new_step_api, "You must set new_step_api of the gym environment to True."
         
         self.gym_env = gym_env
-        if aine_drl.get_global_env_id() == "":
-            aine_drl.set_global_env_id(self.env_id)
+        if get_global_env_id() == "":
+            set_global_env_id(self.env_id)
             
         super().__init__(drl_algorithm, policy, trajectory, clock, summary_freq)
         

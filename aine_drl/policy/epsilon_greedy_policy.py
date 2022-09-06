@@ -7,9 +7,18 @@ from torch.distributions import Distribution
 
 class EpsilonGreedyPolicy(Policy):
     """
-    Epsilon greedy policy. `pdparam` is Q value that is action value function. It only works when the action is discrete. 
+    Epsilon greedy policy. `pdparam` is Q value that is action value function. It works only if the action is discrete. 
     """
-    def __init__(self, epsilon_decay: Decay = NoDecay(0.1)) -> None:
+    
+    def __init__(self, epsilon_decay: Decay = None) -> None:
+        """
+        Epsilon greedy policy. `pdparam` is Q value that is action value function. It works only if the action is discrete. 
+
+        Args:
+            epsilon_decay (Decay, optional): epsilon hypterparameter controller. Defaults to NoDecay(0.1).
+        """
+        if epsilon_decay is None:
+            epsilon_decay = NoDecay(0.1)
         epsilon = epsilon_decay.value(0)
         assert epsilon >= 0 and epsilon <= 1
         self.epsilon = epsilon

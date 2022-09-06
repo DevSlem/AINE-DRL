@@ -40,7 +40,7 @@ def main():
         optimizer
     )
     clock = aine_drl.Clock(num_envs)
-    dqn = aine_drl.DQN(
+    dqn = aine_drl.DoubleDQN(
         dqn_spec,
         clock,
         update_freq=256

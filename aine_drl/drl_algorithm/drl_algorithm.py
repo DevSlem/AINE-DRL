@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from aine_drl.trajectory import ExperienceBatch
+from aine_drl.drl_util import ExperienceBatch
 from aine_drl.util import aine_api
 import torch
 
