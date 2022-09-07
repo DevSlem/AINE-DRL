@@ -2,6 +2,18 @@
 
 A project for the DRL framework. AINE is the team name which means "Agent IN Environment".
 
+## Implemented Algorithm
+
+- [x] DQN
+- [x] Double DQN
+
+## TODO
+
+- [ ] REINFORCE
+- [ ] SARSA
+- [ ] A2C
+- [ ] PPO
+
 ## Development Environment
 
 * Python 3.7.13
