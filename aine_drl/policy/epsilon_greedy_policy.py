@@ -34,4 +34,4 @@ class EpsilonGreedyPolicy(Policy):
         
     @aine_api
     def log_data(self, time_step: int):
-        util.log_data("epsilon", self.epsilon, time_step)
+        util.log_data("Policy/Epsilon", self.epsilon, time_step)

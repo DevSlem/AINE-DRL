@@ -35,8 +35,8 @@ class Agent(ABC):
         self.clock = clock
         self.summary_freq = summary_freq
         self.episode_lengths = []
-        self.episode_rewards = []
-        self.cumulative_rewards = 0
+        self.cumulative_rewards = []
+        self.cumulative_reward = 0
         
     @aine_api
     @abstractmethod
@@ -60,14 +60,14 @@ class Agent(ABC):
         # set trajectory
         self.trajectory.add(experiences)
         # update total rewards
-        self.cumulative_rewards += experiences[0].reward
+        self.cumulative_reward += experiences[0].reward
         # set clock
         self.clock.tick_time_step()
         if experiences[0].terminated:
             self.episode_lengths.append(self.clock.episode_len)
-            self.episode_rewards.append(self.cumulative_rewards)
+            self.cumulative_rewards.append(self.cumulative_reward)
             self.clock.tick_episode()
-            self.cumulative_rewards = 0
+            self.cumulative_reward = 0
         # if can log data
         if self.clock.check_time_step_freq(self.summary_freq):
             time_step = self.clock.time_step
@@ -130,12 +130,12 @@ class Agent(ABC):
     
     def _log_data(self, time_step: int):
         if len(self.episode_lengths) > 0:
-            average_reward = np.mean(self.episode_rewards)
-            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, average reward: {average_reward:.1f}")
-            util.log_data("episode length", np.mean(self.episode_lengths), time_step)
-            util.log_data("average reward", average_reward, time_step)
+            avg_cumul_reward = np.mean(self.cumulative_rewards)
+            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
+            util.log_data("Environment/Cumulative Reward", avg_cumul_reward, time_step)
+            util.log_data("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
             self.episode_lengths.clear()
-            self.episode_rewards.clear()
+            self.cumulative_rewards.clear()
         else:
             print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
     

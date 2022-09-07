@@ -30,14 +30,14 @@ def main():
     util.seed(0)
     total_training_step = 150000
     training_freq = 32
-    # num_envs = 3
-    # env = gym.vector.make("CartPole-v1", num_envs=num_envs, new_step_api=True)
-    # obs_shape = env.single_observation_space.shape[0]
-    # action_count = env.single_action_space.n
-    num_envs = 1
-    env = gym.make("CartPole-v1", new_step_api=True)
-    obs_shape = env.observation_space.shape[0]
-    action_count = env.action_space.n
+    num_envs = 3
+    env = gym.vector.make("CartPole-v1", num_envs=num_envs, new_step_api=True)
+    obs_shape = env.single_observation_space.shape[0]
+    action_count = env.single_action_space.n
+    # num_envs = 1
+    # env = gym.make("CartPole-v1", new_step_api=True)
+    # obs_shape = env.observation_space.shape[0]
+    # action_count = env.action_space.n
     q_net = QValueNet(obs_shape, action_count)
     target_net = QValueNet(obs_shape, action_count)
     optimizer = optim.Adam(q_net.parameters(), lr=0.001)
