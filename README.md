@@ -4,12 +4,12 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 
 ## Implemented Algorithm
 
-- [x] DQN
-- [x] Double DQN
+- [x] [DQN](aine_drl/agent/dqn.py)
+- [x] [Double DQN](aine_drl/agent/dqn.py)
+- [x] [REINFORCE](aine_drl/agent/reinforce.py)
 
 ## TODO
 
-- [ ] REINFORCE
 - [ ] SARSA
 - [ ] A2C
 - [ ] PPO
@@ -18,6 +18,20 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 
 * Python 3.7.13
 * Pytorch 1.11.0 - CUDA 11.3
+
+## Run
+
+If you run a test file in `test` directory, you can see the result in `results` directory. Input below commands.
+
+```
+tensorboard --logdir=results
+```
+
+or
+
+```
+tensorboard --logdir=results/<sub_directory>
+```
 
 ## Convention
 
