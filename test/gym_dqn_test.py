@@ -5,8 +5,10 @@ import gym
 import gym.vector
 import aine_drl
 import aine_drl.util as util
+from aine_drl.training import GymTraining
 import torch.nn as nn
 import torch.optim as optim
+
 
 class QValueNet(nn.Module):
     def __init__(self, obs_shape, action_count) -> None:
@@ -47,22 +49,19 @@ def main():
         optimizer
     )
     clock = aine_drl.Clock(num_envs)
+    epsilon_greedy = aine_drl.EpsilonGreedyPolicy(aine_drl.LinearDecay(0.3, 0.01, 0, total_training_step))
+    exp_replay = aine_drl.ExperienceReplay(training_freq, 32, 1000, num_envs)
     dqn = aine_drl.DoubleDQN(
         dqn_spec,
-        clock,
-        update_freq=256
-    )
-    epsilon_greedy = aine_drl.EpsilonGreedyPolicy(aine_drl.LinearDecay(0.3, 0.01, 0, total_training_step))
-    exp_replay = aine_drl.ExperienceReplay(training_freq, 32, 1000, num_envs, 3)
-    agnet = aine_drl.GymAgent(
-        env,
-        dqn,
         epsilon_greedy,
         exp_replay,
         clock,
-        summary_freq=1000
+        gamma=0.999,
+        summary_freq=1000,
+        update_freq=256
     )
-    agnet.train(total_training_step)
+    gym_training = GymTraining(dqn, env, seed=0)
+    gym_training.run_train(total_training_step)
     
 if __name__ == '__main__':
     main()

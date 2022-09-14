@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
 from aine_drl.trajectory import Trajectory
-from aine_drl.drl_algorithm import DRLAlgorithm
 from aine_drl.policy import Policy
 from aine_drl.util import aine_api
 import aine_drl.util as util
@@ -14,22 +13,19 @@ class Agent(ABC):
     Deep reinforcement learning agent.
     """
     def __init__(self, 
-                 drl_algorithm: DRLAlgorithm, 
                  policy: Policy, 
                  trajectory: Trajectory,
                  clock: Clock,
-                 summary_freq: int = 10) -> None:
+                 summary_freq: int = 1000) -> None:
         """
         Deep reinforcement learning agent.
         
         Args:
-            drl_algorithm (DRLAlgorithm): DRL algorithm
             policy (Policy): policy to sample actions
             trajectory (Trajectory): trajectory to sample training batches
             clock (Clock): time step checker
             summary_freq (int, optional): summary frequency to log data. Defaults to 10.
         """
-        self.drl_algorithm = drl_algorithm
         self.policy = policy
         self.trajectory = trajectory
         self.clock = clock
@@ -39,30 +35,24 @@ class Agent(ABC):
         self.cumulative_reward = 0
         
     @aine_api
-    @abstractmethod
-    def train(self, total_time_step: int, start_step: int = 0):
-        """Start training.
-
-        Args:
-            total_training_step (int): total time step
-            start_step (int, optional): training start step. Defaults to 0.
-        """
-        raise NotImplementedError
-        
-    @aine_api
     def update(self, experiences: List[Experience]):
         """
-        Update the agent. It stores data, trains the DRL algorithm, etc.
+        Update the agent. It stores data, trains the agent, etc.
 
         Args:
             experiences (List[Experience]): the number of experiences must be the same as the number of environments.
         """
-        # set trajectory
+        # update trajectory
         self.trajectory.add(experiences)
-        # update total rewards
+        # trace cumulative rewards
         self.cumulative_reward += experiences[0].reward
         # set clock
         self.clock.tick_time_step()
+        # try training
+        if self._try_train_algorithm():
+            time_step = self.clock.time_step
+            self.update_hyperparams(time_step)
+        # trace first experience
         if experiences[0].terminated:
             self.episode_lengths.append(self.clock.episode_len)
             self.cumulative_rewards.append(self.cumulative_reward)
@@ -71,32 +61,59 @@ class Agent(ABC):
         # if can log data
         if self.clock.check_time_step_freq(self.summary_freq):
             time_step = self.clock.time_step
-            self._log_data(time_step)
-            self.drl_algorithm.log_data(time_step)
+            self.log_data(time_step)
             self.policy.log_data(time_step)
-        # try training algorithm
-        if self._try_train_algorithm():
-            time_step = self.clock.time_step
-            self.drl_algorithm.update_hyperparams(time_step)
-            self.policy.update_hyperparams(time_step)
-            
+    
     @aine_api
-    def act(self, state: np.ndarray) -> np.ndarray:
+    def select_action(self, state: np.ndarray) -> np.ndarray:
         """
         Returns an action from the state.
 
         Args:
-            state (np.ndarray): single state or state batch
+            state (np.ndarray): single state or states batch
 
         Returns:
-            np.ndarray: actions
+            np.ndarray: single action or actions batch
         """
-        pdparam = self.drl_algorithm.get_pdparam(torch.from_numpy(state))
-        dist = self.policy.get_policy_distribution(pdparam)
-        return dist.sample().cpu().numpy()
+        return self.select_action_tensor(torch.from_numpy(state)).cpu().numpy()
     
-    def create_experience_list(self,
-                               states: np.ndarray,
+    @aine_api
+    @abstractmethod
+    def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+    
+    @aine_api
+    @abstractmethod
+    def train(self):
+        """
+        Trains the algorithm.
+        """
+        raise NotImplementedError
+    
+    @aine_api
+    def update_hyperparams(self, time_step: int):
+        """
+        Update hyperparameters if they exists.
+
+        Args:
+            time_step (int): current time step during training
+        """
+        self.policy.update_hyperparams(time_step)
+    
+    @aine_api
+    def log_data(self, time_step: int):
+        if len(self.episode_lengths) > 0:
+            avg_cumul_reward = np.mean(self.cumulative_rewards)
+            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
+            util.log_data("Environment/Cumulative Reward", avg_cumul_reward, time_step)
+            util.log_data("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
+            self.episode_lengths.clear()
+            self.cumulative_rewards.clear()
+        else:
+            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
+    
+    @staticmethod
+    def create_experience_list(states: np.ndarray,
                                actions: np.ndarray,
                                next_states: np.ndarray,
                                rewards: np.ndarray,
@@ -122,20 +139,5 @@ class Agent(ABC):
     def _try_train_algorithm(self) -> bool:
         can_train = self.trajectory.can_train
         while self.trajectory.can_train:
-            batch = self.trajectory.sample()
-            # train the algorithm
-            self.drl_algorithm.train(batch)
-            self.clock.tick_training_step()
+            self.train()
         return can_train
-    
-    def _log_data(self, time_step: int):
-        if len(self.episode_lengths) > 0:
-            avg_cumul_reward = np.mean(self.cumulative_rewards)
-            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
-            util.log_data("Environment/Cumulative Reward", avg_cumul_reward, time_step)
-            util.log_data("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
-            self.episode_lengths.clear()
-            self.cumulative_rewards.clear()
-        else:
-            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
-    

@@ -1,2 +1,3 @@
 from .agent import *
-from .gym_agent import *
+# DRL Agents
+from .dqn import *

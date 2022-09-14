@@ -15,24 +15,21 @@ class ExperienceReplay(BatchTrajectory):
                  training_freq: int, 
                  batch_size: int, 
                  max_num_exp: int, 
-                 num_envs: int = 1,
-                 epoch: int = 1) -> None:
-        assert training_freq > 0 and batch_size > 0 and epoch > 0
+                 num_envs: int = 1,) -> None:
+        assert training_freq > 0 and batch_size > 0
         super().__init__(max_num_exp, num_envs)
         self.freq = training_freq
         self.batch_size = batch_size
-        self.epoch = epoch
         
     @aine_api
     @property
     def can_train(self) -> bool:
-        return self.added_exp_count >= self.freq and self.current_epoch < self.epoch
+        return self.added_exp_count >= self.freq
     
     @aine_api
     def reset(self):
         super().reset()
         self.added_exp_count = 0
-        self.current_epoch = 0
         
     @aine_api
     def add(self, experiences: List[Experience]):
@@ -41,12 +38,7 @@ class ExperienceReplay(BatchTrajectory):
     
     @aine_api
     def sample(self) -> ExperienceBatch:
-        self.current_epoch += 1
-        # if the current epoch is the last one
-        if self.current_epoch >= self.epoch:
-            self.added_exp_count -= self.freq
-            self.current_epoch = 0
-            
+        self.added_exp_count -= self.freq
         batch_idxs = self._sample_idxs()
         experience_batch = ExperienceBatch(
             util.get_batch(self.states, batch_idxs),
