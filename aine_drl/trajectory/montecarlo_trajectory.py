@@ -10,8 +10,8 @@ class MonteCarloTrajectory(Trajectory):
     It samples whole trajectories when the episode is terminated, so the returned trajectory is the episode of the environment.
     """
     def __init__(self, num_envs: int = 1) -> None:
-        self.reset()
         self.num_envs = num_envs
+        self.reset()
         
     @aine_api
     @property
@@ -28,7 +28,6 @@ class MonteCarloTrajectory(Trajectory):
     def reset(self):
         self._count = 0 # total experience count
         self._can_train = [False] * self.num_envs
-        self.returned_trajectory = 0
         
         # shape: (num_envs, episode length)
         self.states = [[] for _ in range(self.num_envs)]
@@ -57,23 +56,31 @@ class MonteCarloTrajectory(Trajectory):
     @aine_api
     def sample(self) -> ExperienceBatch:
         """
-        Returns each trajectory, that is an episode. You need to call it while can train.
-
-        Returns:
-            ExperienceBatch: an episode
+        Returns the concatnated batch of multiple episodes.
         """
-        i = self.returned_trajectory
-        self.states[i].append(self.next_state_buffer)
-        experience_batch = ExperienceBatch.create(
-            self.states[i][:-1], # states
-            self.actions[i],
-            self.states[i][1:], # next states
-            self.rewards[i],
-            self.terminateds[i]
+        for i in range(self.num_envs):
+            self.states[i].append(self.next_state_buffer[i])
+        
+        states = []
+        actions = []
+        next_states = []
+        rewards = []
+        terminateds = []
+        for i in range(self.num_envs):
+            states.append(np.array(self.states[i][:-1]))
+            actions.append(np.array(self.actions[i]))
+            next_states.append(np.array(self.states[i][1:]))
+            rewards.append(np.array(self.rewards[i]))
+            terminateds.append(np.array(self.terminateds[i]))
+        
+        experience_batch = ExperienceBatch(
+            np.concatenate(states),
+            np.concatenate(actions),
+            np.concatenate(next_states),
+            np.concatenate(rewards),
+            np.concatenate(terminateds)
         )
-        self.returned_trajectory += 1
-        # if all trajectories has been returned, then reset
-        if self.returned_trajectory == self.num_envs:
-            self.reset()
+        
+        self.reset()
         return experience_batch
     
