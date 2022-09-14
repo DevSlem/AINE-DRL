@@ -2,7 +2,6 @@ from .global_env import *
 from .util import aine_api
 # AINE-DRL main API
 from .agent import *
-from .drl_algorithm import *
 from .policy import *
 from .trajectory import *
 from .drl_util.experience import *

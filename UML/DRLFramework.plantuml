@@ -10,18 +10,12 @@ Agent Environment [
 ]
 
 class Agent {
-    - algorithm
+    - neural networks
     - policy
     - trajectory
-    + act(state)
-    + update(experience)
-}
-
-class DRLAlgorithm {
-    - hyperparameters
-    - neural networks
-    + train(batch)
-    + get_pdparam(state)
+    + update(experiences)
+    + train()
+    + select_action(state)
     + update_hyperparameters(time_step)
 }
 
@@ -51,9 +45,8 @@ class Experience {
     + terminated
 }
 
-Agent::algorithm *-- DRLAlgorithm
 Agent::policy o-- Policy
-Agent::trajectory *-- Trajectory
+Agent::trajectory o-- Trajectory
 
 Environment <-- Agent::act : 1st << action >>
 Environment --> Agent::update : 2nd << experience >>

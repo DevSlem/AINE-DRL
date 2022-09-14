@@ -3,35 +3,23 @@ from gym import Env
 from gym.vector import VectorEnv
 from typing import List, Union
 from aine_drl.agent import Agent
-from aine_drl.drl_algorithm import DRLAlgorithm
-from aine_drl.policy import Policy
-from aine_drl.trajectory import Trajectory
-from aine_drl.drl_util import Experience, Clock
+from aine_drl.drl_util import Experience
 from aine_drl import get_global_env_id, set_global_env_id
 import aine_drl.util as util
-from aine_drl.util.decorator import aine_api
 
-class GymAgent(Agent):
+class GymTraining:
     """ Gym agent class. """
-    def __init__(self, 
+    def __init__(self,
+                 agent: Agent,
                  gym_env: Union[Env, VectorEnv],
-                 drl_algorithm: DRLAlgorithm, 
-                 policy: Policy, 
-                 trajectory: Trajectory, 
-                 clock: Clock, 
-                 summary_freq: int = 10,
                  env_id: str = None,
                  seed: Union[int, List[int], None] = None) -> None:
         """
         Gym agent class.
 
         Args:
+            agent (Agent): DRL Agent to train
             gym_env (Union[Env, VectorEnv]): gym environment
-            drl_algorithm (DRLAlgorithm): DRL algorithm for agent training
-            policy (Policy): policy to sample actions
-            trajectory (Trajectory): trajectory to sample training batches
-            clock (Clock): time step checker
-            summary_freq (int, optional): summary frequency to log data. Defaults to 10.
             env_id (str, optional): custom environment id. Defaults to `gym_env` id.
             seed (Union[int, List[int], None], optional): gym environment random seed. if it's None, checks global random seed.
         """
@@ -51,11 +39,9 @@ class GymAgent(Agent):
         if get_global_env_id() == "":
             set_global_env_id(self.env_id)
         self.seed = seed if seed is not None else util.get_seed()
-            
-        super().__init__(drl_algorithm, policy, trajectory, clock, summary_freq)
+        self.agent = agent
         
-    @aine_api
-    def train(self, total_training_step: int, start_step: int = 0):
+    def run_train(self, total_training_step: int, start_step: int = 0):
         try:
             util.set_logger()
             self._train(total_training_step, start_step)
@@ -66,13 +52,13 @@ class GymAgent(Agent):
         gym_env = self.gym_env
         states = gym_env.reset(seed=self.seed)
         for _ in range(start_step, total_training_step, self.num_envs):
-            actions = self.act(states)
+            actions = self.agent.select_action(states)
             # take action and observe
             next_states, rewards, terminateds, truncateds, _ = self.gym_env.step(actions)
             terminateds = terminateds | truncateds
             # update the agent
             if self.is_vector_env:
-                exp_list = self.create_experience_list(
+                exp_list = self.agent.create_experience_list(
                     states,
                     actions,
                     next_states,
@@ -87,7 +73,7 @@ class GymAgent(Agent):
                     rewards,
                     terminateds
                 )]
-            self.update(exp_list)
+            self.agent.update(exp_list)
             # update states
             if (not self.is_vector_env) and terminateds:
                 states = gym_env.reset(seed=self.seed)
