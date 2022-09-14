@@ -17,6 +17,7 @@ class EpsilonGreedy(Categorical):
         assert q_values.dim() >= 1 and q_values.dim() <= 2
         
         self._epsilon = epsilon
+        device = q_values.device
         
         num_action = q_values.shape[-1]
         # epsilon-greedy probabilities
@@ -25,7 +26,7 @@ class EpsilonGreedy(Categorical):
         # get greedy action
         greedy_action = q_values.argmax(-1)
         # set epsilon greedy probability distribution
-        action_idx = torch.arange(num_action)
+        action_idx = torch.arange(num_action, device=device)
         x, y = torch.meshgrid(greedy_action, action_idx)
         dist = torch.empty_like(q_values).unsqueeze_(0)
         dist[..., x == y] = greedy_action_prob # greedy action

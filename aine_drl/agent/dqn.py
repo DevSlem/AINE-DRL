@@ -51,7 +51,7 @@ class DQN(Agent):
         assert gamma >= 0 and gamma <= 1
         
         self.net_spec = net_spec
-        self.device = drl_util.get_model_device(net_spec.q_net)
+        self.device = util.get_model_device(net_spec.q_net)
         self.clock = clock
         self.gamma = gamma
         self.epoch = epoch
@@ -71,7 +71,6 @@ class DQN(Agent):
         
         super().__init__(policy, trajectory, clock, summary_freq)
         
-    @aine_api
     def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
         pdparam = self.net_spec.q_net(state.to(device=self.device))
         dist = self.policy.get_policy_distribution(pdparam)
@@ -88,11 +87,8 @@ class DQN(Agent):
             loss.backward()
             self.net_spec.optimizer.step()
             self.losses.append(loss.detach().cpu().numpy())
-    
-    @aine_api
-    def update_hyperparams(self, time_step: int):
-        if self.net_spec.lr_scheduler is not None:
-            self.net_spec.lr_scheduler.step(epoch=time_step)
+            self.clock.tick_training_step()
+            util.lr_scheduler_step(self.net_spec.lr_scheduler, self.clock.training_step)
     
     @aine_api
     def log_data(self, time_step: int):
