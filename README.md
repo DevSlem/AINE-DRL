@@ -33,6 +33,10 @@ or
 tensorboard --logdir=results/<sub_directory>
 ```
 
+then, you can see an image like below it.
+
+![](images/cartpole-v1-reinforce-cumulative-reward-graph.png)
+
 ## Convention
 
 You must write specific comments in English.  

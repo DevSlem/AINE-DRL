@@ -29,10 +29,10 @@ class PolicyNet(nn.Module):
     
 def main():
     seed = 0 # if you want to get the same results
-    venv_mode = True
+    venv_mode = False
     
     util.seed(seed)
-    total_training_step = 150000
+    total_training_step = 200000
     
     if venv_mode:
         num_envs = 3
