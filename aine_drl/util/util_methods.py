@@ -105,3 +105,7 @@ def create_dir(directory):
 
 def get_model_device(model: nn.Module) -> torch.device:
     return next(model.parameters()).device
+
+def lr_scheduler_step(lr_scheduler, epoch: int):
+    if lr_scheduler is not None:
+        lr_scheduler.step(epoch=epoch)
