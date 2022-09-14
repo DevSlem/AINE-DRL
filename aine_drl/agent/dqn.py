@@ -100,7 +100,8 @@ class DQN(Agent):
         if len(self.losses) > 0:
             util.log_data("Network/TD Loss", np.mean(self.losses), time_step)
         if self.net_spec.lr_scheduler is not None:
-            util.log_data("Network/Learning Rate", self.net_spec.lr_scheduler.get_lr(), time_step)
+            lr = self.net_spec.lr_scheduler.get_lr()
+            util.log_data("Network/Learning Rate", lr if type(lr) is float else lr[0], time_step)
     
     def compute_td_loss(self, batch: ExperienceBatch):
         states, actions, next_states, rewards, terminateds = batch.to_tensor(self.device)

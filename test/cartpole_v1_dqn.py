@@ -9,7 +9,6 @@ from aine_drl.training import GymTraining
 import torch.nn as nn
 import torch.optim as optim
 
-
 class QValueNet(nn.Module):
     def __init__(self, obs_shape, action_count) -> None:
         super(QValueNet, self).__init__()
@@ -20,18 +19,19 @@ class QValueNet(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(obs_shape, 64),
             nn.ReLU(),
-            nn.Linear(64, 128),
+            nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(128, action_count)
+            nn.Linear(64, action_count)
         )
         
     def forward(self, states):
         return self.layers(states)
 
 def main():
-    util.seed(0)
+    seed = 0 # if you want to get the same results
+    util.seed(seed)
     total_training_step = 150000
-    training_freq = 32
+    training_freq = 16
     num_envs = 3
     env = gym.vector.make("CartPole-v1", num_envs=num_envs, new_step_api=True)
     obs_shape = env.single_observation_space.shape[0]
@@ -46,21 +46,22 @@ def main():
     dqn_spec = aine_drl.DQNSpec(
         q_net,
         target_net,
-        optimizer
+        optimizer,
     )
     clock = aine_drl.Clock(num_envs)
-    epsilon_greedy = aine_drl.EpsilonGreedyPolicy(aine_drl.LinearDecay(0.3, 0.01, 0, total_training_step))
-    exp_replay = aine_drl.ExperienceReplay(training_freq, 32, 1000, num_envs)
+    epsilon_greedy = aine_drl.EpsilonGreedyPolicy(aine_drl.LinearDecay(0.3, 0.01, 0, total_training_step * 0.75))
+    exp_replay = aine_drl.ExperienceReplay(training_freq, 32, 5000, num_envs)
     dqn = aine_drl.DoubleDQN(
         dqn_spec,
         epsilon_greedy,
         exp_replay,
         clock,
-        gamma=0.999,
+        gamma=0.99,
+        epoch=3,
         summary_freq=1000,
         update_freq=256
     )
-    gym_training = GymTraining(dqn, env, seed=0)
+    gym_training = GymTraining(dqn, env, seed=seed)
     gym_training.run_train(total_training_step)
     
 if __name__ == '__main__':

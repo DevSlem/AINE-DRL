@@ -24,7 +24,7 @@ class ExperienceReplay(BatchTrajectory):
     @aine_api
     @property
     def can_train(self) -> bool:
-        return self.added_exp_count >= self.freq
+        return self.count >= self.batch_size and self.added_exp_count >= self.freq
     
     @aine_api
     def reset(self):
