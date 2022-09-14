@@ -77,7 +77,6 @@ class Agent(ABC):
         """
         return self.select_action_tensor(torch.from_numpy(state)).cpu().numpy()
     
-    @aine_api
     @abstractmethod
     def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
