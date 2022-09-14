@@ -51,7 +51,7 @@ class DQN(Agent):
         assert gamma >= 0 and gamma <= 1
         
         self.net_spec = net_spec
-        self.device = drl_util.get_model_device(net_spec.q_net)
+        self.device = util.get_model_device(net_spec.q_net)
         self.clock = clock
         self.gamma = gamma
         self.epoch = epoch

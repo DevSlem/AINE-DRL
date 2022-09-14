@@ -6,6 +6,7 @@ import gym.vector
 import aine_drl
 import aine_drl.util as util
 from aine_drl.training import GymTraining
+import torch
 import torch.nn as nn
 import torch.optim as optim
 
@@ -40,8 +41,10 @@ def main():
     # env = gym.make("CartPole-v1", new_step_api=True)
     # obs_shape = env.observation_space.shape[0]
     # action_count = env.action_space.n
-    q_net = QValueNet(obs_shape, action_count)
-    target_net = QValueNet(obs_shape, action_count)
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    q_net = QValueNet(obs_shape, action_count).to(device=device)
+    target_net = QValueNet(obs_shape, action_count).to(device=device)
     optimizer = optim.Adam(q_net.parameters(), lr=0.001)
     dqn_spec = aine_drl.DQNSpec(
         q_net,

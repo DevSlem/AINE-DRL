@@ -4,6 +4,7 @@ import numpy as np
 import datetime
 import os
 import torch
+import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import random
 
@@ -101,3 +102,6 @@ def create_dir(directory):
             os.makedirs(directory)
     except OSError:
         print("Error: Failed to create the directory.")
+
+def get_model_device(model: nn.Module) -> torch.device:
+    return next(model.parameters()).device
