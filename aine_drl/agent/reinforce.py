@@ -49,7 +49,7 @@ class REINFORCE(Agent):
         self.losses = []
     
     def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
-        pdparam = self.net_spec.policy_net(state)
+        pdparam = self.net_spec.policy_net(state.to(device=self.device))
         dist = self.policy.get_policy_distribution(pdparam)
         action = dist.sample()
         # save action log probability to compute policy loss
