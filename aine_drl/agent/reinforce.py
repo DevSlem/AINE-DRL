@@ -20,7 +20,7 @@ class REINFORCENetSpec(NamedTuple):
 
 class REINFORCE(Agent):
     """
-    REINFORCE with Baseline
+    REINFORCE with Baseline. It's a Monte Carlo method. It allows multiple environments but not recommended beacause of the stability. 
     """
     def __init__(self, 
                  net_spec: REINFORCENetSpec,
@@ -30,7 +30,7 @@ class REINFORCE(Agent):
                  gamma: float = 0.99,
                  summary_freq: int = 1000) -> None:
         """
-        REINFORCE with Baseline.
+        REINFORCE with Baseline. It's a Monte Carlo method. It allows multiple environments but not recommended beacause of the stability. 
 
         Args:
             net_spec (REINFORCENetSpec): REINFORCE network spec

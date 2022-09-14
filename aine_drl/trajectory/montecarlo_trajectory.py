@@ -7,7 +7,9 @@ import numpy as np
 class MonteCarloTrajectory(Trajectory):
     """
     It's a trajectory for on-policy Monte Carlo methods.
-    It samples whole trajectories when the episode is terminated, so the returned trajectory is the episode of the environment.
+    It samples whole trajectories when the episode is terminated.
+    It allows multiple environments but not recommended beacause of the stability.
+    If multiple environments, it samples the batch where each terminated episode is concatnated.
     """
     def __init__(self, num_envs: int = 1) -> None:
         self.num_envs = num_envs
