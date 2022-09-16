@@ -21,15 +21,29 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 * Tensorboard 2.10.0
 * Gym 0.25.2
 
-You can easily create an Anaconda environment by using the command:
+You can easily create an Anaconda environment. Input the command in your Anaconda shell:
 
 ```
 conda env create -f aine_drl_env.yaml
 ```
 
+> Note that it's recommended to match the package versions. If not, it may cause API conflicts.
+
 ## Run
 
-If you run a sample code file in [samples](samples/) directory, you can see the result in `results` directory. Input below commands.
+Run a sample script in [samples](samples/) directory. Input the command in your shell:
+
+```
+python samples/<file_name>
+```
+
+Example:
+
+```
+python samples/cartpole_v1_a2c.py
+```
+
+Then, you can see the result in the shell and result files are generated in `results` directory. If you want to see the summarized results, input below command:
 
 ```
 tensorboard --logdir=results
@@ -41,18 +55,6 @@ or
 tensorboard --logdir=results/<sub_directory>
 ```
 
-then, you can see a tensorboard like below it.
+then, you can open a TensorBoard like below it.
 
-![](images/cartpole-v1-reinforce-cumulative-reward-graph.png)
-
-## Convention
-
-You must write specific comments in English.  
-One script file per one class.  
-
-### Naming Convention
-
-Script file name is `snake_case`.  
-Class name is `UpperCamelCase`.  
-Method name is `snake_case`.  
-Variable name is `snake_case`.
+![](images/cartpole-v1-reinforce-cumulative-reward-graph.png) 
