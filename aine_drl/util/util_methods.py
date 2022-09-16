@@ -109,3 +109,37 @@ def get_model_device(model: nn.Module) -> torch.device:
 def lr_scheduler_step(lr_scheduler, epoch: int):
     if lr_scheduler is not None:
         lr_scheduler.step(epoch=epoch)
+
+def vector_env_pack(batch_tensor: torch.Tensor, num_envs: int) -> torch.Tensor:
+    """
+    Pack a batch tensor from (batch_size * num_envs, *shape) to (batch_size, num_envs, *shape).
+    Reference: https://github.com/kengz/SLM-Lab/blob/9102ff923d7a3e9c579edc18c6547cce94a7b77a/slm_lab/lib/math_util.py#L35
+    """
+    shape = list(batch_tensor.shape)
+    if len(shape) < 2: # scalara data (batch_size * num_envs,)
+        return batch_tensor.view(-1, num_envs)
+    else: # non-scalar data (batch_size * num_envs, *shape)
+        pack_shape = [-1, num_envs] + shape[1:]
+        return batch_tensor.view(pack_shape)
+    
+def vector_env_unpack(batch_tensor: torch.Tensor) -> torch.Tensor:
+    """
+    Unpack a batch tensor from (batch_size, num_envs, *shape) to (batch_size * num_envs, *shape).
+    Reference: https://github.com/kengz/SLM-Lab/blob/9102ff923d7a3e9c579edc18c6547cce94a7b77a/slm_lab/lib/math_util.py#L45
+    """
+    shape = list(batch_tensor.shape)
+    if len(shape) < 3: # scalar data (batch_size, num_envs,)
+        return batch_tensor.view(-1)
+    else: # non-scalar data (batch_size, num_envs, *shape) 
+        unpack_shape = [-1] + shape[2:]
+        return batch_tensor.view(unpack_shape)
+
+def train_step(loss: torch.Tensor, 
+               optimizer: torch.optim.Optimizer, 
+               lr_scheduler = None, 
+               epoch: int = -1):
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    lr_scheduler_step(lr_scheduler, epoch)
+    
