@@ -61,15 +61,12 @@ class REINFORCE(Agent):
         # compute policy loss
         batch = self.trajectory.sample()
         loss = self.compute_policy_loss(batch)
-        # gradient descent
-        self.net_spec.optimizer.zero_grad()
-        loss.backward()
-        self.net_spec.optimizer.step()
-        # update data
-        self.losses.append(loss.detach().cpu().item())
+        # update policy network
+        util.train_step(loss, self.net_spec.optimizer, self.net_spec.lr_scheduler, self.clock.training_step)
         self.clock.tick_training_step()
-        util.lr_scheduler_step(self.net_spec.lr_scheduler, self.clock.training_step)
+        # update data
         self.action_log_probs.clear()
+        self.losses.append(loss.detach().cpu().item())
     
     def compute_policy_loss(self, batch: ExperienceBatch):
         eps = torch.finfo(torch.float32).eps
@@ -102,6 +99,7 @@ class REINFORCE(Agent):
         super().log_data(time_step)
         if len(self.losses) > 0:
             util.log_data("Network/Policy Loss", np.mean(self.losses), time_step)
+            self.losses.clear()
         if self.net_spec.lr_scheduler is not None:
             lr = self.net_spec.lr_scheduler.get_lr()
             util.log_data("Network/Learning Rate", lr if type(lr) is float else lr[0], time_step)

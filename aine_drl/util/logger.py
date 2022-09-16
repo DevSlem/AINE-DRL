@@ -62,3 +62,8 @@ def close_logger():
     
 def print_title() -> str:
     return "[AINE-DRL]"
+
+def log_lr_scheduler(lr_scheduler, t, key = "Learning Rate"):
+    if lr_scheduler is not None:
+        lr = lr_scheduler.get_lr()
+        log_data(f"Network/{key}", lr if type(lr) is float else lr[0], t)
