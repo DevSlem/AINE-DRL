@@ -23,3 +23,16 @@ def calc_returns(rewards: torch.Tensor, terminateds: torch.Tensor, gamma: float)
         G = rewards[t] + not_terminateds[t] * gamma * G
         returns[t] = G
     return returns
+
+def calc_gae(rewards: torch.Tensor, terminateds: torch.Tensor, v_preds: torch.Tensor, gamma: float, lam: float):
+    T = len(rewards)
+    assert T + 1 == len(v_preds), "v_preds parameter must contain the value of the final next state."
+    gaes = torch.empty_like(rewards)
+    discounted_gae = 0 # GAE at time step t
+    not_terminateds = 1 - terminateds
+    delta = rewards + not_terminateds * gamma * v_preds[1:] - v_preds[:-1]
+    discount_factor = gamma * lam
+    for t in reversed(range(T)):
+        discounted_gae = delta[t] + not_terminateds[t] * discount_factor * discounted_gae
+        gaes[t] = discounted_gae
+    return gaes
