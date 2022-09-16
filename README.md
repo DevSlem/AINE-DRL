@@ -18,6 +18,14 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 
 * Python 3.7.13
 * Pytorch 1.11.0 - CUDA 11.3
+* Tensorboard 2.10.0
+* Gym 0.25.2
+
+You can easily create an Anaconda environment by using the command:
+
+```
+conda env create -f aine_drl_env.yaml
+```
 
 ## Run
 
