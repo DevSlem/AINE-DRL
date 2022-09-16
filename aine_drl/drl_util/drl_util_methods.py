@@ -24,7 +24,20 @@ def calc_returns(rewards: torch.Tensor, terminateds: torch.Tensor, gamma: float)
         returns[t] = G
     return returns
 
-def calc_gae(rewards: torch.Tensor, terminateds: torch.Tensor, v_preds: torch.Tensor, gamma: float, lam: float):
+def calc_gae(rewards: torch.Tensor, terminateds: torch.Tensor, v_preds: torch.Tensor, gamma: float, lam: float) -> torch.Tensor:
+    """
+    Calculates Generalized Advantage Estimations. See more details in https://arxiv.org/pdf/1506.02438.pdf.
+
+    Args:
+        rewards (torch.Tensor): rewards tensor
+        terminateds (torch.Tensor): terminated
+        v_preds (torch.Tensor): estimated state value which contains the next state value of the last transition
+        gamma (float): discount factor
+        lam (float): lambda which controls the balanace between bias and variance
+
+    Returns:
+        torch.Tensor: GAE
+    """
     T = len(rewards)
     assert T + 1 == len(v_preds), "v_preds parameter must contain the value of the final next state."
     gaes = torch.empty_like(rewards)
