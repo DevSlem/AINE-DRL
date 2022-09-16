@@ -79,27 +79,26 @@ class DQN(Agent):
     @aine_api
     def train(self):
         for _ in range(self.epoch):
+            # update target network
             self.update_target_net()
+            # compute td loss
             batch = self.trajectory.sample()
             loss = self.compute_td_loss(batch)
             # update Q network
-            self.net_spec.optimizer.zero_grad()
-            loss.backward()
-            self.net_spec.optimizer.step()
-            self.losses.append(loss.detach().cpu().numpy())
+            util.train_step(loss, self.net_spec.optimizer, self.net_spec.lr_scheduler, self.clock.training_step)
             self.clock.tick_training_step()
-            util.lr_scheduler_step(self.net_spec.lr_scheduler, self.clock.training_step)
+            # update data
+            self.losses.append(loss.detach().cpu().numpy())
     
     @aine_api
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.losses) > 0:
             util.log_data("Network/TD Loss", np.mean(self.losses), time_step)
-        if self.net_spec.lr_scheduler is not None:
-            lr = self.net_spec.lr_scheduler.get_lr()
-            util.log_data("Network/Learning Rate", lr if type(lr) is float else lr[0], time_step)
+            self.losses.clear()
+        util.log_lr_scheduler(self.net_spec.lr_scheduler, time_step)
     
-    def compute_td_loss(self, batch: ExperienceBatch):
+    def compute_td_loss(self, batch: ExperienceBatch) -> torch.Tensor:
         states, actions, next_states, rewards, terminateds = batch.to_tensor(self.device)
         # Q values for all actions are from the Q network
         q_values = self.net_spec.q_net(states)
@@ -126,7 +125,7 @@ class DoubleDQN(DQN):
     Double DQN.
     """
     
-    def compute_td_loss(self, batch: ExperienceBatch):
+    def compute_td_loss(self, batch: ExperienceBatch) -> torch.Tensor:
         states, actions, next_states, rewards, terminateds = batch.to_tensor(self.device)
         # Q values for all actions are from the Q network
         q_values = self.net_spec.q_net(states)
