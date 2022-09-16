@@ -7,11 +7,11 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 - [x] [DQN](aine_drl/agent/dqn.py)
 - [x] [Double DQN](aine_drl/agent/dqn.py)
 - [x] [REINFORCE](aine_drl/agent/reinforce.py)
+- [x] [A2C](aine_drl/agent/a2c.py)
 
 ## TODO
 
 - [ ] SARSA
-- [ ] A2C
 - [ ] PPO
 
 ## Development Environment
@@ -21,7 +21,7 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 
 ## Run
 
-If you run a test file in `test` directory, you can see the result in `results` directory. Input below commands.
+If you run a sample code file in [samples](samples/) directory, you can see the result in `results` directory. Input below commands.
 
 ```
 tensorboard --logdir=results
@@ -33,7 +33,7 @@ or
 tensorboard --logdir=results/<sub_directory>
 ```
 
-then, you can see an image like below it.
+then, you can see a tensorboard like below it.
 
 ![](images/cartpole-v1-reinforce-cumulative-reward-graph.png)
 
@@ -48,5 +48,3 @@ Script file name is `snake_case`.
 Class name is `UpperCamelCase`.  
 Method name is `snake_case`.  
 Variable name is `snake_case`.
-
-The name of the agent which inherits `Agent` class must be `<Name>Agent`.
