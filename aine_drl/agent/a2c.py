@@ -37,6 +37,7 @@ class A2C(Agent):
                  clock: Clock,
                  gamma: float = 0.99,
                  lam: float = 0.95,
+                 entropy_coef: float = 0.0,
                  summary_freq: int = 1000) -> None:
         """
         Advantage Actor Critic (A2C).
@@ -48,6 +49,7 @@ class A2C(Agent):
             clock (Clock): time step checker
             gamma (float, optional): discount factor. Defaults to 0.99.
             lam (float, optional): lambda which controls the GAE balanace between bias and variance. Defaults to 0.95.
+            entropy_coef (float, optional): it controls entropy regularization. Defaults to 0.0, meaning not used.
             summary_freq (int, optional): summary frequency. Defaults to 1000.
         """
         super().__init__(policy, trajectory, clock, summary_freq)
@@ -55,10 +57,12 @@ class A2C(Agent):
         self.shared_net = type(net_spec) == ActorCriticSharedNetSpec
         self.gamma = gamma
         self.lam = lam
+        self.entropy_coef = entropy_coef
         self.num_envs = clock.num_envs
         self.value_loss_func = nn.MSELoss()
         self.device = util.get_model_device(net_spec.policy_net)
         self.action_log_probs = []
+        self.entropies = []
         self.policy_losses = []
         self.value_losses = []        
         
@@ -68,6 +72,9 @@ class A2C(Agent):
         action = dist.sample()
         # save action log probability to compute policy loss
         self.action_log_probs.append(dist.log_prob(action))
+        # if entropy regularization is used
+        if self.entropy_coef > 0.0:
+            self.entropies.append(dist.entropy())
         return action
         
     def train(self):
@@ -87,7 +94,6 @@ class A2C(Agent):
             util.train_step(value_loss, self.net_spec.value_optimizer, self.net_spec.value_lr_scheduler, self.clock.training_step)
         self.clock.tick_training_step()
         # update data
-        self.action_log_probs.clear()
         self.policy_losses.append(policy_loss.detach().cpu().item())
         self.value_losses.append(value_loss.detach().cpu().item())
     
@@ -119,7 +125,13 @@ class A2C(Agent):
         Actor
         """
         log_probs = torch.cat(self.action_log_probs).unsqueeze_(-1)
-        policy_loss =  -(advantages * log_probs).sum()
+        entropy = torch.cat(self.entropies).mean() if self.entropy_coef > 0.0 else 0.0
+        policy_loss =  -(advantages * log_probs).sum() - self.entropy_coef * entropy
+        
+        # clear already used
+        self.action_log_probs.clear()
+        self.entropies.clear()
+        
         return policy_loss
     
     def compute_value_loss(self, v_preds: torch.Tensor, v_targets: torch.Tensor) -> torch.Tensor:
