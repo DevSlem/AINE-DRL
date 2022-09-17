@@ -99,7 +99,8 @@ def main():
         on_policy_trajectory,
         aine_drl.Clock(num_envs),
         gamma=0.99,
-        lam=0.95
+        lam=0.95,
+        entropy_coef=0.001
     )
     
     gym_training = GymTraining(a2c, env, seed=seed)
