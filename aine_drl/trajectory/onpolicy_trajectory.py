@@ -14,12 +14,12 @@ class OnPolicyTrajectory(BatchTrajectory):
         """
         assert num_exp_per_env > 0
         super().__init__(num_exp_per_env * num_envs, num_envs)
-        self.freq = num_exp_per_env
+        self.freq = num_exp_per_env * self.num_envs
         
     @aine_api
     @property
     def can_train(self) -> bool:
-        return int(self._count / self.num_envs) == self.freq
+        return self._count == self.freq
     
     @aine_api
     def sample(self) -> ExperienceBatch:
