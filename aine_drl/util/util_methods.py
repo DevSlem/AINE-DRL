@@ -143,3 +143,5 @@ def train_step(loss: torch.Tensor,
     optimizer.step()
     lr_scheduler_step(lr_scheduler, epoch)
     
+def total_training_steps(total_time_steps: int, training_freq: int, epoch: int = 1) -> int:
+    return total_time_steps // training_freq * epoch

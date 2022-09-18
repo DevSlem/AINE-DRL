@@ -58,7 +58,7 @@ def main():
     venv_mode = True
     
     util.seed(seed)
-    total_training_step = 300000
+    total_time_steps = 300000
     
     if venv_mode:
         num_envs = 3
@@ -104,7 +104,7 @@ def main():
     )
     
     gym_training = GymTraining(a2c, env, seed=seed)
-    gym_training.run_train(total_training_step)
+    gym_training.run_train(total_time_steps)
     
 if __name__ == "__main__":
     main()
