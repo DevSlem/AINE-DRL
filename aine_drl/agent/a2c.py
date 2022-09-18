@@ -86,13 +86,7 @@ class A2C(Agent):
         policy_loss = self.compute_policy_loss(advantages) # actor
         value_loss = self.compute_value_loss(v_preds, v_targets) # critic
         # update policy, value network
-        if self.shared_net:
-            loss = policy_loss + self.net_spec.value_loss_coef * value_loss
-            util.train_step(loss, self.net_spec.optimizer, self.net_spec.lr_scheduler, self.clock.training_step)
-        else:
-            util.train_step(policy_loss, self.net_spec.policy_optimizer, self.net_spec.policy_lr_scheduler, self.clock.training_step)
-            util.train_step(value_loss, self.net_spec.value_optimizer, self.net_spec.value_lr_scheduler, self.clock.training_step)
-        self.clock.tick_training_step()
+        self.train_step(policy_loss, value_loss)
         # update data
         self.policy_losses.append(policy_loss.detach().cpu().item())
         self.value_losses.append(value_loss.detach().cpu().item())
@@ -125,8 +119,8 @@ class A2C(Agent):
         Actor
         """
         log_probs = torch.cat(self.action_log_probs).unsqueeze_(-1)
-        entropy = torch.cat(self.entropies).mean() if self.entropy_coef > 0.0 else 0.0
-        policy_loss =  -(advantages * log_probs).sum() - self.entropy_coef * entropy
+        entropy = torch.cat(self.entropies).unsqueeze_(-1) if self.entropy_coef > 0.0 else 0.0
+        policy_loss = -(advantages * log_probs + self.entropy_coef * entropy).mean()
         
         # clear already used
         self.action_log_probs.clear()
@@ -140,15 +134,24 @@ class A2C(Agent):
         """
         return self.value_loss_func(v_targets, v_preds)
     
+    def train_step(self, policy_loss: torch.Tensor, value_loss: torch.Tensor):
+        if self.shared_net:
+            loss = policy_loss + self.net_spec.value_loss_coef * value_loss
+            util.train_step(loss, self.net_spec.optimizer, self.net_spec.lr_scheduler, self.clock.training_step)
+        else:
+            util.train_step(policy_loss, self.net_spec.policy_optimizer, self.net_spec.policy_lr_scheduler, self.clock.training_step)
+            util.train_step(value_loss, self.net_spec.value_optimizer, self.net_spec.value_lr_scheduler, self.clock.training_step)
+        self.clock.tick_training_step()
+    
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.policy_losses) > 0:
-            util.log_data("Network/Policy Loss", np.mean(self.policy_losses), time_step)
-            util.log_data("Network/Value Loss", np.mean(self.value_losses), time_step)
+            util.log_data("Network/Policy Loss", np.mean(self.policy_losses), self.clock.training_step)
+            util.log_data("Network/Value Loss", np.mean(self.value_losses), self.clock.training_step)
             self.policy_losses.clear()
             self.value_losses.clear()
         if self.shared_net:
-            util.log_lr_scheduler(self.net_spec.lr_scheduler, time_step)
+            util.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
         else:
-            util.log_lr_scheduler(self.net_spec.policy_lr_scheduler, time_step, "Policy Network Learning Rate")
-            util.log_lr_scheduler(self.net_spec.value_lr_scheduler, time_step, "Value Network Learning Rate")
+            util.log_lr_scheduler(self.net_spec.policy_lr_scheduler, self.clock.training_step, "Policy Network Learning Rate")
+            util.log_lr_scheduler(self.net_spec.value_lr_scheduler, self.clock.training_step, "Value Network Learning Rate")
