@@ -33,7 +33,7 @@ def main():
     venv_mode = True
     
     util.seed(seed)
-    total_training_step = 150000
+    total_time_steps = 150000
     training_freq = 32
     
     if venv_mode:
@@ -57,7 +57,7 @@ def main():
         optimizer,
     )
     clock = aine_drl.Clock(num_envs)
-    epsilon_greedy = aine_drl.EpsilonGreedyPolicy(aine_drl.LinearDecay(0.3, 0.01, 0, total_training_step * 0.75))
+    epsilon_greedy = aine_drl.EpsilonGreedyPolicy(aine_drl.LinearDecay(0.3, 0.01, 0, total_time_steps * 0.75))
     exp_replay = aine_drl.ExperienceReplay(training_freq, 32, 1000, num_envs)
     dqn = aine_drl.DoubleDQN(
         dqn_spec,
@@ -70,7 +70,7 @@ def main():
         update_freq=128
     )
     gym_training = GymTraining(dqn, env, seed=seed)
-    gym_training.run_train(total_training_step)
+    gym_training.run_train(total_time_steps)
     
 if __name__ == '__main__':
     main()

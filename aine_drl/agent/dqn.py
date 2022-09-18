@@ -94,9 +94,9 @@ class DQN(Agent):
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.losses) > 0:
-            util.log_data("Network/TD Loss", np.mean(self.losses), time_step)
+            util.log_data("Network/TD Loss", np.mean(self.losses), self.clock.training_step)
             self.losses.clear()
-        util.log_lr_scheduler(self.net_spec.lr_scheduler, time_step)
+        util.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
     
     def compute_td_loss(self, batch: ExperienceBatch) -> torch.Tensor:
         states, actions, next_states, rewards, terminateds = batch.to_tensor(self.device)

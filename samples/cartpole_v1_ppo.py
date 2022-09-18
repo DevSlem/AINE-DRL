@@ -11,6 +11,7 @@ from aine_drl.training import GymTraining
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import LambdaLR
 
 class ObsEncoderLayer(nn.Module):
     def __init__(self, obs_shape, out_features) -> None:
@@ -58,7 +59,8 @@ def main():
     venv_mode = True
     
     util.seed(seed)
-    total_time_steps = 300000
+    total_time_steps = 400000
+    epoch = 3
     
     if venv_mode:
         num_envs = 3
@@ -85,25 +87,30 @@ def main():
     
     params = list(obs_encoder_layer.parameters()) + list(policy_layer.parameters()) + list(value_layer.parameters())
     optimizer = optim.Adam(params, lr=0.001)
+    
     net_spec = aine_drl.ActorCriticSharedNetSpec(
         policy_net,
         value_net,
         optimizer,
         value_loss_coef=0.5
     )
+    
     categorical_policy = aine_drl.CategoricalPolicy()
     on_policy_trajectory = aine_drl.OnPolicyTrajectory(12, num_envs)
-    a2c = aine_drl.A2C(
+    
+    ppo = aine_drl.PPO(
         net_spec,
         categorical_policy,
         on_policy_trajectory,
         aine_drl.Clock(num_envs),
         gamma=0.99,
         lam=0.95,
-        entropy_coef=0.001
+        epsilon_clip=0.2,
+        entropy_coef=0.001,
+        epoch=epoch
     )
     
-    gym_training = GymTraining(a2c, env, seed=seed)
+    gym_training = GymTraining(ppo, env, seed=seed)
     gym_training.run_train(total_time_steps)
     
 if __name__ == "__main__":

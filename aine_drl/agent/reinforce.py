@@ -77,7 +77,7 @@ class REINFORCE(Agent):
         returns = (returns - returns.mean()) / (returns.std() + eps)
         log_probs = self.flattened_action_log_probs(terminateds)
         # compute policy loss
-        policy_loss = -(returns * log_probs).sum()
+        policy_loss = -(returns * log_probs).mean()
         return policy_loss
             
     def flattened_action_log_probs(self, terminateds: torch.Tensor) -> torch.Tensor:
@@ -98,8 +98,7 @@ class REINFORCE(Agent):
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.losses) > 0:
-            util.log_data("Network/Policy Loss", np.mean(self.losses), time_step)
+            util.log_data("Network/Policy Loss", np.mean(self.losses), self.clock.training_step)
             self.losses.clear()
         if self.net_spec.lr_scheduler is not None:
-            lr = self.net_spec.lr_scheduler.get_lr()
-            util.log_data("Network/Learning Rate", lr if type(lr) is float else lr[0], time_step)
+            util.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)

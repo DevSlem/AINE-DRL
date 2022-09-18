@@ -41,17 +41,17 @@ class GymTraining:
         self.seed = seed if seed is not None else util.get_seed()
         self.agent = agent
         
-    def run_train(self, total_training_step: int, start_step: int = 0):
+    def run_train(self, total_time_steps: int, start_step: int = 0):
         try:
             util.set_logger()
-            self._train(total_training_step, start_step)
+            self._train(total_time_steps, start_step)
         finally:
             util.close_logger()
     
-    def _train(self, total_training_step: int, start_step: int = 0):
+    def _train(self, total_time_steps: int, start_step: int = 0):
         gym_env = self.gym_env
         states = gym_env.reset(seed=self.seed)
-        for _ in range(start_step, total_training_step, self.num_envs):
+        for _ in range(start_step, total_time_steps, self.num_envs):
             actions = self.agent.select_action(states)
             # take action and observe
             next_states, rewards, terminateds, truncateds, _ = self.gym_env.step(actions)
