@@ -8,11 +8,11 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 - [x] [Double DQN](aine_drl/agent/dqn.py)
 - [x] [REINFORCE](aine_drl/agent/reinforce.py)
 - [x] [A2C](aine_drl/agent/a2c.py)
+- [x] [PPO](aine_drl/agent/ppo.py)
 
 ## TODO
 
 - [ ] SARSA
-- [ ] PPO
 
 ## Development Environment
 
