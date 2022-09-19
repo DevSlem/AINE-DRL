@@ -1,9 +1,9 @@
-@startuml DRL Framework
+@startuml AINE-DRL
 
 !theme plain
 skinparam backgroundColor #FFFFFF
 scale 2
-title DRL Framework
+title AINE-DRL
 
 Agent Environment [
     Environment
@@ -13,16 +13,15 @@ class Agent {
     - neural networks
     - policy
     - trajectory
+    + select_action(state)
     + update(experiences)
     + train()
-    + select_action(state)
-    + update_hyperparameters(time_step)
+    + update_hyperparams(time_step)
 }
 
 class Policy {
-    - hyperparameters
     + get_policy_distribution(pdparam)
-    + update_hyperparameters(time_step)
+    + update_hyperparams(time_step)
 }
 
 class Trajectory {
@@ -31,19 +30,17 @@ class Trajectory {
     - rewards
     - terminateds
     - next_state_buffer
-    - max_count
     + add(experience)
     + sample()
     + can_train()
 }
 
-class Experience {
-    + state
-    + action
-    + next_state
-    + reward
-    + terminated
+class DRLAlgorithm {
+    + train()
 }
+
+Agent <|-- DRLAlgorithm
+note left of DRLAlgorithm : Implements reinforcement learning algorithms
 
 Agent::policy o-- Policy
 Agent::trajectory o-- Trajectory

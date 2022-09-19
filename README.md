@@ -13,8 +13,12 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 ## TODO
 
 - [ ] SARSA
+- [ ] Prioritized Experience Replay 
+- [ ] A3C
+- [ ] SAC
+- [ ] Intrinsic Curiosity Module (ICM)
 
-## Development Environment
+## Installation
 
 * Python 3.7.13
 * Pytorch 1.11.0 - CUDA 11.3
@@ -58,3 +62,19 @@ tensorboard --logdir=results/<sub_directory>
 then, you can open a TensorBoard like below it.
 
 ![](images/cartpole-v1-reinforce-cumulative-reward-graph.png) 
+
+## Module
+
+* aine_drl
+  * agent*
+  * drl_util
+  * policy*
+  * training
+  * trajectory*
+  * util
+
+> Note that `*` indicates you can directly access the module by `aine_drl`.
+
+### Class Diagram
+
+![](images/aine-drl-class-diagram.png)
