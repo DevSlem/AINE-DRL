@@ -1,5 +1,7 @@
-import torch
+import warnings
+warnings.filterwarnings(action="ignore")
 from torch.utils.tensorboard import SummaryWriter
+warnings.filterwarnings(action="default")
 import aine_drl
 import aine_drl.util as util
 import builtins
