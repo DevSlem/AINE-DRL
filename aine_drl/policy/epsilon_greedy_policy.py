@@ -1,7 +1,7 @@
 from aine_drl.policy import Policy
 from aine_drl.drl_util import EpsilonGreedy, Decay, NoDecay
 from aine_drl.util import aine_api
-import aine_drl.util as util
+from aine_drl.util import logger
 import torch
 from torch.distributions import Distribution
 
@@ -34,4 +34,4 @@ class EpsilonGreedyPolicy(Policy):
         
     @aine_api
     def log_data(self, time_step: int):
-        util.log_data("Policy/Epsilon", self.epsilon, time_step)
+        logger.log("Policy/Epsilon", self.epsilon, time_step)

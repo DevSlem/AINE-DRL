@@ -1,8 +1,9 @@
+from typing import NamedTuple, Tuple, Union
 from aine_drl.agent.agent import Agent
 from aine_drl.drl_util.clock import Clock
 from aine_drl.policy.policy import Policy
 from aine_drl.trajectory.trajectory import Trajectory
-from typing import NamedTuple, Tuple, Union
+from aine_drl.util import logger
 import aine_drl.util as util
 import aine_drl.drl_util as drl_util
 import torch
@@ -146,12 +147,12 @@ class A2C(Agent):
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.policy_losses) > 0:
-            util.log_data("Network/Policy Loss", np.mean(self.policy_losses), self.clock.training_step)
-            util.log_data("Network/Value Loss", np.mean(self.value_losses), self.clock.training_step)
+            logger.log("Network/Policy Loss", np.mean(self.policy_losses), self.clock.training_step)
+            logger.log("Network/Value Loss", np.mean(self.value_losses), self.clock.training_step)
             self.policy_losses.clear()
             self.value_losses.clear()
         if self.shared_net:
-            util.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
+            logger.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
         else:
-            util.log_lr_scheduler(self.net_spec.policy_lr_scheduler, self.clock.training_step, "Policy Network Learning Rate")
-            util.log_lr_scheduler(self.net_spec.value_lr_scheduler, self.clock.training_step, "Value Network Learning Rate")
+            logger.log_lr_scheduler(self.net_spec.policy_lr_scheduler, self.clock.training_step, "Policy Network Learning Rate")
+            logger.log_lr_scheduler(self.net_spec.value_lr_scheduler, self.clock.training_step, "Value Network Learning Rate")

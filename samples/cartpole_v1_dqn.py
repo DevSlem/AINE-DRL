@@ -33,7 +33,7 @@ def main():
     venv_mode = True
     
     util.seed(seed)
-    total_time_steps = 150000
+    total_time_steps = 300000
     training_freq = 32
     
     if venv_mode:

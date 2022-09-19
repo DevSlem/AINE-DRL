@@ -1,69 +1,41 @@
-from abc import ABC, abstractmethod
+import warnings
+warnings.filterwarnings(action="ignore")
 from torch.utils.tensorboard import SummaryWriter
+warnings.filterwarnings(action="default")
 import aine_drl
 import aine_drl.util as util
+import builtins
 
-class Logger(ABC):
-    """ Standard logger abstract class. """
-    @abstractmethod
-    def log(self, key, value, t):
-        """
-        Log key-value pair at time t.
-        """
-        raise NotImplementedError
+class logger:
+    """ Standard logger class. """
     
-    def close(self):
-        pass
-    
-class TensorBoardLogger(Logger):
-    """ TensorBoard logger. """
-    def __init__(self, logger: SummaryWriter) -> None:
-        self.logger = logger
-        
-    def log(self, key, value, t):
-        self.logger.add_scalar(key, value, t)
-    
-    def close(self):
-        self.logger.flush()
-        self.logger.close()
-        
     @staticmethod
     def get_log_dir():
         """ Returns the log directory. """
         dir = f"results/{aine_drl.get_global_env_id()}"
         return dir if not util.exists_dir(dir) else util.add_dir_num_suffix(dir, num_left="_")
-
-_logger: Logger = None
     
-def set_logger(logger: Logger = None):
-    """ Sets the global logger. Defaults to TensorBoardLogger. """
-    global _logger
-    if logger is None:
-        logger = TensorBoardLogger(SummaryWriter(TensorBoardLogger.get_log_dir()))
-    _logger = logger
+    _logger: SummaryWriter = None
+        
+    @classmethod
+    def log(cls, key, value, t):
+        """ Records a log using the logger. """
+        if cls._logger is None:
+            cls._logger = SummaryWriter(cls.get_log_dir())
+        cls._logger.add_scalar(key, value, t)
+        
+    @classmethod
+    def close(cls):
+        if cls._logger is not None:
+            cls._logger.flush()
+            cls._logger.close()
+            
+    @classmethod
+    def log_lr_scheduler(cls, lr_scheduler, t, key = "Learning Rate"):
+        if lr_scheduler is not None:
+            lr = lr_scheduler.get_lr()
+            cls.log(f"Network/{key}", lr if type(lr) is float else lr[0], t)
     
-def get_logger() -> Logger:
-    """ Returns the global logger. """
-    global _logger
-    return _logger
-    
-def log_data(key, value, t):
-    """ Records a log using the global logger. """
-    global _logger
-    assert _logger is not None, "You must call set_logger() method before call it."
-    _logger.log(key, value, t)
-    
-def close_logger():
-    """ Closes the global logger and set it to None. """
-    global _logger
-    if _logger is not None:
-        _logger.close()
-        _logger = None
-    
-def print_title() -> str:
-    return "[AINE-DRL]"
-
-def log_lr_scheduler(lr_scheduler, t, key = "Learning Rate"):
-    if lr_scheduler is not None:
-        lr = lr_scheduler.get_lr()
-        log_data(f"Network/{key}", lr if type(lr) is float else lr[0], t)
+    @staticmethod    
+    def print(message: str, prefix: str = "[AINE-DRL]"):
+        builtins.print(f"{prefix} {message}")

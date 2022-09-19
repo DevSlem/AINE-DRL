@@ -6,6 +6,7 @@ from aine_drl.agent import Agent
 from aine_drl.drl_util import Experience
 from aine_drl import get_global_env_id, set_global_env_id
 import aine_drl.util as util
+from aine_drl.util import logger
 
 class GymTraining:
     """ Gym agent class. """
@@ -41,17 +42,21 @@ class GymTraining:
         self.seed = seed if seed is not None else util.get_seed()
         self.agent = agent
         
+        self.time_step = -1
+        
     def run_train(self, total_time_steps: int, start_step: int = 0):
         try:
-            util.set_logger()
             self._train(total_time_steps, start_step)
+        except KeyboardInterrupt:
+            logger.print(f"Training interrupted at the time step {self.time_step}.")
         finally:
-            util.close_logger()
+            logger.close()
     
     def _train(self, total_time_steps: int, start_step: int = 0):
         gym_env = self.gym_env
         states = gym_env.reset(seed=self.seed)
-        for _ in range(start_step, total_time_steps, self.num_envs):
+        for time_step in range(start_step, total_time_steps, self.num_envs):
+            self.time_step = time_step
             actions = self.agent.select_action(states)
             # take action and observe
             next_states, rewards, terminateds, truncateds, _ = self.gym_env.step(actions)

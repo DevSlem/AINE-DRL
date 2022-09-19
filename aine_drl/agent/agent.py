@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List
 from aine_drl.trajectory import Trajectory
 from aine_drl.policy import Policy
-from aine_drl.util import aine_api
-import aine_drl.util as util
+from aine_drl.util import aine_api, logger
 from aine_drl.drl_util import Clock, Experience
 import numpy as np
 import torch
@@ -103,15 +102,15 @@ class Agent(ABC):
     def log_data(self, time_step: int):
         if len(self.episode_lengths) > 0:
             avg_cumul_reward = np.mean(self.cumulative_rewards)
-            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
-            util.log_data("Environment/Cumulative Reward", avg_cumul_reward, time_step)
-            util.log_data("Environment/Cumulative Reward per episodes", avg_cumul_reward, self.clock.episode)
-            util.log_data("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
-            util.log_data("Environment/Episode Length per episodes", np.mean(self.episode_lengths), self.clock.episode)
+            logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
+            logger.log("Environment/Cumulative Reward", avg_cumul_reward, time_step)
+            logger.log("Environment/Cumulative Reward per episodes", avg_cumul_reward, self.clock.episode)
+            logger.log("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
+            logger.log("Environment/Episode Length per episodes", np.mean(self.episode_lengths), self.clock.episode)
             self.episode_lengths.clear()
             self.cumulative_rewards.clear()
         else:
-            print(f"{util.print_title()} training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
+            logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
     
     @staticmethod
     def create_experience_list(states: np.ndarray,

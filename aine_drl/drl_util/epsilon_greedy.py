@@ -27,7 +27,7 @@ class EpsilonGreedy(Categorical):
         greedy_action = q_values.argmax(-1)
         # set epsilon greedy probability distribution
         action_idx = torch.arange(num_action, device=device)
-        x, y = torch.meshgrid(greedy_action, action_idx)
+        x, y = torch.meshgrid(greedy_action, action_idx, indexing="ij")
         dist = torch.empty_like(q_values).unsqueeze_(0)
         dist[..., x == y] = greedy_action_prob # greedy action
         dist[..., x != y] = non_greedy_action_prob # non-greedy action

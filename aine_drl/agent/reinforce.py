@@ -9,6 +9,7 @@ from aine_drl.drl_util.experience import ExperienceBatch
 from aine_drl.policy.policy import Policy
 from aine_drl.trajectory.montecarlo_trajectory import MonteCarloTrajectory
 import aine_drl.util as util
+from aine_drl.util import logger
 import aine_drl.drl_util as drl_util
 from aine_drl.util.decorator import aine_api
 import numpy as np
@@ -98,7 +99,6 @@ class REINFORCE(Agent):
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.losses) > 0:
-            util.log_data("Network/Policy Loss", np.mean(self.losses), self.clock.training_step)
+            logger.log("Network/Policy Loss", np.mean(self.losses), self.clock.training_step)
             self.losses.clear()
-        if self.net_spec.lr_scheduler is not None:
-            util.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
+        logger.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)

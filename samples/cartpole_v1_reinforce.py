@@ -32,7 +32,7 @@ def main():
     venv_mode = False
     
     util.seed(seed)
-    total_training_step = 200000
+    total_training_step = 300000
     
     if venv_mode:
         num_envs = 3
