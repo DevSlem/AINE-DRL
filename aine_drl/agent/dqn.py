@@ -1,7 +1,7 @@
 from aine_drl.agent.agent import Agent
 from aine_drl.policy.policy import Policy
 from aine_drl.trajectory.trajectory import Trajectory
-from aine_drl.util import aine_api
+from aine_drl.util import aine_api, logger
 import aine_drl.util as util
 from aine_drl.drl_util import ExperienceBatch, Clock
 import aine_drl.drl_util as drl_util
@@ -94,9 +94,9 @@ class DQN(Agent):
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.losses) > 0:
-            util.log_data("Network/TD Loss", np.mean(self.losses), self.clock.training_step)
+            logger.log("Network/TD Loss", np.mean(self.losses), self.clock.training_step)
             self.losses.clear()
-        util.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
+        logger.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
     
     def compute_td_loss(self, batch: ExperienceBatch) -> torch.Tensor:
         states, actions, next_states, rewards, terminateds = batch.to_tensor(self.device)
