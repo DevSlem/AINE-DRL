@@ -110,7 +110,7 @@ class Agent(ABC):
             self.episode_lengths.clear()
             self.cumulative_rewards.clear()
         else:
-            logger.print("training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
+            logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
     
     @staticmethod
     def create_experience_list(states: np.ndarray,
