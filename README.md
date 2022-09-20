@@ -2,7 +2,9 @@
 
 A project for the DRL framework. AINE is the team name which means "Agent IN Environment".
 
-## Implemented Algorithm
+## Algorithm
+
+### Implemented
 
 - [x] [DQN](aine_drl/agent/dqn.py)
 - [x] [Double DQN](aine_drl/agent/dqn.py)
@@ -10,13 +12,28 @@ A project for the DRL framework. AINE is the team name which means "Agent IN Env
 - [x] [A2C](aine_drl/agent/a2c.py)
 - [x] [PPO](aine_drl/agent/ppo.py)
 
-## TODO
+### TODO
 
 - [ ] SARSA
 - [ ] Prioritized Experience Replay 
 - [ ] A3C
 - [ ] SAC
 - [ ] Intrinsic Curiosity Module (ICM)
+## Experiment
+
+### BipedalWalker-v3 with PPO
+
+See details of [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) environment.
+
+Results:
+
+![](images/bipedal-walker-v3-ppo-cumulative-reward-graph.png)
+
+* gray - no gradient clipping
+* sky - gradient clipping with 0.5
+* pink - gradient clipping with 5.0
+
+Source Code: [bipedal_walker_v3_ppo.py](samples/bipedal_walker_v3_ppo.py)
 
 ## Installation
 
