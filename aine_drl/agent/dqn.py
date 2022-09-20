@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import _LRScheduler
 from enum import Enum
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, Union
 import numpy as np
 
 class TargetNetUpdateType(Enum):
@@ -23,6 +23,17 @@ class DQNSpec(NamedTuple):
     optimizer: optim.Optimizer
     loss_func: Any = nn.MSELoss()
     lr_scheduler: _LRScheduler = None # Defaults to not scheduling
+    grad_clip_max_norm: Union[float, None] = None
+    
+    def train_step(self, td_loss: torch.Tensor, current_epoch: int):
+        util.train_step(
+            td_loss, 
+            self.optimizer, 
+            self.lr_scheduler, 
+            self.grad_clip_max_norm, 
+            current_epoch
+        )
+
 
 class DQN(Agent):
     """
@@ -35,7 +46,7 @@ class DQN(Agent):
                  clock: Clock,
                  gamma: float = 0.99,
                  target_net_update_type: TargetNetUpdateType = TargetNetUpdateType.REPLACE,
-                 epoch: int = 1,
+                 epoch: int = 3,
                  summary_freq: int = 1000,
                  **kwargs) -> None:
         """
@@ -43,9 +54,12 @@ class DQN(Agent):
 
         Args:
             net_spec (DQNSpec): DQN network spec
+            policy (Policy): action selection
+            trajectory (Trajectory): off-policy trajectory
             clock (Clock): time step checker
             gamma (float, optional): discount factor. Defaults to 0.99.
             target_net_update_type (TargetNetUpdateType, optional): target network update type. Defaults to TargetNetUpdateType.REPLACE.
+            epoch (int, optional): update count. Defaults to 3.
             **kwargs: update_freq(Defaults to 1), polyak_ratio(Defaults to 0.5)
         """
         assert gamma >= 0 and gamma <= 1
@@ -85,7 +99,7 @@ class DQN(Agent):
             batch = self.trajectory.sample()
             loss = self.compute_td_loss(batch)
             # update Q network
-            util.train_step(loss, self.net_spec.optimizer, self.net_spec.lr_scheduler, self.clock.training_step)
+            self.net_spec.train_step(loss, self.clock.training_step)
             self.clock.tick_training_step()
             # update data
             self.losses.append(loss.detach().cpu().numpy())
