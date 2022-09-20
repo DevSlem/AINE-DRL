@@ -1,5 +1,5 @@
 from aine_drl.agent.agent import Agent
-from typing import NamedTuple
+from typing import NamedTuple, Union
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,6 +18,16 @@ class REINFORCENetSpec(NamedTuple):
     policy_net: nn.Module
     optimizer: optim.Optimizer
     lr_scheduler: _LRScheduler = None # Defaults to not scheduling
+    grad_clip_max_norm: Union[float, None] = None
+    
+    def train_step(self, policy_loss: torch.Tensor, current_epoch: int):
+        util.train_step(
+            policy_loss,
+            self.optimizer,
+            self.lr_scheduler,
+            self.grad_clip_max_norm,
+            current_epoch
+        )
 
 class REINFORCE(Agent):
     """
@@ -63,7 +73,7 @@ class REINFORCE(Agent):
         batch = self.trajectory.sample()
         loss = self.compute_policy_loss(batch)
         # update policy network
-        util.train_step(loss, self.net_spec.optimizer, self.net_spec.lr_scheduler, self.clock.training_step)
+        self.net_spec.train_step(loss, self.clock.training_step)
         self.clock.tick_training_step()
         # update data
         self.action_log_probs.clear()

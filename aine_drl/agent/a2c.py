@@ -19,6 +19,23 @@ class ActorCriticNetSpec(NamedTuple):
     value_optimizer: optim.Optimizer
     policy_lr_scheduler: _LRScheduler = None # Defaults to not scheduling
     value_lr_scheduler: _LRScheduler = None # Defaults to not scheduling
+    grad_clip_max_norm: Union[float, None] = None
+    
+    def train_step(self, policy_loss: torch.Tensor, value_loss: torch.Tensor, current_epoch: int):
+        util.train_step(
+            policy_loss, 
+            self.policy_optimizer, 
+            self.policy_lr_scheduler, 
+            self.grad_clip_max_norm, 
+            current_epoch
+        )
+        util.train_step(
+            value_loss, 
+            self.value_optimizer, 
+            self.value_lr_scheduler, 
+            self.grad_clip_max_norm, 
+            current_epoch
+        )
     
 class ActorCriticSharedNetSpec(NamedTuple):
     policy_net: nn.Module
@@ -26,6 +43,17 @@ class ActorCriticSharedNetSpec(NamedTuple):
     optimizer: optim.Optimizer # optimizer must be able to update policy_net, value_net, shared_net at once.
     value_loss_coef: float = 0.5
     lr_scheduler: _LRScheduler = None # Defaults to not scheduling
+    grad_clip_max_norm: Union[float, None] = None
+    
+    def train_step(self, policy_loss: torch.Tensor, value_loss: torch.Tensor, current_epoch: int):
+        loss = policy_loss + self.value_loss_coef * value_loss
+        util.train_step(
+            loss, 
+            self.optimizer, 
+            self.lr_scheduler, 
+            self.grad_clip_max_norm, 
+            current_epoch
+        )
 
 class A2C(Agent):
     """
@@ -136,12 +164,7 @@ class A2C(Agent):
         return self.value_loss_func(v_targets, v_preds)
     
     def train_step(self, policy_loss: torch.Tensor, value_loss: torch.Tensor):
-        if self.shared_net:
-            loss = policy_loss + self.net_spec.value_loss_coef * value_loss
-            util.train_step(loss, self.net_spec.optimizer, self.net_spec.lr_scheduler, self.clock.training_step)
-        else:
-            util.train_step(policy_loss, self.net_spec.policy_optimizer, self.net_spec.policy_lr_scheduler, self.clock.training_step)
-            util.train_step(value_loss, self.net_spec.value_optimizer, self.net_spec.value_lr_scheduler, self.clock.training_step)
+        self.net_spec.train_step(policy_loss, value_loss, self.clock.training_step)
         self.clock.tick_training_step()
     
     def log_data(self, time_step: int):

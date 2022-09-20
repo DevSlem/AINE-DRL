@@ -5,6 +5,7 @@ import datetime
 import os
 import torch
 import torch.nn as nn
+import torch.nn.utils as torch_util
 import torch.backends.cudnn as cudnn
 import random
 
@@ -133,13 +134,19 @@ def vector_env_unpack(batch_tensor: torch.Tensor) -> torch.Tensor:
     else: # non-scalar data (batch_size, num_envs, *shape) 
         unpack_shape = [-1] + shape[2:]
         return batch_tensor.view(unpack_shape)
+    
+def get_optim_params(optimizer: torch.optim.Optimizer):
+    return [param["params"] for param in optimizer.param_groups]
 
 def train_step(loss: torch.Tensor, 
                optimizer: torch.optim.Optimizer, 
                lr_scheduler = None, 
+               grad_clip_max_norm: Union[float, None] = None,
                epoch: int = -1):
     optimizer.zero_grad()
     loss.backward()
+    if grad_clip_max_norm is not None:
+        torch_util.clip_grad_norm_(*get_optim_params(optimizer), grad_clip_max_norm)
     optimizer.step()
     lr_scheduler_step(lr_scheduler, epoch)
     
