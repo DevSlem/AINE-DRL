@@ -77,6 +77,7 @@ class PPO(A2C):
         # pi_theta / pi_theta_old
         ratios = torch.exp(log_probs - old_log_probs)
         # surrogate loss
+        advantages = torch.broadcast_to(advantages.squeeze(-1), ratios.shape[::-1]).T
         sur1 = ratios * advantages
         sur2 = torch.clamp(ratios, 1 - self.epsilon_clip, 1 + self.epsilon_clip) * advantages
         # compute loss
