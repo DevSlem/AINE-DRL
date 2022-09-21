@@ -10,10 +10,19 @@ class logger:
     """ Standard logger class. """
     
     @staticmethod
-    def get_log_dir():
+    def log_base_dir():
+        return "results"
+    
+    @classmethod
+    def log_dir(cls):
         """ Returns the log directory. """
-        dir = f"results/{aine_drl.get_global_env_id()}"
-        return dir if not util.exists_dir(dir) else util.add_dir_num_suffix(dir, num_left="_")
+        dir = f"{cls.log_base_dir()}/{aine_drl.get_global_env_id()}"
+        # return dir if not util.exists_dir(dir) else util.add_dir_num_suffix(dir, num_left="_")
+        return dir
+    
+    @classmethod
+    def agent_save_dir(cls):
+        return f"{cls.log_dir()}/agent.pt"
     
     _logger: SummaryWriter = None
         
@@ -21,7 +30,7 @@ class logger:
     def log(cls, key, value, t):
         """ Records a log using the logger. """
         if cls._logger is None:
-            cls._logger = SummaryWriter(cls.get_log_dir())
+            cls._logger = SummaryWriter(cls.log_dir())
         cls._logger.add_scalar(key, value, t)
         
     @classmethod
