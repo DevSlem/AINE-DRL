@@ -82,7 +82,9 @@ class GymTraining:
     def _train(self, total_time_steps: int):
         gym_env = self.gym_env
         states = gym_env.reset(seed=self.seed)
-        for time_step in range(self.agent.clock.time_step, total_time_steps, self.num_envs):
+        if self.agent.clock.time_step >= total_time_steps:
+            logger.print(f"Since {self.env_id} agent already reached to the total time steps, you can't train the agent.")
+        for _ in range(self.agent.clock.time_step, total_time_steps, self.num_envs):
             actions = self.agent.select_action(states)
             # take action and observe
             next_states, rewards, terminateds, truncateds, _ = self.gym_env.step(actions)
