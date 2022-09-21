@@ -1,3 +1,4 @@
+from copy import copy, deepcopy
 from aine_drl.agent.agent import Agent
 from aine_drl.policy.policy import Policy
 from aine_drl.trajectory.trajectory import Trajectory
@@ -10,14 +11,16 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import _LRScheduler
 from enum import Enum
-from typing import Any, NamedTuple, Union
+from typing import Any, Union
+from dataclasses import dataclass
 import numpy as np
 
 class TargetNetUpdateType(Enum):
     REPLACE = 0,
     POLYAK = 1
     
-class DQNSpec(NamedTuple):
+@dataclass
+class DQNSpec:
     q_net: nn.Module
     target_net: nn.Module
     optimizer: optim.Optimizer
@@ -33,6 +36,25 @@ class DQNSpec(NamedTuple):
             self.grad_clip_max_norm, 
             current_epoch
         )
+        
+    @property
+    def state_dict(self) -> dict:
+        sd = {
+            "q_net": self.q_net.state_dict(),
+            "target_net": self.target_net.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "lr_scheduler": self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
+            "grad_clip_max_norm": self.grad_clip_max_norm
+        }
+        return sd
+    
+    def load_state_dict(self, state_dict: dict):
+        self.q_net.load_state_dict(state_dict["q_net"])
+        self.target_net.load_state_dict(state_dict["target_net"])
+        self.optimizer.load_state_dict(state_dict["optimizer"])
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.load_state_dict(state_dict["lr_scheduler"])
+        self.grad_clip_max_norm = state_dict["grad_clip_max_norm"]
 
 
 class DQN(Agent):
@@ -133,6 +155,16 @@ class DQN(Agent):
         # update target network
         if self.clock.check_time_step_freq(self.update_freq):
             self.net_updater(self.net_spec.q_net, self.net_spec.target_net)
+            
+    @property
+    def state_dict(self) -> dict:
+        sd = super().state_dict
+        sd.update({"net_spec": self.net_spec.state_dict})
+        return sd
+    
+    def load_state_dict(self, state_dict: dict):
+        super().load_state_dict(state_dict)
+        self.net_spec.load_state_dict(state_dict["net_spec"])
 
 class DoubleDQN(DQN):
     """

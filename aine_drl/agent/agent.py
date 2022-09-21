@@ -111,6 +111,13 @@ class Agent(ABC):
             self.cumulative_rewards.clear()
         else:
             logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
+            
+    @property
+    def state_dict(self) -> dict:
+        return {"clock": self.clock.state_dict}
+    
+    def load_state_dict(self, state_dict: dict):
+        self.clock.load_state_dict(state_dict["clock"])
     
     @staticmethod
     def create_experience_list(states: np.ndarray,

@@ -1,5 +1,6 @@
 from aine_drl.agent.agent import Agent
-from typing import NamedTuple, Union
+from typing import Union
+from dataclasses import dataclass
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,7 +15,8 @@ import aine_drl.drl_util as drl_util
 from aine_drl.util.decorator import aine_api
 import numpy as np
 
-class REINFORCENetSpec(NamedTuple):
+@dataclass
+class REINFORCENetSpec:
     policy_net: nn.Module
     optimizer: optim.Optimizer
     lr_scheduler: _LRScheduler = None # Defaults to not scheduling
@@ -28,6 +30,23 @@ class REINFORCENetSpec(NamedTuple):
             self.grad_clip_max_norm,
             current_epoch
         )
+        
+    @property
+    def state_dict(self) -> dict:
+        sd = {
+            "policy_net": self.policy_net.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "lr_scheduler": self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
+            "grad_clip_max_norm": self.grad_clip_max_norm
+        }
+        return sd
+    
+    def load_state_dict(self, state_dict: dict):
+        self.policy_net.load_state_dict(state_dict["policy_net"])
+        self.optimizer.load_state_dict(state_dict["optimizer"])
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.load_state_dict(state_dict["lr_scheduler"]) 
+        self.grad_clip_max_norm = state_dict["grad_clip_max_norm"]
 
 class REINFORCE(Agent):
     """
@@ -112,3 +131,14 @@ class REINFORCE(Agent):
             logger.log("Network/Policy Loss", np.mean(self.losses), self.clock.training_step)
             self.losses.clear()
         logger.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
+        
+    @property
+    def state_dict(self) -> dict:
+        sd = super().state_dict
+        sd.update({"net_spec": self.net_spec.state_dict})
+        return sd
+    
+    def load_state_dict(self, state_dict: dict):
+        super().load_state_dict(state_dict)
+        self.net_spec.load_state_dict(state_dict["net_spec"])
+        
