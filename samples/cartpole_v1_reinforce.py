@@ -62,7 +62,7 @@ def main():
         gamma=0.99
     )
     
-    gym_training = GymTraining(reinforce, env, seed=seed)
+    gym_training = GymTraining(reinforce, env, seed=seed, env_id="CartPole-v1_REINFORCE")
     gym_training.run_train(total_training_step)
     
 if __name__ == "__main__":
