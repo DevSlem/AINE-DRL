@@ -138,7 +138,7 @@ def main():
     )
     
     # start training
-    gym_training = GymTraining(ppo, env, seed=seed, env_id="BipedalWalker-v3_PPO")
+    gym_training = GymTraining(ppo, env, seed=seed, env_id="BipedalWalker-v3_PPO", auto_retrain=True)
     gym_training.run_train(total_time_steps)
     
 if __name__ == "__main__":

@@ -103,7 +103,7 @@ def main():
         entropy_coef=0.001
     )
     
-    gym_training = GymTraining(a2c, env, seed=seed, env_id="CartPole-v1_A2C")
+    gym_training = GymTraining(a2c, env, seed=seed, env_id="CartPole-v1_A2C", auto_retrain=False)
     gym_training.run_train(total_time_steps)
     
 if __name__ == "__main__":

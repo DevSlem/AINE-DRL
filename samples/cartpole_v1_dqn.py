@@ -69,7 +69,7 @@ def main():
         summary_freq=1000,
         update_freq=128
     )
-    gym_training = GymTraining(dqn, env, seed=seed, env_id="CartPole-v1_DoubleDQN")
+    gym_training = GymTraining(dqn, env, seed=seed, env_id="CartPole-v1_DoubleDQN", auto_retrain=False)
     gym_training.run_train(total_time_steps)
     
 if __name__ == '__main__':
