@@ -58,3 +58,18 @@ class Clock:
         
     def _get_real_time(self):
         return time.time() - self._real_start_time
+    
+    @property
+    def state_dict(self) -> dict:
+        clock_state_dict = {
+            "time_step": self._time_step,
+            "episode": self._episode,
+            "episode_len": self._episode_len,
+            "training_step": self._training_step,
+        }
+        return clock_state_dict
+    
+    def load_state_dict(self, state_dict: dict):
+        for key, value in state_dict.items():
+            setattr(self, f"_{key}", value)
+            

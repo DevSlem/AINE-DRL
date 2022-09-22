@@ -1,4 +1,6 @@
-from typing import NamedTuple, Tuple, Union
+from typing import Tuple, Union
+from dataclasses import dataclass
+from aine_drl.drl_util import NetSpec
 from aine_drl.agent.agent import Agent
 from aine_drl.drl_util.clock import Clock
 from aine_drl.policy.policy import Policy
@@ -12,7 +14,8 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import _LRScheduler
 import numpy as np
 
-class ActorCriticNetSpec(NamedTuple):
+@dataclass
+class ActorCriticNetSpec(NetSpec):
     policy_net: nn.Module
     value_net: nn.Module
     policy_optimizer: optim.Optimizer
@@ -36,8 +39,33 @@ class ActorCriticNetSpec(NamedTuple):
             self.grad_clip_max_norm, 
             current_epoch
         )
+        
+    @property
+    def state_dict(self) -> dict:
+        sd = {
+            "policy_net": self.policy_net.state_dict(),
+            "value_net": self.value_net.state_dict(),
+            "policy_optimizer": self.policy_optimizer.state_dict(),
+            "value_optimizer": self.value_optimizer.state_dict(),
+            "policy_lr_scheduler": self.policy_lr_scheduler.state_dict() if self.policy_lr_scheduler is not None else None,
+            "value_lr_scheduler": self.value_lr_scheduler.state_dict() if self.value_lr_scheduler is not None else None,
+            "grad_clip_max_norm": self.grad_clip_max_norm
+        }
+        return sd
+        
+    def load_state_dict(self, state_dict: dict):
+        self.policy_net.load_state_dict(state_dict["policy_net"])
+        self.value_net.load_state_dict(state_dict["value_net"])
+        self.policy_optimizer.load_state_dict(state_dict["policy_optimizer"])
+        self.value_optimizer.load_state_dict(state_dict["value_optimizer"])
+        if self.policy_lr_scheduler is not None:
+            self.policy_lr_scheduler.load_state_dict(state_dict["policy_lr_scheduler"])
+        if self.value_lr_scheduler is not None:
+            self.value_lr_scheduler.load_state_dict(state_dict["value_lr_scheduler"])
+        self.grad_clip_max_norm = state_dict["grad_clip_max_norm"]
     
-class ActorCriticSharedNetSpec(NamedTuple):
+@dataclass
+class ActorCriticSharedNetSpec(NetSpec):
     policy_net: nn.Module
     value_net: nn.Module
     optimizer: optim.Optimizer # optimizer must be able to update policy_net, value_net, shared_net at once.
@@ -54,6 +82,27 @@ class ActorCriticSharedNetSpec(NamedTuple):
             self.grad_clip_max_norm, 
             current_epoch
         )
+    
+    @property
+    def state_dict(self) -> dict:
+        sd = {
+            "policy_net": self.policy_net.state_dict(),
+            "value_net": self.value_net.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "value_loss_coef": self.value_loss_coef,
+            "lr_scheduler": self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
+            "grad_clip_max_norm": self.grad_clip_max_norm
+        }
+        return sd
+        
+    def load_state_dict(self, state_dict: dict):
+        self.policy_net.load_state_dict(state_dict["policy_net"])
+        self.value_net.load_state_dict(state_dict["value_net"])
+        self.optimizer.load_state_dict(state_dict["optimizer"])
+        self.value_loss_coef = state_dict["value_loss_coef"]
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.load_state_dict(state_dict["lr_scheduler"])
+        self.grad_clip_max_norm = state_dict["grad_clip_max_norm"]
 
 class A2C(Agent):
     """
@@ -81,7 +130,8 @@ class A2C(Agent):
             entropy_coef (float, optional): it controls entropy regularization. Defaults to 0.0, meaning not used.
             summary_freq (int, optional): summary frequency. Defaults to 1000.
         """
-        super().__init__(policy, trajectory, clock, summary_freq)
+        assert gamma >= 0 and gamma <= 1 and lam >= 0 and lam <= 1
+        super().__init__(net_spec, policy, trajectory, clock, summary_freq)
         self.net_spec = net_spec
         self.shared_net = type(net_spec) == ActorCriticSharedNetSpec
         self.gamma = gamma
@@ -179,3 +229,4 @@ class A2C(Agent):
         else:
             logger.log_lr_scheduler(self.net_spec.policy_lr_scheduler, self.clock.training_step, "Policy Network Learning Rate")
             logger.log_lr_scheduler(self.net_spec.value_lr_scheduler, self.clock.training_step, "Value Network Learning Rate")
+            

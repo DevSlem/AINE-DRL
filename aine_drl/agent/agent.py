@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
+from aine_drl.drl_util.net_spec import NetSpec
 from aine_drl.trajectory import Trajectory
 from aine_drl.policy import Policy
 from aine_drl.util import aine_api, logger
@@ -11,7 +12,8 @@ class Agent(ABC):
     """
     Deep reinforcement learning agent.
     """
-    def __init__(self, 
+    def __init__(self,
+                 net_spec: NetSpec,
                  policy: Policy, 
                  trajectory: Trajectory,
                  clock: Clock,
@@ -20,11 +22,13 @@ class Agent(ABC):
         Deep reinforcement learning agent.
         
         Args:
+            net_spec (NetSpec): neural network spec
             policy (Policy): policy to sample actions
             trajectory (Trajectory): trajectory to sample training batches
             clock (Clock): time step checker
             summary_freq (int, optional): summary frequency to log data. Defaults to 10.
         """
+        self.__net_spec = net_spec
         self.policy = policy
         self.trajectory = trajectory
         self.clock = clock
@@ -100,6 +104,7 @@ class Agent(ABC):
     
     @aine_api
     def log_data(self, time_step: int):
+        """ Log data. """
         if len(self.episode_lengths) > 0:
             avg_cumul_reward = np.mean(self.cumulative_rewards)
             logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
@@ -111,6 +116,16 @@ class Agent(ABC):
             self.cumulative_rewards.clear()
         else:
             logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
+            
+    @property
+    def state_dict(self) -> dict:
+        """ Returns the state dict of the agent. """
+        return {"clock": self.clock.state_dict, "net_spec": self.__net_spec.state_dict}
+    
+    def load_state_dict(self, state_dict: dict):
+        """ Load the state dict. """
+        self.clock.load_state_dict(state_dict["clock"])
+        self.__net_spec.load_state_dict(state_dict["net_spec"])
     
     @staticmethod
     def create_experience_list(states: np.ndarray,

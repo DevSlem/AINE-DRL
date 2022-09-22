@@ -10,14 +10,17 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import _LRScheduler
 from enum import Enum
-from typing import Any, NamedTuple, Union
+from typing import Any, Union
+from dataclasses import dataclass
+from aine_drl.drl_util import NetSpec
 import numpy as np
 
 class TargetNetUpdateType(Enum):
     REPLACE = 0,
     POLYAK = 1
     
-class DQNSpec(NamedTuple):
+@dataclass
+class DQNSpec(NetSpec):
     q_net: nn.Module
     target_net: nn.Module
     optimizer: optim.Optimizer
@@ -33,6 +36,25 @@ class DQNSpec(NamedTuple):
             self.grad_clip_max_norm, 
             current_epoch
         )
+        
+    @property
+    def state_dict(self) -> dict:
+        sd = {
+            "q_net": self.q_net.state_dict(),
+            "target_net": self.target_net.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "lr_scheduler": self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
+            "grad_clip_max_norm": self.grad_clip_max_norm
+        }
+        return sd
+    
+    def load_state_dict(self, state_dict: dict):
+        self.q_net.load_state_dict(state_dict["q_net"])
+        self.target_net.load_state_dict(state_dict["target_net"])
+        self.optimizer.load_state_dict(state_dict["optimizer"])
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.load_state_dict(state_dict["lr_scheduler"])
+        self.grad_clip_max_norm = state_dict["grad_clip_max_norm"]
 
 
 class DQN(Agent):
@@ -63,6 +85,7 @@ class DQN(Agent):
             **kwargs: update_freq(Defaults to 1), polyak_ratio(Defaults to 0.5)
         """
         assert gamma >= 0 and gamma <= 1
+        super().__init__(net_spec, policy, trajectory, clock, summary_freq)
         
         self.net_spec = net_spec
         self.device = util.get_model_device(net_spec.q_net)
@@ -83,7 +106,6 @@ class DQN(Agent):
         else:
             raise ValueError
         
-        super().__init__(policy, trajectory, clock, summary_freq)
         
     def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
         pdparam = self.net_spec.q_net(state.to(device=self.device))
