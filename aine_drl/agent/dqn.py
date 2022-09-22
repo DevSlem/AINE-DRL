@@ -1,4 +1,3 @@
-from copy import copy, deepcopy
 from aine_drl.agent.agent import Agent
 from aine_drl.policy.policy import Policy
 from aine_drl.trajectory.trajectory import Trajectory
@@ -13,6 +12,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 from enum import Enum
 from typing import Any, Union
 from dataclasses import dataclass
+from aine_drl.drl_util import NetSpec
 import numpy as np
 
 class TargetNetUpdateType(Enum):
@@ -20,7 +20,7 @@ class TargetNetUpdateType(Enum):
     POLYAK = 1
     
 @dataclass
-class DQNSpec:
+class DQNSpec(NetSpec):
     q_net: nn.Module
     target_net: nn.Module
     optimizer: optim.Optimizer
@@ -85,6 +85,7 @@ class DQN(Agent):
             **kwargs: update_freq(Defaults to 1), polyak_ratio(Defaults to 0.5)
         """
         assert gamma >= 0 and gamma <= 1
+        super().__init__(net_spec, policy, trajectory, clock, summary_freq)
         
         self.net_spec = net_spec
         self.device = util.get_model_device(net_spec.q_net)
@@ -105,7 +106,6 @@ class DQN(Agent):
         else:
             raise ValueError
         
-        super().__init__(policy, trajectory, clock, summary_freq)
         
     def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
         pdparam = self.net_spec.q_net(state.to(device=self.device))
@@ -155,16 +155,6 @@ class DQN(Agent):
         # update target network
         if self.clock.check_time_step_freq(self.update_freq):
             self.net_updater(self.net_spec.q_net, self.net_spec.target_net)
-            
-    @property
-    def state_dict(self) -> dict:
-        sd = super().state_dict
-        sd.update({"net_spec": self.net_spec.state_dict})
-        return sd
-    
-    def load_state_dict(self, state_dict: dict):
-        super().load_state_dict(state_dict)
-        self.net_spec.load_state_dict(state_dict["net_spec"])
 
 class DoubleDQN(DQN):
     """

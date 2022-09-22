@@ -1,6 +1,7 @@
 from aine_drl.agent.agent import Agent
 from typing import Union
 from dataclasses import dataclass
+from aine_drl.drl_util import NetSpec
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,7 +17,7 @@ from aine_drl.util.decorator import aine_api
 import numpy as np
 
 @dataclass
-class REINFORCENetSpec:
+class REINFORCENetSpec(NetSpec):
     policy_net: nn.Module
     optimizer: optim.Optimizer
     lr_scheduler: _LRScheduler = None # Defaults to not scheduling
@@ -71,7 +72,7 @@ class REINFORCE(Agent):
             summary_freq (int, optional): summary frequency. Defaults to 1000.
         """
         assert gamma >= 0 and gamma <= 1 and isinstance(trajectory, MonteCarloTrajectory)
-        super().__init__(policy, trajectory, clock, summary_freq)
+        super().__init__(net_spec, policy, trajectory, clock, summary_freq)
         self.net_spec = net_spec
         self.gamma = gamma
         self.device = util.get_model_device(net_spec.policy_net)
@@ -131,14 +132,4 @@ class REINFORCE(Agent):
             logger.log("Network/Policy Loss", np.mean(self.losses), self.clock.training_step)
             self.losses.clear()
         logger.log_lr_scheduler(self.net_spec.lr_scheduler, self.clock.training_step)
-        
-    @property
-    def state_dict(self) -> dict:
-        sd = super().state_dict
-        sd.update({"net_spec": self.net_spec.state_dict})
-        return sd
-    
-    def load_state_dict(self, state_dict: dict):
-        super().load_state_dict(state_dict)
-        self.net_spec.load_state_dict(state_dict["net_spec"])
         

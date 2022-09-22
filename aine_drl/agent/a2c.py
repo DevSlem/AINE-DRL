@@ -1,5 +1,6 @@
 from typing import Tuple, Union
 from dataclasses import dataclass
+from aine_drl.drl_util import NetSpec
 from aine_drl.agent.agent import Agent
 from aine_drl.drl_util.clock import Clock
 from aine_drl.policy.policy import Policy
@@ -14,7 +15,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 import numpy as np
 
 @dataclass
-class ActorCriticNetSpec:
+class ActorCriticNetSpec(NetSpec):
     policy_net: nn.Module
     value_net: nn.Module
     policy_optimizer: optim.Optimizer
@@ -64,7 +65,7 @@ class ActorCriticNetSpec:
         self.grad_clip_max_norm = state_dict["grad_clip_max_norm"]
     
 @dataclass
-class ActorCriticSharedNetSpec:
+class ActorCriticSharedNetSpec(NetSpec):
     policy_net: nn.Module
     value_net: nn.Module
     optimizer: optim.Optimizer # optimizer must be able to update policy_net, value_net, shared_net at once.
@@ -129,7 +130,8 @@ class A2C(Agent):
             entropy_coef (float, optional): it controls entropy regularization. Defaults to 0.0, meaning not used.
             summary_freq (int, optional): summary frequency. Defaults to 1000.
         """
-        super().__init__(policy, trajectory, clock, summary_freq)
+        assert gamma >= 0 and gamma <= 1 and lam >= 0 and lam <= 1
+        super().__init__(net_spec, policy, trajectory, clock, summary_freq)
         self.net_spec = net_spec
         self.shared_net = type(net_spec) == ActorCriticSharedNetSpec
         self.gamma = gamma
@@ -228,12 +230,3 @@ class A2C(Agent):
             logger.log_lr_scheduler(self.net_spec.policy_lr_scheduler, self.clock.training_step, "Policy Network Learning Rate")
             logger.log_lr_scheduler(self.net_spec.value_lr_scheduler, self.clock.training_step, "Value Network Learning Rate")
             
-    @property
-    def state_dict(self) -> dict:
-        sd = super().state_dict
-        sd.update({"net_spec": self.net_spec.state_dict})
-        return sd
-    
-    def load_state_dict(self, state_dict: dict):
-        super().load_state_dict(state_dict)
-        self.net_spec.load_state_dict(state_dict["net_spec"])
