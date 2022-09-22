@@ -100,6 +100,7 @@ class Agent(ABC):
     
     @aine_api
     def log_data(self, time_step: int):
+        """ Log data. """
         if len(self.episode_lengths) > 0:
             avg_cumul_reward = np.mean(self.cumulative_rewards)
             logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
@@ -114,9 +115,11 @@ class Agent(ABC):
             
     @property
     def state_dict(self) -> dict:
+        """ Returns the state dict of the agent. """
         return {"clock": self.clock.state_dict}
     
     def load_state_dict(self, state_dict: dict):
+        """ Load the state dict. """
         self.clock.load_state_dict(state_dict["clock"])
     
     @staticmethod
