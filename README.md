@@ -64,7 +64,9 @@ Example:
 python samples/cartpole_v1_a2c.py
 ```
 
-Then, you can see the result in the shell and result files are generated in `results` directory. If you want to see the summarized results, input below command:
+Then, you can see the result in the shell and result files are generated in `results` directory. You can interrupt training by `ctrl + c`. You can also retrain at the interrupted time step. See details of `GymTraining` class in [docs](aine_drl/training/gym_training.py).
+
+If you want to see the summarized results, input below command:
 
 ```
 tensorboard --logdir=results
