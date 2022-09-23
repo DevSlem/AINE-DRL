@@ -2,6 +2,15 @@
 
 A project for the DRL framework. AINE is the team name which means "Agent IN Environment".
 
+AINE-DRL supports below things.
+
+* deep reinforcement learning agents
+* training interrupt and agent save
+* training with gym environment (vectorized environment also supported)
+* rendering gym environment with inference mode
+
+If you want to know how to use, see details in [sample codes](samples/).
+
 ## Algorithm
 
 ### Implemented
