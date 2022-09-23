@@ -72,7 +72,10 @@ class PolicyNet(nn.Module):
         )
         
     def forward(self, states):
-        return self.layers(states)
+        pdparam = self.layers(states)
+        if pdparam.shape[0] == 1:
+            pdparam.squeeze_(0)
+        return pdparam
     
 class ValueNet(nn.Module):
     def __init__(self, obs_encoding_layer, value_layer) -> None:
@@ -91,7 +94,8 @@ def main():
     util.seed(seed)
     
     # training setting
-    total_time_steps = 6000000
+    total_time_steps = 4000000
+    render_freq = 300000
     summary_freq = 50000
     epoch = 15
     
@@ -138,7 +142,14 @@ def main():
     )
     
     # start training
-    gym_training = GymTraining(ppo, env, seed=seed, env_id="BipedalWalker-v3_PPO", auto_retrain=True)
+    gym_training = GymTraining(
+        ppo, 
+        env, 
+        seed=seed, 
+        env_id="BipedalWalker-v3_PPO", 
+        auto_retrain=True, 
+        render_freq=render_freq
+    )
     gym_training.run_train(total_time_steps)
     
 if __name__ == "__main__":

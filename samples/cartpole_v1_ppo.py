@@ -110,7 +110,14 @@ def main():
         epoch=epoch
     )
     
-    gym_training = GymTraining(ppo, env, seed=seed, env_id="CartPole-v1_PPO", auto_retrain=False)
+    gym_training = GymTraining(
+        ppo, 
+        env, 
+        seed=seed, 
+        env_id="CartPole-v1_PPO", 
+        auto_retrain=False, 
+        render_freq=10000
+    )
     gym_training.run_train(total_time_steps)
     
 if __name__ == "__main__":
