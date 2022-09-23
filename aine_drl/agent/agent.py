@@ -3,7 +3,7 @@ from typing import List
 from aine_drl.drl_util.net_spec import NetSpec
 from aine_drl.trajectory import Trajectory
 from aine_drl.policy import Policy
-from aine_drl.util import aine_api, logger
+from aine_drl.util import logger
 from aine_drl.drl_util import Clock, Experience
 import numpy as np
 import torch
@@ -43,7 +43,6 @@ class Agent(ABC):
         self.cumulative_reward = 0
         self._behavior_type = BehaviorType.TRAIN
         
-    @aine_api
     def update(self, experiences: List[Experience]):
         """
         Update the agent. It stores data, trains the agent, etc.
@@ -73,7 +72,6 @@ class Agent(ABC):
             self.log_data(time_step)
             self.policy.log_data(time_step)
     
-    @aine_api
     def select_action(self, state: np.ndarray) -> np.ndarray:
         """
         Returns an action from the state.

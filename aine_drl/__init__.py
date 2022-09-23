@@ -1,5 +1,4 @@
 from .global_env import *
-from .util import aine_api
 # AINE-DRL main API
 from .agent import *
 from .policy import *

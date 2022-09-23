@@ -3,7 +3,6 @@ from aine_drl.drl_util import Experience, ExperienceBatch
 from aine_drl.trajectory import BatchTrajectory
 import numpy as np
 import aine_drl.util as util
-from aine_drl.util.decorator import aine_api
 
 
 class ExperienceReplay(BatchTrajectory):
@@ -21,22 +20,18 @@ class ExperienceReplay(BatchTrajectory):
         self.freq = training_freq
         self.batch_size = batch_size
         
-    @aine_api
     @property
     def can_train(self) -> bool:
         return self.count >= self.batch_size and self.added_exp_count >= self.freq
     
-    @aine_api
     def reset(self):
         super().reset()
         self.added_exp_count = 0
         
-    @aine_api
     def add(self, experiences: List[Experience]):
         super().add(experiences)
         self.added_exp_count += len(experiences)
     
-    @aine_api
     def sample(self) -> ExperienceBatch:
         self.added_exp_count -= self.freq
         batch_idxs = self._sample_idxs()

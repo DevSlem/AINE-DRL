@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import List
-from aine_drl import aine_api
 from aine_drl.drl_util import Experience, ExperienceBatch
 
 class Trajectory(ABC):
@@ -8,7 +7,6 @@ class Trajectory(ABC):
     Trajectory abstract class to store and sample experiences.
     """
     
-    @aine_api
     @property
     @abstractmethod
     def count(self) -> int:
@@ -17,7 +15,6 @@ class Trajectory(ABC):
         """
         raise NotImplementedError
     
-    @aine_api
     @property
     @abstractmethod
     def can_train(self) -> bool:
@@ -26,7 +23,6 @@ class Trajectory(ABC):
         """
         raise NotImplementedError
     
-    @aine_api
     @abstractmethod
     def reset(self):
         """
@@ -34,7 +30,6 @@ class Trajectory(ABC):
         """
         raise NotImplementedError
     
-    @aine_api
     @abstractmethod
     def add(self, experiences: List[Experience]):
         """
@@ -45,7 +40,6 @@ class Trajectory(ABC):
         """
         raise NotImplementedError
         
-    @aine_api
     @abstractmethod
     def sample(self) -> ExperienceBatch:
         """

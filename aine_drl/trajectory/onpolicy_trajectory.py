@@ -1,6 +1,5 @@
 from aine_drl.drl_util import ExperienceBatch
 from aine_drl.trajectory import BatchTrajectory
-from aine_drl.util.decorator import aine_api
 
 class OnPolicyTrajectory(BatchTrajectory):
     """
@@ -16,12 +15,10 @@ class OnPolicyTrajectory(BatchTrajectory):
         super().__init__(num_exp_per_env * num_envs, num_envs)
         self.freq = num_exp_per_env * self.num_envs
         
-    @aine_api
     @property
     def can_train(self) -> bool:
         return self._count == self.freq
     
-    @aine_api
     def sample(self) -> ExperienceBatch:
         """
         Sample from the trajectory. You should call this function only if can train.

@@ -1,7 +1,6 @@
 from aine_drl.drl_util import Experience, ExperienceBatch
 from aine_drl.trajectory import Trajectory
 from typing import List
-from aine_drl import aine_api
 import numpy as np
 
 class MonteCarloTrajectory(Trajectory):
@@ -15,18 +14,15 @@ class MonteCarloTrajectory(Trajectory):
         self.num_envs = num_envs
         self.reset()
         
-    @aine_api
     @property
     def count(self) -> int:
         return self._count
     
-    @aine_api
     @property
     def can_train(self) -> bool:
         # if all episodes are terminated
         return np.array(self._can_train).sum() == self.num_envs
         
-    @aine_api
     def reset(self):
         self._count = 0 # total experience count
         self._can_train = [False] * self.num_envs
@@ -38,7 +34,6 @@ class MonteCarloTrajectory(Trajectory):
         self.terminateds = [[] for _ in range(self.num_envs)]
         self.next_state_buffer = [None] * self.num_envs
         
-    @aine_api
     def add(self, experiences: List[Experience]):
         assert len(experiences) == self.num_envs
         for i, ex in enumerate(experiences):
@@ -55,7 +50,6 @@ class MonteCarloTrajectory(Trajectory):
             self.terminateds[i].append(ex.terminated)
             self.next_state_buffer[i] = ex.next_state
             
-    @aine_api
     def sample(self) -> ExperienceBatch:
         """
         Returns the concatnated batch of multiple episodes.

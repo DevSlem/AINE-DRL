@@ -1,6 +1,5 @@
 from aine_drl.policy import Policy
 from aine_drl.drl_util import EpsilonGreedy, Decay, NoDecay
-from aine_drl.util import aine_api
 from aine_drl.util import logger
 import torch
 from torch.distributions import Distribution
@@ -24,14 +23,11 @@ class EpsilonGreedyPolicy(Policy):
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
     
-    @aine_api
     def get_policy_distribution(self, pdparam: torch.Tensor) -> Distribution:
         return EpsilonGreedy(pdparam, self.epsilon)
     
-    @aine_api
     def update_hyperparams(self, time_step: int):
         self.epsilon = self.epsilon_decay(time_step)
         
-    @aine_api
     def log_data(self, time_step: int):
         logger.log("Policy/Epsilon", self.epsilon, time_step)

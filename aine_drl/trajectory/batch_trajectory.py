@@ -1,5 +1,4 @@
 from typing import List
-from aine_drl import aine_api
 from aine_drl.drl_util import Experience
 from aine_drl.trajectory import Trajectory
 
@@ -18,12 +17,10 @@ class BatchTrajectory(Trajectory):
         self.max_num_exp = max_num_exp # maximum number of elements
         self.reset()
         
-    @aine_api
     @property
     def count(self) -> int:
         return self._count
         
-    @aine_api
     def reset(self):
         self._count = 0 # total experience count of all environments
         self.recent_idx = -1 # index of the most recent experience
@@ -34,7 +31,6 @@ class BatchTrajectory(Trajectory):
         self.terminateds = [None] * self.max_num_exp
         self.next_state_buffer = [None] * self.num_envs # most recently added next state
         
-    @aine_api
     def add(self, experiences: List[Experience]):
         assert len(experiences) == self.num_envs
         for i, ex in enumerate(experiences):
