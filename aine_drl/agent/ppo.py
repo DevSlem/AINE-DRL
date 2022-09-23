@@ -44,7 +44,7 @@ class PPO(A2C):
         dist = self.policy.get_policy_distribution(pdparam)
         action = dist.sample()
         # save action log probability to compute policy loss
-        self.action_log_probs.append(dist.log_prob(action))
+        self.action_log_probs.append(dist.log_prob(action if action.ndim > 0 else action.reshape(1)))
         return action
         
     def train(self):

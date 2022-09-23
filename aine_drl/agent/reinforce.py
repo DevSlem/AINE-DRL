@@ -13,7 +13,6 @@ from aine_drl.trajectory.montecarlo_trajectory import MonteCarloTrajectory
 import aine_drl.util as util
 from aine_drl.util import logger
 import aine_drl.drl_util as drl_util
-from aine_drl.util.decorator import aine_api
 import numpy as np
 
 @dataclass
@@ -87,7 +86,11 @@ class REINFORCE(Agent):
         self.action_log_probs.append(dist.log_prob(action))
         return action
     
-    @aine_api
+    def select_action_inference(self, state: torch.Tensor) -> torch.Tensor:
+        pdparam = self.net_spec.policy_net(state.to(device=self.device))
+        dist = self.policy.get_policy_distribution(pdparam)
+        return dist.sample()
+    
     def train(self):
         # compute policy loss
         batch = self.trajectory.sample()

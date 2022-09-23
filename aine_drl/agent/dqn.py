@@ -1,7 +1,7 @@
 from aine_drl.agent.agent import Agent
 from aine_drl.policy.policy import Policy
 from aine_drl.trajectory.trajectory import Trajectory
-from aine_drl.util import aine_api, logger
+from aine_drl.util import logger
 import aine_drl.util as util
 from aine_drl.drl_util import ExperienceBatch, Clock
 import aine_drl.drl_util as drl_util
@@ -112,7 +112,9 @@ class DQN(Agent):
         dist = self.policy.get_policy_distribution(pdparam)
         return dist.sample()
     
-    @aine_api
+    def select_action_inference(self, state: torch.Tensor) -> torch.Tensor:
+        return self.select_action_tensor(state)
+    
     def train(self):
         for _ in range(self.epoch):
             # update target network
@@ -126,7 +128,6 @@ class DQN(Agent):
             # update data
             self.losses.append(loss.detach().cpu().numpy())
     
-    @aine_api
     def log_data(self, time_step: int):
         super().log_data(time_step)
         if len(self.losses) > 0:

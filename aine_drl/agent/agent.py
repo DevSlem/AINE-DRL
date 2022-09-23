@@ -7,6 +7,11 @@ from aine_drl.util import aine_api, logger
 from aine_drl.drl_util import Clock, Experience
 import numpy as np
 import torch
+from enum import Enum
+
+class BehaviorType(Enum):
+    TRAIN = 0,
+    INFERENCE = 1
 
 class Agent(ABC):
     """
@@ -36,6 +41,7 @@ class Agent(ABC):
         self.episode_lengths = []
         self.cumulative_rewards = []
         self.cumulative_reward = 0
+        self._behavior_type = BehaviorType.TRAIN
         
     @aine_api
     def update(self, experiences: List[Experience]):
@@ -78,21 +84,45 @@ class Agent(ABC):
         Returns:
             np.ndarray: single action or actions batch
         """
-        return self.select_action_tensor(torch.from_numpy(state)).cpu().numpy()
+        if self.behavior_type == BehaviorType.TRAIN:
+            return self.select_action_tensor(torch.from_numpy(state)).cpu().numpy()
+        elif self.behavior_type == BehaviorType.INFERENCE:
+            with torch.no_grad():
+                return self.select_action_inference(torch.from_numpy(state)).cpu().numpy()
     
-    @abstractmethod
-    def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
-    
-    @aine_api
     @abstractmethod
     def train(self):
         """
-        Trains the algorithm.
+        Train the agent. You need to implement a reinforcement learning algorithm.
+        """
+        raise NotImplementedError
+        
+    @abstractmethod
+    def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Select actions when training.
+
+        Args:
+            state (torch.Tensor): state observation tensor
+
+        Returns:
+            torch.Tensor: action tensor
         """
         raise NotImplementedError
     
-    @aine_api
+    @abstractmethod
+    def select_action_inference(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Select actions when inference. It's called with `torch.no_grad()`.
+
+        Args:
+            state (torch.Tensor): state observation tensor
+
+        Returns:
+            torch.Tensor: action tensor
+        """
+        raise NotImplementedError
+    
     def update_hyperparams(self, time_step: int):
         """
         Update hyperparameters if they exists.
@@ -102,9 +132,8 @@ class Agent(ABC):
         """
         self.policy.update_hyperparams(time_step)
     
-    @aine_api
     def log_data(self, time_step: int):
-        """ Log data. """
+        """Log data."""
         if len(self.episode_lengths) > 0:
             avg_cumul_reward = np.mean(self.cumulative_rewards)
             logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
@@ -118,12 +147,22 @@ class Agent(ABC):
             logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
             
     @property
+    def behavior_type(self) -> BehaviorType:
+        """Returns behavior type. Defaults to train."""
+        return self._behavior_type
+    
+    @behavior_type.setter
+    def behavior_type(self, value: BehaviorType):
+        """Set behavior type."""
+        self._behavior_type = value
+            
+    @property
     def state_dict(self) -> dict:
-        """ Returns the state dict of the agent. """
+        """Returns the state dict of the agent."""
         return {"clock": self.clock.state_dict, "net_spec": self.__net_spec.state_dict}
     
     def load_state_dict(self, state_dict: dict):
-        """ Load the state dict. """
+        """Load the state dict."""
         self.clock.load_state_dict(state_dict["clock"])
         self.__net_spec.load_state_dict(state_dict["net_spec"])
     

@@ -150,11 +150,17 @@ class A2C(Agent):
         dist = self.policy.get_policy_distribution(pdparam)
         action = dist.sample()
         # save action log probability to compute policy loss
-        self.action_log_probs.append(dist.log_prob(action))
+        self.action_log_probs.append(dist.log_prob(action if action.ndim > 0 else action.reshape(1)))
         # if entropy regularization is used
         if self.entropy_coef > 0.0:
-            self.entropies.append(dist.entropy())
+            entropy = dist.entropy()
+            self.entropies.append(entropy if entropy.ndim > 0 else entropy.reshape(1))
         return action
+    
+    def select_action_inference(self, state: torch.Tensor) -> torch.Tensor:
+        pdparam = self.net_spec.policy_net(state.to(device=self.device))
+        dist = self.policy.get_policy_distribution(pdparam)
+        return dist.sample()
         
     def train(self):
         # compute loss
