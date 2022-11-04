@@ -1,0 +1,17 @@
+@startuml Agent-Environment Interaction
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+scale 2
+title Agent-Environment Interaction
+
+(*) --> "reset environment"
+-down-> "select action"
+-right-> [take action] "step environment"
+--> [observe and input experience] "update agent"
+if "reached time steps" then
+--> [true] (*)
+else
+--> [false] "select action"
+
+@enduml
