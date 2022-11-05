@@ -1,6 +1,28 @@
 import torch.nn as nn
 import torch
 
+def batch2perenv(batch_tensor: torch.Tensor, num_envs: int) -> torch.Tensor:
+    """(num_envs * n, *shape) -> (num_envs, n, *shape)"""
+    shape = batch_tensor.shape
+    # scalar data (num_envs * n,)
+    if len(shape) < 2:
+        return batch_tensor.reshape(-1, num_envs).T
+    # non-scalar data (num_envs * n, *shape)
+    else:
+        shape = (-1, num_envs) + shape[1:]
+        return batch_tensor.reshape(shape).transpose(0, 1)
+
+def perenv2batch(batch_tensor: torch.Tensor) -> torch.Tensor:
+    """(num_envs, n, *shape) -> (num_envs * n, *shape)"""
+    shape = batch_tensor.shape
+    # scalar data (num_envs, n,)
+    if len(shape) < 3:
+        return batch_tensor.T.reshape(-1)
+    # non-scalar data (num_envs, n, *shape)
+    else:
+        shape = (-1,) + shape[2:]
+        return batch_tensor.transpose(0, 1).reshape(shape)
+
 def copy_network(src_net: nn.Module, target_net: nn.Module):
     """
     Copy model weights from src to target.
@@ -24,28 +46,36 @@ def calc_returns(rewards: torch.Tensor, terminateds: torch.Tensor, gamma: float)
         returns[t] = G
     return returns
 
-def calc_gae(rewards: torch.Tensor, terminateds: torch.Tensor, v_preds: torch.Tensor, gamma: float, lam: float) -> torch.Tensor:
+def compute_gae(v_preds: torch.Tensor, 
+                rewards: torch.Tensor, 
+                terminateds: torch.Tensor,
+                gamma: float,
+                lam: float) -> torch.Tensor:
     """
-    Calculates Generalized Advantage Estimations. See more details in https://arxiv.org/pdf/1506.02438.pdf.
+    Compute generalized advantage estimation (GAE) during n-step transitions. See details in https://arxiv.org/abs/1506.02438.
 
     Args:
-        rewards (torch.Tensor): rewards tensor
-        terminateds (torch.Tensor): terminated
-        v_preds (torch.Tensor): estimated state value which contains the next state value of the last transition
+        v_preds (Tensor): predicted value batch whose shape is (num_envs, n+1), 
+        which means the next state value of final transition must be included
+        rewards (Tensor): reward batch whose shape is (num_envs, n)
+        terminateds (Tensor): terminated batch whose shape is (num_envs, n)
         gamma (float): discount factor
         lam (float): lambda which controls the balanace between bias and variance
 
     Returns:
-        torch.Tensor: GAE
+        Tensor: GAE whose shape is (num_envs, n)
     """
-    T = len(rewards)
-    assert T + 1 == len(v_preds), "v_preds parameter must contain the value of the final next state."
+    
+    n_step = rewards.shape[1]
     gaes = torch.empty_like(rewards)
-    discounted_gae = 0 # GAE at time step t
+    discounted_gae = 0.0 # GAE at time step t+n
     not_terminateds = 1 - terminateds
-    delta = rewards + not_terminateds * gamma * v_preds[1:] - v_preds[:-1]
+    delta = rewards + not_terminateds * gamma * v_preds[:, 1:] - v_preds[:, :-1]
     discount_factor = gamma * lam
-    for t in reversed(range(T)):
-        discounted_gae = delta[t] + not_terminateds[t] * discount_factor * discounted_gae
-        gaes[t] = discounted_gae
+    
+    # compute GAE
+    for t in reversed(range(n_step)):
+        discounted_gae = delta[:, t] + not_terminateds[:, t] * discount_factor * discounted_gae
+        gaes[:, t] = discounted_gae
+     
     return gaes

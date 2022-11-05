@@ -159,6 +159,9 @@ class IncrementalAverage:
     It uses only two memories: average, n.
     """
     def __init__(self) -> None:
+        self.reset()
+        
+    def reset(self):
         self._average = 0.0
         self.n = 0
         
@@ -172,3 +175,7 @@ class IncrementalAverage:
     def average(self):
         """Returns current average."""
         return self._average
+    
+    @property
+    def count(self) -> int:
+        return self.n
