@@ -1,10 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List
-from aine_drl.drl_util.net_spec import NetSpec
-from aine_drl.trajectory import Trajectory
-from aine_drl.policy import Policy
-from aine_drl.util import logger
-from aine_drl.drl_util import Clock, Experience
+from aine_drl.experience import Action, ActionTensor, Experience
+import aine_drl.util as util
+from aine_drl.drl_util import Clock
 import numpy as np
 import torch
 from enum import Enum
@@ -17,132 +14,102 @@ class Agent(ABC):
     """
     Deep reinforcement learning agent.
     """
-    def __init__(self,
-                 net_spec: NetSpec,
-                 policy: Policy, 
-                 trajectory: Trajectory,
-                 clock: Clock,
-                 summary_freq: int = 1000) -> None:
+    def __init__(self, num_envs: int) -> None:
         """
         Deep reinforcement learning agent.
         
         Args:
-            net_spec (NetSpec): neural network spec
-            policy (Policy): policy to sample actions
-            trajectory (Trajectory): trajectory to sample training batches
-            clock (Clock): time step checker
-            summary_freq (int, optional): summary frequency to log data. Defaults to 10.
+            num_envs (int): number of environments
         """
-        self.__net_spec = net_spec
-        self.policy = policy
-        self.trajectory = trajectory
-        self.clock = clock
-        self.summary_freq = summary_freq
-        self.episode_lengths = []
-        self.cumulative_rewards = []
-        self.cumulative_reward = 0
+        self.num_envs = num_envs
+        self.clock = Clock(num_envs)
         self._behavior_type = BehaviorType.TRAIN
+
+        self.traced_env = 0
+        self.cumulative_average_reward = util.IncrementalAverage()
+        self.cumulative_reward = 0.0
+        self.episode_average_len = util.IncrementalAverage()
         
-    def update(self, experiences: List[Experience]):
+    def select_action(self, obs: np.ndarray) -> Action:
+        """
+        Select action from the observation. 
+        `batch_size` must be `num_envs` x `n_steps`. `n_steps` is generally 1. 
+        It depends on `Agent.behavior_type` enum value.
+
+        Args:
+            obs (ndarray): observation which is the input of neural network. shape must be `(batch_size, *obs_shape)`
+
+        Returns:
+            Action: selected action
+        """
+        if self.behavior_type == BehaviorType.TRAIN:
+            return self.select_action_train(torch.from_numpy(obs)).to_action()
+        elif self.behavior_type == BehaviorType.INFERENCE:
+            with torch.no_grad():
+                return self.select_action_inference(torch.from_numpy(obs)).to_action()
+        else:
+            raise ValueError(f"Agent.behavior_type you currently use is invalid value. Your value is: {self.behavior_type}")
+        
+    def update(self, experience: Experience):
         """
         Update the agent. It stores data, trains the agent, etc.
 
         Args:
-            experiences (List[Experience]): the number of experiences must be the same as the number of environments.
+            experience (Experience): experience
         """
-        # update trajectory
-        self.trajectory.add(experiences)
-        # trace cumulative rewards
-        self.cumulative_reward += experiences[0].reward
-        # set clock
-        self.clock.tick_time_step()
-        # try training
-        if self._try_train_algorithm():
-            time_step = self.clock.time_step
-            self.update_hyperparams(time_step)
-        # trace first experience
-        if experiences[0].terminated:
-            self.episode_lengths.append(self.clock.episode_len)
-            self.cumulative_rewards.append(self.cumulative_reward)
-            self.clock.tick_episode()
-            self.cumulative_reward = 0
-        # if can log data
-        if self.clock.check_time_step_freq(self.summary_freq):
-            time_step = self.clock.time_step
-            self.log_data(time_step)
-            self.policy.log_data(time_step)
-    
-    def select_action(self, state: np.ndarray) -> np.ndarray:
-        """
-        Returns an action from the state.
-
-        Args:
-            state (np.ndarray): single state or states batch
-
-        Returns:
-            np.ndarray: single action or actions batch
-        """
-        if self.behavior_type == BehaviorType.TRAIN:
-            return self.select_action_tensor(torch.from_numpy(state)).cpu().numpy()
-        elif self.behavior_type == BehaviorType.INFERENCE:
-            with torch.no_grad():
-                return self.select_action_inference(torch.from_numpy(state)).cpu().numpy()
-    
-    @abstractmethod
-    def train(self):
-        """
-        Train the agent. You need to implement a reinforcement learning algorithm.
-        """
-        raise NotImplementedError
+        assert experience.num_envs == self.num_envs
+        
+        self._update_info(experience)
+            
+    def _update_info(self, experience: Experience):
+        self.clock.tick_gloabl_time_step()
+        self.cumulative_reward += experience.reward[self.traced_env].item()
+        # if the traced environment is terminated
+        if experience.terminated[self.traced_env] > 0.5:
+            self.cumulative_average_reward.update(self.cumulative_reward)
+            self.cumulative_reward = 0.0
+            self.episode_average_len.update(self.clock.episode_len)
+            self.clock.tick_episode() 
         
     @abstractmethod
-    def select_action_tensor(self, state: torch.Tensor) -> torch.Tensor:
+    def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         """
-        Select actions when training.
+        Select action when training.
 
         Args:
-            state (torch.Tensor): state observation tensor
+            obs (Tensor): observation tensor whose shape is `(batch_size, *obs_shape)`
 
         Returns:
-            torch.Tensor: action tensor
+            ActionTensor: action tensor
         """
         raise NotImplementedError
     
     @abstractmethod
-    def select_action_inference(self, state: torch.Tensor) -> torch.Tensor:
+    def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
         """
-        Select actions when inference. It's called with `torch.no_grad()`.
+        Select action when inference. It's automatically called with `torch.no_grad()`.
 
         Args:
-            state (torch.Tensor): state observation tensor
+            obs (Tensor): observation tensor
 
         Returns:
-            torch.Tensor: action tensor
+            ActionTensor action tensor
         """
         raise NotImplementedError
     
-    def update_hyperparams(self, time_step: int):
-        """
-        Update hyperparameters if they exists.
-
-        Args:
-            time_step (int): current time step during training
-        """
-        self.policy.update_hyperparams(time_step)
-    
-    def log_data(self, time_step: int):
-        """Log data."""
-        if len(self.episode_lengths) > 0:
-            avg_cumul_reward = np.mean(self.cumulative_rewards)
-            logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
-            logger.log("Environment/Cumulative Reward", avg_cumul_reward, time_step)
-            logger.log("Environment/Cumulative Reward per episodes", avg_cumul_reward, self.clock.episode)
-            logger.log("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
-            logger.log("Environment/Episode Length per episodes", np.mean(self.episode_lengths), self.clock.episode)
-            self.episode_lengths.clear()
-            self.cumulative_rewards.clear()
-        else:
-            logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
+    # def log_data(self, time_step: int):
+    #     """Log data."""
+    #     if len(self.episode_lengths) > 0:
+    #         avg_cumul_reward = np.mean(self.cumulative_rewards)
+    #         logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
+    #         logger.log("Environment/Cumulative Reward", avg_cumul_reward, time_step)
+    #         logger.log("Environment/Cumulative Reward per episodes", avg_cumul_reward, self.clock.episode)
+    #         logger.log("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
+    #         logger.log("Environment/Episode Length per episodes", np.mean(self.episode_lengths), self.clock.episode)
+    #         self.episode_lengths.clear()
+    #         self.cumulative_rewards.clear()
+    #     else:
+    #         logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
             
     @property
     def behavior_type(self) -> BehaviorType:
@@ -157,39 +124,8 @@ class Agent(ABC):
     @property
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
-        return {"clock": self.clock.state_dict, "net_spec": self.__net_spec.state_dict}
+        return {}
     
     def load_state_dict(self, state_dict: dict):
         """Load the state dict."""
-        self.clock.load_state_dict(state_dict["clock"])
-        self.__net_spec.load_state_dict(state_dict["net_spec"])
-    
-    @staticmethod
-    def create_experience_list(states: np.ndarray,
-                               actions: np.ndarray,
-                               next_states: np.ndarray,
-                               rewards: np.ndarray,
-                               terminateds: np.ndarray) -> List[Experience]:
-        """
-        Changes the numpy batch to the list of Experience instances.
-
-        Args:
-            states (np.ndarray): state batch
-            actions (np.ndarray): action batch
-            next_states (np.ndarray): next_state batch
-            rewards (np.ndarray): reward batch
-            terminateds (np.ndarray): terminated batch
-
-        Returns:
-            List[Experience]: list of Experience instances
-        """
-        exp_list = []
-        for s, a, ns, r, t in zip(states, actions, next_states, rewards, terminateds):
-            exp_list.append(Experience(s, a, ns, r, t))
-        return exp_list
-    
-    def _try_train_algorithm(self) -> bool:
-        can_train = self.trajectory.can_train
-        while self.trajectory.can_train:
-            self.train()
-        return can_train
+        pass
