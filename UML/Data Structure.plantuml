@@ -26,8 +26,8 @@ map Action {
 }
 
 map PolicyParameter {
-    discrete_params => (batch_size, *param_shape) x num_discrete_branches
-    continuous_params => (batch_size, *param_shape) x num_continuous_branches
+    discrete_pdparams => (batch_size, *param_shape) x num_discrete_branches
+    continuous_pdparams => (batch_size, *param_shape) x num_continuous_branches
 }
 
 map ActorCriticExperienceBatch {

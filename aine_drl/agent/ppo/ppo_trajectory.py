@@ -13,6 +13,7 @@ class PPOExperienceBatch(NamedTuple):
     v_pred: torch.Tensor
     n_steps: int
 
+
 class PPOTrajectory:
     def __init__(self, max_n_steps: int) -> None:
         self.max_n_steps = max_n_steps
