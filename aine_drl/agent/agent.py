@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Tuple
 from aine_drl.experience import Action, ActionTensor, Experience
 import aine_drl.util as util
 from aine_drl.drl_util import Clock
@@ -97,19 +98,21 @@ class Agent(ABC):
         """
         raise NotImplementedError
     
-    # def log_data(self, time_step: int):
-    #     """Log data."""
-    #     if len(self.episode_lengths) > 0:
-    #         avg_cumul_reward = np.mean(self.cumulative_rewards)
-    #         logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, cumulative reward: {avg_cumul_reward:.1f}")
-    #         logger.log("Environment/Cumulative Reward", avg_cumul_reward, time_step)
-    #         logger.log("Environment/Cumulative Reward per episodes", avg_cumul_reward, self.clock.episode)
-    #         logger.log("Environment/Episode Length", np.mean(self.episode_lengths), time_step)
-    #         logger.log("Environment/Episode Length per episodes", np.mean(self.episode_lengths), self.clock.episode)
-    #         self.episode_lengths.clear()
-    #         self.cumulative_rewards.clear()
-    #     else:
-    #         logger.print(f"training time: {self.clock.real_time:.1f}, time step: {time_step}, episode has not terminated yet.")
+    @property
+    def log_keys(self) -> Tuple[str, ...]:
+        """Returns log data keys."""
+        return ("Environment/Cumulative Reward", "Environment/Episode Length")
+        
+    @property
+    def log_data(self) -> dict:
+        """Returns log data."""
+        ld = {}
+        if self.cumulative_average_reward.count > 0:
+            ld["Environment/Cumulative Reward"] = self.cumulative_average_reward.average
+            ld["Environment/Episode Length"] = self.episode_average_len.average
+            self.cumulative_average_reward.reset()
+            self.episode_average_len.reset()
+        return ld
             
     @property
     def behavior_type(self) -> BehaviorType:
@@ -124,8 +127,8 @@ class Agent(ABC):
     @property
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
-        return {}
+        return self.clock.state_dict
     
     def load_state_dict(self, state_dict: dict):
         """Load the state dict."""
-        pass
+        self.clock.load_state_dict(state_dict)
