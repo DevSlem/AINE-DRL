@@ -27,8 +27,9 @@ class ActorCriticSharedNetwork(nn.Module, ABC):
         """
         raise NotImplementedError
     
+    @abstractmethod
     def train_step(self, 
                    loss: torch.Tensor,
                    grad_clip_max_norm: Optional[float],
                    training_step: int):
-        pass
+        raise NotImplementedError

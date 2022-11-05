@@ -50,9 +50,9 @@ class Clock:
     def tick_training_step(self):
         self._training_step += 1
         
-    def check_time_step_freq(self, frequency: int) -> bool:
+    def check_global_time_step_freq(self, frequency: int) -> bool:
         """
-        Check if the time step is reached to the frequency. It considers multiple environments.
+        Check if the global time step is reached to the frequency. It considers multiple environments.
         """
         return check_freq(self._global_time_step, frequency, self.num_envs)
         

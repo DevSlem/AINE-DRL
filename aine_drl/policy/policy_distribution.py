@@ -18,7 +18,6 @@ class PolicyDistributionParameter(NamedTuple):
     """
     discrete_pdparams: List[torch.Tensor]
     continuous_pdparams: List[torch.Tensor]
-    n_steps: int
     
     @property
     def num_discrete_branches(self) -> int:
@@ -37,14 +36,13 @@ class PolicyDistributionParameter(NamedTuple):
     
     @staticmethod
     def create(discrete_pdparams: Optional[List[torch.Tensor]],
-               continuous_pdparams: Optional[List[torch.Tensor]],
-               n_steps: int = 1) -> "PolicyDistributionParameter":
+               continuous_pdparams: Optional[List[torch.Tensor]]) -> "PolicyDistributionParameter":
         if discrete_pdparams is None:
             discrete_pdparams = []
         if continuous_pdparams is None:
             continuous_pdparams = []
         
-        return PolicyDistributionParameter(discrete_pdparams, continuous_pdparams, n_steps)
+        return PolicyDistributionParameter(discrete_pdparams, continuous_pdparams)
 
 
 class PolicyDistribution(ABC):
@@ -73,7 +71,6 @@ class CategoricalPolicyDistribution(PolicyDistribution):
     """Categorical policy distribution for the discrete action type."""
     def __init__(self, pdparam: PolicyDistributionParameter, is_logits: bool = True) -> None:
         assert pdparam.num_discrete_branches > 0
-        self.n_steps = pdparam.n_steps
         self.distributions = []
         if is_logits:
             for param in pdparam.discrete_pdparams:
@@ -87,11 +84,12 @@ class CategoricalPolicyDistribution(PolicyDistribution):
         for dist in self.distributions:
             sampled_discrete_action.append(dist.sample())
         sampled_discrete_action = torch.stack(sampled_discrete_action, dim=1)
-        return ActionTensor.create(sampled_discrete_action, None, self.n_steps)
+        return ActionTensor.create(sampled_discrete_action, None)
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         action_log_prob = []
         for i, dist in enumerate(self.distributions):
+            # TODO: Error 발생
             action_log_prob.append(dist.log_prob(action.discrete_action[:, i]))
         return torch.stack(action_log_prob, dim=1)
     
@@ -106,7 +104,6 @@ class GaussianPolicyDistribution(PolicyDistribution):
     """Gaussian policy distribution for the continuous action type."""
     def __init__(self, pdparam: PolicyDistributionParameter) -> None:
         assert pdparam.num_continuous_branches > 0
-        self.n_steps = pdparam.n_steps
         self.disributions = []
         for param in pdparam.continuous_pdparams:
             self.disributions.append(Normal(loc=param[:, 0], scale=param[:, 1]))
@@ -116,7 +113,7 @@ class GaussianPolicyDistribution(PolicyDistribution):
         for dist in self.disributions:
             sampled_continuous_action.append(dist.sample())
         sampled_continuous_action = torch.stack(sampled_continuous_action, dim=1)
-        return ActionTensor.create(None, sampled_continuous_action, self.n_steps)
+        return ActionTensor.create(None, sampled_continuous_action)
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         action_log_prob = []
@@ -138,14 +135,13 @@ class GeneralPolicyDistribution(PolicyDistribution):
     Policy distribution of the continuous action type is gaussian.
     """
     def __init__(self, pdparam: PolicyDistributionParameter, is_logits: bool = True) -> None:
-        self.n_steps = pdparam.n_steps
         self.discrete_dist = CategoricalPolicyDistribution(pdparam, is_logits)
         self.continuous_dist = GaussianPolicyDistribution(pdparam)
         
     def sample(self) -> ActionTensor:
         discrete_action = self.discrete_dist.sample()
         continuous_action = self.continuous_dist.sample()
-        return ActionTensor(discrete_action.discrete_action, continuous_action.continuous_action, self.n_steps)
+        return ActionTensor(discrete_action.discrete_action, continuous_action.continuous_action)
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         discrete_log_prob = self.discrete_dist.log_prob(action)
