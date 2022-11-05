@@ -1,4 +1,4 @@
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Optional
 import numpy as np
 import torch
 
@@ -14,7 +14,7 @@ class Action(NamedTuple):
     
     discrete_action: np.ndarray
     continuous_action: np.ndarray
-    n_steps: int = 1
+    n_steps: int
     
     @property
     def num_discrete_branches(self) -> int:
@@ -62,6 +62,18 @@ class Action(NamedTuple):
     def to_action_tensor(self) -> "ActionTensor":
         return ActionTensor(torch.from_numpy(self.discrete_action), torch.from_numpy(self.continuous_action), self.n_steps)
     
+    @staticmethod
+    def create(discrete_action: Optional[torch.Tensor],
+               continuous_action: Optional[torch.Tensor],
+               n_steps: int = 1) -> "ActionTensor":
+        if discrete_action is None:
+            discrete_action = np.empty(shape=(continuous_action.shape[0], 0))
+        if continuous_action is None:
+            continuous_action = np.empty(shape=(discrete_action.shape[0], 0))
+        
+        return Action(discrete_action, continuous_action, n_steps)
+    
+
 class ActionTensor(NamedTuple):
     """
     Standard action data type with tensor. `batch_size` must be `num_envs` x `n_steps`.
@@ -74,7 +86,7 @@ class ActionTensor(NamedTuple):
     
     discrete_action: torch.Tensor
     continuous_action: torch.Tensor
-    n_steps: int = 1
+    n_steps: int
     
     @property
     def num_discrete_branches(self) -> int:
@@ -127,6 +139,18 @@ class ActionTensor(NamedTuple):
         )
         return action
     
+    @staticmethod
+    def create(discrete_action: Optional[torch.Tensor],
+               continuous_action: Optional[torch.Tensor],
+               n_steps: int = 1) -> "ActionTensor":
+        if discrete_action is None:
+            discrete_action = torch.empty(size=(continuous_action.shape[0], 0), device=continuous_action.device)
+        if continuous_action is None:
+            continuous_action = torch.empty(size=(discrete_action.shape[0], 0), device=discrete_action.device)
+        
+        return ActionTensor(discrete_action, continuous_action, n_steps)
+    
+
 class Experience(NamedTuple):
     """
     Standard experience data type.
@@ -148,6 +172,7 @@ class Experience(NamedTuple):
     def num_envs(self) -> int:
         """Returns number of environments."""
         return self.obs.shape[0]
+
 
 class ExperienceBatchTensor(NamedTuple):
     """
