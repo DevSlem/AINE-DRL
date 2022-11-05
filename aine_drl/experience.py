@@ -9,12 +9,10 @@ class Action(NamedTuple):
     Args:
         discrete_action (ndarray): shape must be `(batch_size, num_discrete_branches)`
         continuous_action (ndarray): shape must be `(batch_size, num_continuous_branches)`
-        n_steps (int, optional): number of time steps. Defaults to 1.
     """
     
     discrete_action: np.ndarray
     continuous_action: np.ndarray
-    n_steps: int
     
     @property
     def num_discrete_branches(self) -> int:
@@ -33,60 +31,49 @@ class Action(NamedTuple):
     
     @property
     def batch_size(self) -> int:
-        """Batch size = `num_envs` x `n_steps`."""
+        """Returns batch_size."""
         return self.discrete_action.shape[0]
-    
-    @property
-    def num_envs(self) -> int:
-        """Number of environments."""
-        return self.batch_size // self.n_steps
     
     @staticmethod
     def to_batch(actions: List["Action"]) -> "Action":
         """Turn action list to single action batch."""
         discrete_action = []
         continuous_action = []
-        n_steps = 0
         for a in actions:
             discrete_action.append(a.discrete_action)
             continuous_action.append(a.continuous_action)
-            n_steps += a.n_steps
             
         action = Action(
             np.concatenate(discrete_action, axis=0),
             np.concatenate(continuous_action, axis=0),
-            n_steps=n_steps
         )
         return action
     
     def to_action_tensor(self) -> "ActionTensor":
-        return ActionTensor(torch.from_numpy(self.discrete_action), torch.from_numpy(self.continuous_action), self.n_steps)
+        return ActionTensor(torch.from_numpy(self.discrete_action), torch.from_numpy(self.continuous_action))
     
     @staticmethod
     def create(discrete_action: Optional[torch.Tensor],
-               continuous_action: Optional[torch.Tensor],
-               n_steps: int = 1) -> "ActionTensor":
+               continuous_action: Optional[torch.Tensor]) -> "ActionTensor":
         if discrete_action is None:
             discrete_action = np.empty(shape=(continuous_action.shape[0], 0))
         if continuous_action is None:
             continuous_action = np.empty(shape=(discrete_action.shape[0], 0))
         
-        return Action(discrete_action, continuous_action, n_steps)
+        return Action(discrete_action, continuous_action)
     
 
 class ActionTensor(NamedTuple):
     """
-    Standard action data type with tensor. `batch_size` must be `num_envs` x `n_steps`.
+    Standard action data type with tensor. `batch_size` is generally `num_envs` x `n_steps`.
 
     Args:
         discrete_action (Tensor): shape must be `(batch_size, num_discrete_branches)`
         continuous_action (Tensor): shape must be `(batch_size, num_continuous_branches)`
-        n_steps (int, optional): number of time steps. Defaults to 1.
     """
     
     discrete_action: torch.Tensor
     continuous_action: torch.Tensor
-    n_steps: int
     
     @property
     def num_discrete_branches(self) -> int:
@@ -105,29 +92,21 @@ class ActionTensor(NamedTuple):
     
     @property
     def batch_size(self) -> int:
-        """Batch size = `num_envs` x `n_steps`."""
+        """Returns batch size."""
         return self.discrete_action.shape[0]
-    
-    @property
-    def num_envs(self) -> int:
-        """Number of environments."""
-        return self.batch_size // self.n_steps
     
     @staticmethod
     def to_batch(actions: List["ActionTensor"]) -> "ActionTensor":
         """Turn action list to single action tensor batch."""
         discrete_action = []
         continuous_action = []
-        n_steps = 0
         for a in actions:
             discrete_action.append(a.discrete_action)
             continuous_action.append(a.continuous_action)
-            n_steps += a.n_steps
             
         action = ActionTensor(
             torch.cat(discrete_action, dim=0),
             torch.cat(continuous_action, dim=0),
-            n_steps=n_steps
         )
         return action
     
@@ -135,20 +114,23 @@ class ActionTensor(NamedTuple):
         action = Action(
             self.discrete_action.detach().cpu().numpy(),
             self.continuous_action.detach().cpu().numpy(),
-            self.n_steps
         )
         return action
     
     @staticmethod
     def create(discrete_action: Optional[torch.Tensor],
-               continuous_action: Optional[torch.Tensor],
-               n_steps: int = 1) -> "ActionTensor":
+               continuous_action: Optional[torch.Tensor]) -> "ActionTensor":
         if discrete_action is None:
             discrete_action = torch.empty(size=(continuous_action.shape[0], 0), device=continuous_action.device)
         if continuous_action is None:
             continuous_action = torch.empty(size=(discrete_action.shape[0], 0), device=discrete_action.device)
         
-        return ActionTensor(discrete_action, continuous_action, n_steps)
+        return ActionTensor(discrete_action, continuous_action)
+    
+    def __getitem__(self, idx) -> "ActionTensor":
+        discrete_action = self.discrete_action[idx]
+        continuous_action = self.continuous_action[idx]
+        return ActionTensor(discrete_action, continuous_action)
     
 
 class Experience(NamedTuple):
