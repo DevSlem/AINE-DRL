@@ -57,10 +57,10 @@ class PPO(Agent):
         self.network = network
         self.policy = policy
         self.trajectory = PPOTrajectory(self.config.training_freq)
+        self.device = util.get_model_device(network)
         
         self.current_action_log_prob = None
         self.v_pred = None
-        self.current_entropy = None
         
         self.actor_average_loss = util.IncrementalAverage()
         self.critic_average_loss = util.IncrementalAverage()
@@ -73,7 +73,6 @@ class PPO(Agent):
             experience,
             self.current_action_log_prob,
             self.v_pred,
-            self.current_entropy
         )
         
         # if training frequency is reached, start training
@@ -83,16 +82,15 @@ class PPO(Agent):
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         with torch.no_grad():
             # feed forward 
-            pdparam, v_pred = self.network.forward(obs)
+            pdparam, v_pred = self.network.forward(obs.to(device=self.device))
             
             # action sampling
             dist = self.policy.get_policy_distribution(pdparam)
             action = dist.sample()
             
             # store data
-            self.current_action_log_prob = dist.log_prob(action)
-            self.v_pred = v_pred
-            self.current_entropy = dist.entropy()
+            self.current_action_log_prob = dist.log_prob(action).cpu()
+            self.v_pred = v_pred.cpu()
             
             return action
     
@@ -102,7 +100,7 @@ class PPO(Agent):
         return dist.sample()
             
     def train(self):
-        exp_batch = self.trajectory.sample()
+        exp_batch = self.trajectory.sample(self.device)
         batch_size = exp_batch.action.batch_size
         
         old_action_log_prob = exp_batch.action_log_prob
@@ -118,7 +116,7 @@ class PPO(Agent):
                 
                 # compute actor loss
                 dist = self.policy.get_policy_distribution(pdparam)
-                new_action_log_prob = dist.log_prob(exp_batch.action[sample_idx])
+                new_action_log_prob = dist.log_prob(exp_batch.action.slice(sample_idx))
                 actor_loss = PPO.compute_actor_loss(
                     advantage[sample_idx],
                     old_action_log_prob[sample_idx],
