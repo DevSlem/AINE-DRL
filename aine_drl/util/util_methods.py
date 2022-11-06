@@ -105,6 +105,7 @@ def create_dir(directory):
         print("Error: Failed to create the directory.")
 
 def get_model_device(model: nn.Module) -> torch.device:
+    """Returns the device of the model."""
     return next(model.parameters()).device
 
 def lr_scheduler_step(lr_scheduler, epoch: int):

@@ -105,7 +105,7 @@ class Agent(ABC):
         
     @property
     def log_data(self) -> dict:
-        """Returns log data."""
+        """Returns log data and reset it."""
         ld = {}
         if self.cumulative_average_reward.count > 0:
             ld["Environment/Cumulative Reward"] = self.cumulative_average_reward.average

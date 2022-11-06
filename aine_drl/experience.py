@@ -49,8 +49,9 @@ class Action(NamedTuple):
         )
         return action
     
-    def to_action_tensor(self) -> "ActionTensor":
-        return ActionTensor(torch.from_numpy(self.discrete_action), torch.from_numpy(self.continuous_action))
+    def to_action_tensor(self, device: Optional[torch.device] = None) -> "ActionTensor":
+        """Convert `Action` to `ActionTensor`."""
+        return ActionTensor(torch.from_numpy(self.discrete_action).to(device=device), torch.from_numpy(self.continuous_action).to(device=device))
     
     @staticmethod
     def create(discrete_action: Optional[torch.Tensor],
@@ -111,27 +112,37 @@ class ActionTensor(NamedTuple):
         return action
     
     def to_action(self) -> "Action":
+        """
+        Convert `ActionTensor` to `Action`.
+        """
         action = Action(
             self.discrete_action.detach().cpu().numpy(),
             self.continuous_action.detach().cpu().numpy(),
         )
         return action
     
+    def slice(self, idx) -> "ActionTensor":
+        """
+        Slice internal discrete and continuous aaction then merge into single `ActionTensor`. 
+        If you want to slice it like `object[idx]`, you should this method instead of directly slicing.
+        """
+        discrete_action = self.discrete_action[idx]
+        continuous_action = self.continuous_action[idx]
+        return ActionTensor(discrete_action, continuous_action)
+    
     @staticmethod
     def create(discrete_action: Optional[torch.Tensor],
                continuous_action: Optional[torch.Tensor]) -> "ActionTensor":
+        """
+        Helps to instantiate `ActionTensor`. If you don't use either discrete or continuous action, set the parameter to `None`.
+        """
         if discrete_action is None:
             discrete_action = torch.empty(size=(continuous_action.shape[0], 0), device=continuous_action.device)
         if continuous_action is None:
             continuous_action = torch.empty(size=(discrete_action.shape[0], 0), device=discrete_action.device)
         
-        return ActionTensor(discrete_action, continuous_action)
-    
-    def __getitem__(self, idx) -> "ActionTensor":
-        discrete_action = self.discrete_action[idx]
-        continuous_action = self.continuous_action[idx]
-        return ActionTensor(discrete_action, continuous_action)
-    
+        action_tensor = ActionTensor(discrete_action, continuous_action)
+        return action_tensor
 
 class Experience(NamedTuple):
     """
