@@ -80,7 +80,7 @@ class PPO(Agent):
             policy (Policy): policy
 
         Returns:
-            PPO: ppo instance
+            PPO: `PPO` instance
             
         ## Example
         
