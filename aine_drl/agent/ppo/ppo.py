@@ -228,8 +228,8 @@ class PPO(Agent):
     def log_data(self) -> dict:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
-            ld["Network/Actor Loss"] = self.actor_average_loss.average
-            ld["Network/Critic Loss"] = self.critic_average_loss.average
+            ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)
+            ld["Network/Critic Loss"] = (self.critic_average_loss.average, self.clock.training_step)
             self.actor_average_loss.reset()
             self.critic_average_loss.reset()
         return ld

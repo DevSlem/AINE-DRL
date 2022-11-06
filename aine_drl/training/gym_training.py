@@ -93,13 +93,13 @@ class GymTraining:
         try:
             # if self.auto_retrain:
             #     self._load_agent()
+            logger.start(self.env_id)
             self._train(total_global_time_steps)
         except KeyboardInterrupt:
             logger.print(f"Training interrupted at the time step {self.agent.clock.global_time_step}.")
         finally:
-            logger.close()
+            logger.end()
             # self._save_agent()
-            self.__gym_render_env.close()
             
     def inference(self, num_episodes: int = 1):
         """
@@ -111,19 +111,19 @@ class GymTraining:
         self.agent.behavior_type = BehaviorType.INFERENCE
         
         # self._load_agent()
-        for _ in range(num_episodes):
-            obs = self.inference_gym_env.reset(seed=self.seed)
-            obs = obs[np.newaxis, ...] # (num_envs, *obs_shape) = (1, *obs_shape)
-            terminated = False
-            cumulative_reward = 0.0
-            while not terminated:
-                action = self.agent.select_action(obs)
-                next_obs, reward, teraminted, truncated, _ = self.__gym_render_env.step(self.gym_action_communicator.to_gym_action(action))
-                # self.__gym_render_env.render()
-                terminated = teraminted | truncated
-                obs = next_obs
-                cumulative_reward += reward
-            logger.print(f"inference mode - time step {self.agent.clock.time_step}, cumulative reward: {cumulative_reward}")
+        # for _ in range(num_episodes):
+        #     obs = self.inference_gym_env.reset(seed=self.seed)
+        #     obs = obs[np.newaxis, ...] # (num_envs, *obs_shape) = (1, *obs_shape)
+        #     terminated = False
+        #     cumulative_reward = 0.0
+        #     while not terminated:
+        #         action = self.agent.select_action(obs)
+        #         next_obs, reward, teraminted, truncated, _ = self.__gym_render_env.step(self.gym_action_communicator.to_gym_action(action))
+        #         # self.__gym_render_env.render()
+        #         terminated = teraminted | truncated
+        #         obs = next_obs
+        #         cumulative_reward += reward
+        #     logger.print(f"inference mode - time step {self.agent.clock.time_step}, cumulative reward: {cumulative_reward}")
             
         self.agent.behavior_type = BehaviorType.TRAIN
             
@@ -134,19 +134,10 @@ class GymTraining:
             
     def _set_env_id(self, env_id: Optional[str]):
         """ set environment id. """
-        gym_env_id = self.gym_env.get_attr("spec")[0].id if self.is_vector_env else self.gym_env.spec.id
-        self.__gym_render_env = gym.make(gym_env_id, new_step_api=True, render_mode="human")
         if env_id is None:
+            gym_env_id = self.gym_env.get_attr("spec")[0].id if self.is_vector_env else self.gym_env.spec.id
             env_id = gym_env_id
-        self.env_id = self._convert_env_id(env_id) if not self.auto_retrain else env_id
-        
-    def _convert_env_id(self, env_id: str) -> str:
-        """ If the result of the `env_id` already exists, add a number suffix to the `env_id`. """
-        dir = f"{logger.log_base_dir()}/{env_id}"
-        if util.exists_dir(dir):
-            dir = util.add_dir_num_suffix(dir, num_left="_")
-            env_id = dir.replace(f"{logger.log_base_dir()}/", "", 1)
-        return env_id
+        self.env_id = env_id if self.auto_retrain else logger.numbering_env_id(env_id)
             
     def _save_agent(self):
         try:
@@ -197,10 +188,13 @@ class GymTraining:
         global_time_step = self.agent.clock.global_time_step
         if "Environment/Cumulative Reward" in log_data.keys():
             logger.print(
-                f"training time: {self.agent.clock.real_time:.1f}, global time step: {global_time_step}, cumulative reward: {log_data['Environment/Cumulative Reward']:.1f}"
+                f"training time: {self.agent.clock.real_time:.1f}, global time step: {global_time_step}, cumulative reward: {log_data['Environment/Cumulative Reward'][0]:.1f}"
             )
         else:
             logger.print(f"training time: {self.agent.clock.real_time:.1f}, global time step: {global_time_step}, episode has not terminated yet.")
+            
+        for key, value in log_data.items():
+            logger.log(key, value[0], value[1])
                 
     def _make_experience(self, obs, action, next_obs, reward, terminated) -> Experience:
         if self.is_vector_env:

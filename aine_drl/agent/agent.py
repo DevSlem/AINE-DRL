@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Dict, Tuple
 from aine_drl.experience import Action, ActionTensor, Experience
 import aine_drl.util as util
 from aine_drl.drl_util import Clock
@@ -104,12 +104,17 @@ class Agent(ABC):
         return ("Environment/Cumulative Reward", "Environment/Episode Length")
         
     @property
-    def log_data(self) -> dict:
-        """Returns log data and reset it."""
+    def log_data(self) -> Dict[str, tuple]:
+        """
+        Returns log data and reset it.
+
+        Returns:
+            Dict[str, tuple]: key: (value, time)
+        """
         ld = {}
         if self.cumulative_average_reward.count > 0:
-            ld["Environment/Cumulative Reward"] = self.cumulative_average_reward.average
-            ld["Environment/Episode Length"] = self.episode_average_len.average
+            ld["Environment/Cumulative Reward"] = (self.cumulative_average_reward.average, self.clock.global_time_step)
+            ld["Environment/Episode Length"] = (self.episode_average_len.average, self.clock.episode)
             self.cumulative_average_reward.reset()
             self.episode_average_len.reset()
         return ld
