@@ -2,9 +2,9 @@ import warnings
 warnings.filterwarnings(action="ignore")
 from torch.utils.tensorboard import SummaryWriter
 warnings.filterwarnings(action="default")
-import aine_drl
 import aine_drl.util as util
 import builtins
+import torch
 
 class logger:
     """ Standard logger class. """
@@ -61,6 +61,14 @@ class logger:
         if cls._logger is None:
             raise Exception("You must call logger.start() method first before call this method.")
         cls._logger.add_scalar(key, value, t)
+        
+    @classmethod
+    def load_agent(cls) -> dict:
+        return torch.load(cls.agent_save_dir())
+    
+    @classmethod
+    def save_agent(cls, state_dict: dict):
+        torch.save(state_dict, cls.agent_save_dir())
         
     @classmethod
     def end(cls):
