@@ -1,10 +1,8 @@
 import sys
-from typing import Optional, Tuple
-
 sys.path.append(".")
 
-import gym
-import gym.vector
+from typing import Optional, Tuple
+
 import aine_drl
 import aine_drl.util as util
 from aine_drl.training import GymTraining
@@ -12,7 +10,6 @@ from aine_drl.training import GymTraining
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import LambdaLR
 
 class CartPoleActorCriticNet(aine_drl.ActorCriticSharedNetwork):
     
