@@ -63,7 +63,7 @@ def main():
     
     device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    network = CartPoleActorCriticNet(obs_shape, action_count)
+    network = CartPoleActorCriticNet(obs_shape, action_count).to(device=device)
     policy = aine_drl.CategoricalPolicy()
     config = aine_drl.PPOConfig(
         training_freq=16,
@@ -90,7 +90,7 @@ def main():
         seed=seed, 
         env_id="CartPole-v1_PPO", 
         auto_retrain=False, 
-        inference_freq=10000
+        summary_freq=1000
     )
     gym_training.train(total_time_steps)
     

@@ -14,28 +14,15 @@ import numpy as np
 
 class GymActionCommunicator(ABC):
     @abstractmethod
-    def to_action(self, gym_action: Any) -> Action:
-        raise NotImplementedError
-    
-    @abstractmethod
     def to_gym_action(self, action: Action) -> Any:
         raise NotImplementedError
     
 class GymDiscreteActionCommunicator(GymActionCommunicator):
-    def __init__(self, is_vector_env: bool) -> None:
-        self.is_vector_env = is_vector_env
-    
-    def to_action(self, gym_action: Any) -> Action:
-        if self.is_vector_env:
-            return Action(gym_action, None)
-        else:
-            return Action(gym_action[np.newaxis, ...], None)
+    def __init__(self, action_space: gym_space.Space) -> None:
+        self.action_shape = action_space.shape
     
     def to_gym_action(self, action: Action) -> Any:
-        if self.is_vector_env:
-            return action.discrete_action
-        else:
-            return action.discrete_action.squeeze(0)
+        return action.discrete_action.reshape(self.action_shape)
 
 class GymTraining:
     """
@@ -55,6 +42,7 @@ class GymTraining:
                  env_id: Optional[str] = None,
                  seed: Union[int, List[int], None] = None,
                  auto_retrain: bool = False,
+                 summary_freq: Optional[int] = None,
                  inference_freq: Optional[int] = None,
                  gym_action_communicator: Optional[GymActionCommunicator] = None) -> None:
         
@@ -63,6 +51,7 @@ class GymTraining:
         
         self.auto_retrain = auto_retrain
         self.gym_env = gym_env
+        self.summary_freq = summary_freq
         self.inference_freq = inference_freq
         
         if isinstance(gym_env, VectorEnv):
@@ -90,7 +79,7 @@ class GymTraining:
     def make_gym_action_communicator(self, gym_env: Union[Env, VectorEnv]) -> GymActionCommunicator:
         action_space_type = type(gym_env.action_space)
         if action_space_type is gym_space.Discrete or action_space_type is gym_space.MultiDiscrete:
-            return GymDiscreteActionCommunicator(self.is_vector_env)
+            return GymDiscreteActionCommunicator(gym_env.action_space)
         else:
             raise ValueError("Doesn't implement yet for this action space.")
         
@@ -102,14 +91,14 @@ class GymTraining:
             total_gloabl_time_steps (int): training total time steps
         """
         try:
-            if self.auto_retrain:
-                self._load_agent()
+            # if self.auto_retrain:
+            #     self._load_agent()
             self._train(total_global_time_steps)
         except KeyboardInterrupt:
-            logger.print(f"Training interrupted at the time step {self.agent.clock.time_step}.")
+            logger.print(f"Training interrupted at the time step {self.agent.clock.global_time_step}.")
         finally:
             logger.close()
-            self._save_agent()
+            # self._save_agent()
             self.__gym_render_env.close()
             
     def inference(self, num_episodes: int = 1):
@@ -121,7 +110,7 @@ class GymTraining:
         """
         self.agent.behavior_type = BehaviorType.INFERENCE
         
-        self._load_agent()
+        # self._load_agent()
         for _ in range(num_episodes):
             obs = self.inference_gym_env.reset(seed=self.seed)
             obs = obs[np.newaxis, ...] # (num_envs, *obs_shape) = (1, *obs_shape)
@@ -180,34 +169,54 @@ class GymTraining:
         if self.agent.clock.global_time_step >= total_gloabl_time_steps:
             logger.print(f"Since {self.env_id} agent already reached to the total time steps, you can't train the agent.")
         for _ in range(self.agent.clock.global_time_step, total_gloabl_time_steps, self.num_envs):
-            action = self.agent.select_action(obs)
             # take action and observe
+            action = self.agent.select_action(obs)
             next_obs, reward, terminated, truncated, _ = self.gym_env.step(self.gym_action_communicator.to_gym_action(action))
             terminated = terminated | truncated
+            
             # update the agent
-            if self.is_vector_env:
-                exp = Experience(
-                    obs,
-                    action,
-                    next_obs,
-                    reward,
-                    terminated
-                )
-            else:
-                exp = Experience(
-                    obs[np.newaxis, ...],
-                    action,
-                    next_obs[np.newaxis, ...],
-                    np.array([[reward]]),
-                    np.array([[terminated]])
-                )
+            exp = self._make_experience(obs, action, next_obs, reward, terminated)
             self.agent.update(exp)
-            # update states
+            
+            # update current observation
             if (not self.is_vector_env) and terminated:
                 obs = gym_env.reset(seed=self.seed)
             else:
                 obs = next_obs
                 
+            # summuary check
+            if self.summary_freq is not None and self.agent.clock.check_global_time_step_freq(self.summary_freq):
+                self._summary()
+                
+            # inference check
             if self.inference_freq is not None and self.agent.clock.check_global_time_step_freq(self.inference_freq):
                 self.inference()
                 
+    def _summary(self):
+        log_data = self.agent.log_data
+        global_time_step = self.agent.clock.global_time_step
+        if "Environment/Cumulative Reward" in log_data.keys():
+            logger.print(
+                f"training time: {self.agent.clock.real_time:.1f}, global time step: {global_time_step}, cumulative reward: {log_data['Environment/Cumulative Reward']:.1f}"
+            )
+        else:
+            logger.print(f"training time: {self.agent.clock.real_time:.1f}, global time step: {global_time_step}, episode has not terminated yet.")
+                
+    def _make_experience(self, obs, action, next_obs, reward, terminated) -> Experience:
+        if self.is_vector_env:
+            exp = Experience(
+                obs.astype(np.float32),
+                action,
+                next_obs.astype(np.float32),
+                reward.astype(np.float32),
+                terminated.astype(np.float32)
+            )
+        else:
+            exp = Experience(
+                obs[np.newaxis, ...].astype(np.float32),
+                action,
+                next_obs[np.newaxis, ...].astype(np.float32),
+                np.array([[reward]], dtype=np.float32),
+                np.array([[terminated]], dtype=np.float32)
+            )
+        return exp
