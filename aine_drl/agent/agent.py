@@ -70,7 +70,7 @@ class Agent(ABC):
             self.cumulative_average_reward.update(self.cumulative_reward)
             self.cumulative_reward = 0.0
             self.episode_average_len.update(self.clock.episode_len)
-            self.clock.tick_episode() 
+            self.clock.tick_episode()
         
     @abstractmethod
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:

@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional, Tuple, Union
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import ActorCriticSharedNetwork
@@ -64,6 +64,58 @@ class PPO(Agent):
         
         self.actor_average_loss = util.IncrementalAverage()
         self.critic_average_loss = util.IncrementalAverage()
+        
+    @staticmethod
+    def make(env_config: dict,
+             network: ActorCriticSharedNetwork,
+             policy: Policy):
+        """
+        ## Summary
+        
+        Helps to make PPO agent.
+
+        Args:
+            env_config (dict): environment configuration which inlcudes `num_envs`, `PPO`
+            network (ActorCriticSharedNetwork): standard actor critic network
+            policy (Policy): policy
+
+        Returns:
+            PPO: ppo instance
+            
+        ## Example
+        
+        `env_config` dictionary format::
+        
+            {'num_envs': 3,
+             'PPO': {'training_freq': 16,
+              'epoch': 3,
+              'mini_batch_size': 8,
+              'gamma': 0.99,
+              'lam': 0.95,
+              'epsilon_clip': 0.2,
+              'value_loss_coef': 0.5,
+              'entropy_coef': 0.001,
+              'grad_clip_max_norm': 5.0}}}
+        
+            
+        `env_config` YAML Format::
+        
+            num_envs: 3
+            PPO:
+              training_freq: 16
+              epoch: 3
+              mini_batch_size: 8
+              gamma: 0.99
+              lam: 0.95
+              epsilon_clip: 0.2
+              value_loss_coef: 0.5
+              entropy_coef: 0.001
+              grad_clip_max_norm: 5.0
+        """
+        num_envs = env_config["num_envs"]
+        ppo_config = PPOConfig(**env_config["PPO"])
+        return PPO(ppo_config, network, policy, num_envs)
+        
         
     def update(self, experience: Experience):
         super().update(experience)
