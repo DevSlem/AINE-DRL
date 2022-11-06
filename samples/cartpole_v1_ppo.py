@@ -45,54 +45,23 @@ class CartPoleActorCriticNet(aine_drl.ActorCriticSharedNetwork):
     
 def main():
     seed = 0 # if you want to get the same results
-    venv_mode = True
-    
     util.seed(seed)
-    total_time_steps = 200000
     
-    if venv_mode:
-        num_envs = 3
-        env = gym.vector.make("CartPole-v1", num_envs=num_envs, new_step_api=True)
-        obs_shape = env.single_observation_space.shape[0]
-        action_count = env.single_action_space.n
+    config_manager = aine_drl.util.ConfigManager("config/cartpole_v1_ppo.yaml")
+    gym_training = GymTraining.make(config_manager.env_config, config_manager.env_id)
+    
+    if gym_training.is_vector_env:
+        obs_shape = gym_training.gym_env.single_observation_space.shape[0]
+        action_count = gym_training.gym_env.single_action_space.n
     else:
-        num_envs = 1
-        env = gym.make("CartPole-v1", new_step_api=True)
-        obs_shape = env.observation_space.shape[0]
-        action_count = env.action_space.n
+        obs_shape = gym_training.gym_env.observation_space.shape[0]
+        action_count = gym_training.gym_env.action_space.n
     
     device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
     network = CartPoleActorCriticNet(obs_shape, action_count).to(device=device)
     policy = aine_drl.CategoricalPolicy()
-    config = aine_drl.PPOConfig(
-        training_freq=16,
-        epoch=3,
-        mini_batch_size=8,
-        gamma=0.99,
-        lam=0.95,
-        epsilon_clip=0.2,
-        value_loss_coef=0.5,
-        entropy_coef=0.001,
-        grad_clip_max_norm=5.0
-    )
-    
-    ppo = aine_drl.PPO(
-        config,
-        network,
-        policy,
-        num_envs
-    )
-    
-    gym_training = GymTraining(
-        ppo, 
-        env, 
-        seed=seed, 
-        env_id="CartPole-v1_PPO", 
-        auto_retrain=False, 
-        summary_freq=1000
-    )
-    gym_training.train(total_time_steps)
+    ppo = aine_drl.PPO.make(config_manager.env_config, network, policy)
+    gym_training.train(ppo)
     
 if __name__ == "__main__":
     main()
