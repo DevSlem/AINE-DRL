@@ -1,18 +1,19 @@
 from argparse import ArgumentTypeError
+from typing import Any, List, Union, Optional
 from abc import ABC, abstractmethod
-import gym
+
 import gym.spaces as gym_space
 from gym import Env
 from gym.vector import VectorEnv
-from typing import Any, List, Union, Optional
+
 from aine_drl.agent.agent import Agent, BehaviorType
 from aine_drl.experience import Action, Experience
-import aine_drl.util as util
 from aine_drl.util import logger
-import torch
+
 import numpy as np
 
 class GymActionCommunicator(ABC):
+    """Action communicator between AINE-DRL and Gym."""
     @abstractmethod
     def to_gym_action(self, action: Action) -> Any:
         raise NotImplementedError
@@ -31,20 +32,25 @@ class GymTraining:
     Args:
         agent (Agent): DRL agent to train
         gym_env (Env | VectorEnv): gym environment
+        gym_action_communicator (GymActionCommunicator | None, optional): action communicator between AINE-DRL and Gym. Defaults to auto set.
         env_id (str | None, optional): custom environment id. Defaults to `gym_env` id.
-        seed (int | List[int] | None, optional): gym environment random seed
+        seed (int | List[int] | None, optional): gym environment random seed. Defaults to None.
         auto_retrain (bool, optional): enable to retrain the agent. if you want to do, you must set custom `env_id`. Defaults to False.
-        render_freq (int | None, optional): inference rendering frequency. Defaults to never inference.
+        summary_freq (int | None, optional): summary frequency. Defaults to not summary.
+        agent_save_freq (int | None, optional): agent save frequency. Defaults to `summary_freq` x 10
+        inference_freq (int | None, optional): inference frequency. Defaults to not inference.
+        
     """
     def __init__(self,
                  agent: Agent,
                  gym_env: Union[Env, VectorEnv],
+                 gym_action_communicator: Optional[GymActionCommunicator] = None,
                  env_id: Optional[str] = None,
                  seed: Union[int, List[int], None] = None,
                  auto_retrain: bool = False,
                  summary_freq: Optional[int] = None,
-                 inference_freq: Optional[int] = None,
-                 gym_action_communicator: Optional[GymActionCommunicator] = None) -> None:
+                 agent_save_freq: Optional[int] = None,
+                 inference_freq: Optional[int] = None) -> None:
         
         if env_id is None and auto_retrain == True:
             raise ValueError("You must set auto_retrain to False when env_id is None.")
@@ -53,6 +59,7 @@ class GymTraining:
         self.gym_env = gym_env
         self.summary_freq = summary_freq
         self.inference_freq = inference_freq
+        self.agent_save_freq = summary_freq * 10 if agent_save_freq is None else agent_save_freq
         
         if isinstance(gym_env, VectorEnv):
             self.num_envs = gym_env.num_envs
@@ -66,7 +73,7 @@ class GymTraining:
         gym_env.new_step_api = True
         
         if gym_action_communicator is None:
-            self.gym_action_communicator = self.make_gym_action_communicator(self.gym_env)
+            self.gym_action_communicator = self._make_gym_action_communicator(self.gym_env)
         else:
             self.gym_action_communicator = gym_action_communicator
         
@@ -76,30 +83,30 @@ class GymTraining:
         self.inference_gym_env = None
         self._set_env_id(env_id)
         
-    def make_gym_action_communicator(self, gym_env: Union[Env, VectorEnv]) -> GymActionCommunicator:
-        action_space_type = type(gym_env.action_space)
-        if action_space_type is gym_space.Discrete or action_space_type is gym_space.MultiDiscrete:
-            return GymDiscreteActionCommunicator(gym_env.action_space)
-        else:
-            raise ValueError("Doesn't implement yet for this action space.")
-        
     def train(self, total_global_time_steps: int):
         """
         Run training.
 
         Args:
-            total_gloabl_time_steps (int): training total time steps
+            total_global_time_steps (int): training total time steps
         """
         try:
-            # if self.auto_retrain:
-            #     self._load_agent()
             logger.start(self.env_id)
+            if self.auto_retrain:
+                self._load_agent()
+            
             self._train(total_global_time_steps)
         except KeyboardInterrupt:
             logger.print(f"Training interrupted at the time step {self.agent.clock.global_time_step}.")
         finally:
+            self._save_agent()
             logger.end()
-            # self._save_agent()
+            
+    def set_inference_gym_env(self, inference_gym_env: Env, is_render: bool = True):
+        """Set manually the inference gym environment."""
+        self.inference_gym_env = inference_gym_env
+        self.is_render = is_render
+        self.inference_gym_env.render_mode = "human" if is_render else None
             
     def inference(self, num_episodes: int = 1):
         """
@@ -108,52 +115,26 @@ class GymTraining:
         Args:
             num_episodes (int, optional): the number of inference episodes. Defaults to 1.
         """
-        self.agent.behavior_type = BehaviorType.INFERENCE
+        assert self.inference_gym_env is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
         
-        # self._load_agent()
-        # for _ in range(num_episodes):
-        #     obs = self.inference_gym_env.reset(seed=self.seed)
-        #     obs = obs[np.newaxis, ...] # (num_envs, *obs_shape) = (1, *obs_shape)
-        #     terminated = False
-        #     cumulative_reward = 0.0
-        #     while not terminated:
-        #         action = self.agent.select_action(obs)
-        #         next_obs, reward, teraminted, truncated, _ = self.__gym_render_env.step(self.gym_action_communicator.to_gym_action(action))
-        #         # self.__gym_render_env.render()
-        #         terminated = teraminted | truncated
-        #         obs = next_obs
-        #         cumulative_reward += reward
-        #     logger.print(f"inference mode - time step {self.agent.clock.time_step}, cumulative reward: {cumulative_reward}")
+        self._load_agent()
+        
+        self.agent.behavior_type = BehaviorType.INFERENCE
+        for _ in range(num_episodes):
+            obs = self.inference_gym_env.reset(seed=self.seed)
+            obs = obs[np.newaxis, ...] # (num_envs, *obs_shape) = (1, *obs_shape)
+            terminated = False
+            cumulative_reward = 0.0
+            while not terminated:
+                action = self.agent.select_action(obs)
+                next_obs, reward, teraminted, truncated, _ = self.inference_gym_env.step(self.gym_action_communicator.to_gym_action(action))
+                terminated = teraminted | truncated
+                obs = next_obs
+                cumulative_reward += reward
+            logger.print(f"inference mode - global time step {self.agent.clock.global_time_step}, cumulative reward: {cumulative_reward}")
             
         self.agent.behavior_type = BehaviorType.TRAIN
-            
-    def set_inference_gym_env(self, inference_gym_env: Env, is_render: bool = True):
-        self.inference_gym_env = inference_gym_env
-        self.is_render = is_render
-        self.inference_gym_env.render_mode = "human" if is_render else None
-            
-    def _set_env_id(self, env_id: Optional[str]):
-        """ set environment id. """
-        if env_id is None:
-            gym_env_id = self.gym_env.get_attr("spec")[0].id if self.is_vector_env else self.gym_env.spec.id
-            env_id = gym_env_id
-        self.env_id = env_id if self.auto_retrain else logger.numbering_env_id(env_id)
-            
-    def _save_agent(self):
-        try:
-            torch.save(self.agent.state_dict, logger.agent_save_dir())
-        except FileNotFoundError:
-            pass
-            
-    def _load_agent(self):
-        if not self._agent_loaded:
-            try:
-                ckpt = torch.load(logger.agent_save_dir())
-                self.agent.load_state_dict(ckpt)
-                self._agent_loaded = True
-            except FileNotFoundError:
-                pass
-    
+        
     def _train(self, total_gloabl_time_steps: int):
         gym_env = self.gym_env
         obs = gym_env.reset(seed=self.seed)
@@ -179,9 +160,42 @@ class GymTraining:
             if self.summary_freq is not None and self.agent.clock.check_global_time_step_freq(self.summary_freq):
                 self._summary()
                 
+            if self.agent.clock.check_global_time_step_freq(self.agent_save_freq):
+                self._save_agent()
+                
             # inference check
             if self.inference_freq is not None and self.agent.clock.check_global_time_step_freq(self.inference_freq):
                 self.inference()
+                
+    def _make_gym_action_communicator(self, gym_env: Union[Env, VectorEnv]) -> GymActionCommunicator:
+        """Make automatically gym action communicator."""
+        action_space_type = type(gym_env.action_space)
+        if action_space_type is gym_space.Discrete or action_space_type is gym_space.MultiDiscrete:
+            return GymDiscreteActionCommunicator(gym_env.action_space)
+        else:
+            raise ValueError("Doesn't implement yet for this action space.")
+            
+    def _set_env_id(self, env_id: Optional[str]):
+        """ set environment id. """
+        if env_id is None:
+            gym_env_id = self.gym_env.get_attr("spec")[0].id if self.is_vector_env else self.gym_env.spec.id
+            env_id = gym_env_id
+        self.env_id = env_id if self.auto_retrain else logger.numbering_env_id(env_id)
+            
+    def _save_agent(self):
+        try:
+            logger.save_agent(self.agent.state_dict)
+        except FileNotFoundError:
+            pass
+            
+    def _load_agent(self):
+        if not self._agent_loaded:
+            try:
+                ckpt = logger.load_agent()
+                self.agent.load_state_dict(ckpt)
+                self._agent_loaded = True
+            except FileNotFoundError:
+                pass
                 
     def _summary(self):
         log_data = self.agent.log_data
