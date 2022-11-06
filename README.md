@@ -19,7 +19,7 @@ If you want to know how to use, see details in [sample codes](samples/).
 - [x] [Double DQN](aine_drl/agent/dqn.py)
 - [x] [REINFORCE](aine_drl/agent/reinforce.py)
 - [x] [A2C](aine_drl/agent/a2c.py)
-- [x] [PPO](aine_drl/agent/ppo.py)
+- [x] [PPO](aine_drl/agent/ppo/ppo.py)
 
 ### TODO
 
