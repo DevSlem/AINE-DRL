@@ -1,82 +1,49 @@
-# from aine_drl.drl_util import Experience, ExperienceBatch
-# from aine_drl.trajectory import Trajectory
-# from typing import List
-# import numpy as np
+from typing import Optional
+from aine_drl.experience import Action, Experience, ExperienceBatchTensor
+import torch
+import numpy as np
 
-# class MonteCarloTrajectory(Trajectory):
-#     """
-#     It's a trajectory for on-policy Monte Carlo methods.
-#     It samples whole trajectories when the episode is terminated.
-#     It allows multiple environments but not recommended beacause of the stability.
-#     If multiple environments, it samples the batch where each terminated episode is concatnated.
-#     """
-#     def __init__(self, num_envs: int = 1) -> None:
-#         self.num_envs = num_envs
-#         self.reset()
-        
-#     @property
-#     def count(self) -> int:
-#         return self._count
+class MonteCarloTrajectory:
+    """
+    It's a trajectory utility of experience batch for the monte carlo (MC) method. 
+    It works to only one environment.
+    """
+    def __init__(self) -> None:
+        self.reset()
     
-#     @property
-#     def can_train(self) -> bool:
-#         # if all episodes are terminated
-#         return np.array(self._can_train).sum() == self.num_envs
+    def reset(self):
+        self._recent_idx = -1
+        self.obs = []
+        self.action = []
+        self.reward = []
+        self.terminated = []
+        self.next_obs_buffer = None
         
-#     def reset(self):
-#         self._count = 0 # total experience count
-#         self._can_train = [False] * self.num_envs
-        
-#         # shape: (num_envs, episode length)
-#         self.states = [[] for _ in range(self.num_envs)]
-#         self.actions = [[] for _ in range(self.num_envs)]
-#         self.rewards = [[] for _ in range(self.num_envs)]
-#         self.terminateds = [[] for _ in range(self.num_envs)]
-#         self.next_state_buffer = [None] * self.num_envs
-        
-#     def add(self, experiences: List[Experience]):
-#         assert len(experiences) == self.num_envs
-#         for i, ex in enumerate(experiences):
-#             # if the episode of the environment has been terminated, skip
-#             if self._can_train[i]:
-#                 continue
-            
-#             self._count += 1
-#             self._can_train[i] = ex.terminated
-            
-#             self.states[i].append(ex.state)
-#             self.actions[i].append(ex.action)
-#             self.rewards[i].append(ex.reward)
-#             self.terminateds[i].append(ex.terminated)
-#             self.next_state_buffer[i] = ex.next_state
-            
-#     def sample(self) -> ExperienceBatch:
-#         """
-#         Returns the concatnated batch of multiple episodes.
-#         """
-#         for i in range(self.num_envs):
-#             self.states[i].append(self.next_state_buffer[i])
-        
-#         states = []
-#         actions = []
-#         next_states = []
-#         rewards = []
-#         terminateds = []
-#         for i in range(self.num_envs):
-#             states.append(np.array(self.states[i][:-1]))
-#             actions.append(np.array(self.actions[i]))
-#             next_states.append(np.array(self.states[i][1:]))
-#             rewards.append(np.array(self.rewards[i]))
-#             terminateds.append(np.array(self.terminateds[i]))
-        
-#         experience_batch = ExperienceBatch(
-#             np.concatenate(states),
-#             np.concatenate(actions),
-#             np.concatenate(next_states),
-#             np.concatenate(rewards),
-#             np.concatenate(terminateds)
-#         )
-        
-#         self.reset()
-#         return experience_batch
+    @property
+    def count(self) -> int:
+        return self._recent_idx + 1
     
+    @property
+    def recent_idx(self) -> int:
+        return self._recent_idx
+    
+    def add(self, experience: Experience):
+        self._recent_idx += 1
+        
+        self.obs.append(experience.obs)
+        self.action.append(experience.action)
+        self.reward.append(experience.reward)
+        self.terminated.append(experience.terminated)
+        self.next_obs_buffer = experience.next_obs
+        
+    def sample(self, device: Optional[torch.device] = None) -> ExperienceBatchTensor:
+        self.obs.append(self.next_obs_buffer)
+        exp_batch = ExperienceBatchTensor(
+            torch.from_numpy(np.concatenate(self.obs[:-1], axis=0)).to(device=device),
+            Action.to_batch(self.action).to_action_tensor(device),
+            torch.from_numpy(np.concatenate(self.obs[1:], axis=0)).to(device=device),
+            torch.from_numpy(np.concatenate(self.reward, axis=0)).to(device=device),
+            torch.from_numpy(np.concatenate(self.terminated, axis=0)).to(device=device),
+            self.count
+        )
+        return exp_batch
