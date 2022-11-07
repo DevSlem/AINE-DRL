@@ -15,3 +15,11 @@ class GymDiscreteActionCommunicator(GymActionCommunicator):
     
     def to_gym_action(self, action: Action) -> Any:
         return action.discrete_action.reshape(self.action_shape)
+
+class GymContinuousActionCommunicator(GymActionCommunicator):
+    def __init__(self, action_space: Space) -> None:
+        super().__init__()
+        self.action_shape = action_space.shape
+    
+    def to_gym_action(self, action: Action) -> Any:
+        return action.continuous_action.reshape(self.action_shape)

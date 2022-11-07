@@ -219,6 +219,7 @@ class GymTraining:
             logger.print(f"Since {self.env_id} agent already reached to the total time steps, you can't train the agent.")
             return
         
+        logger.print("Training start!")
         for _ in range(agent.clock.global_time_step, total_gloabl_time_steps, self.num_envs):
             # take action and observe
             action = agent.select_action(obs)
@@ -253,8 +254,10 @@ class GymTraining:
         action_space_type = type(gym_env.action_space)
         if action_space_type is gym_space.Discrete or action_space_type is gym_space.MultiDiscrete:
             return gac.GymDiscreteActionCommunicator(gym_env.action_space)
+        elif action_space_type is gym_space.Box:
+            return gac.GymContinuousActionCommunicator(gym_env.action_space)
         else:
-            raise ValueError("Doesn't implement yet for this action space.")
+            raise ValueError("Doesn't implement any gym action communicator for this action space yet. You need to set it manually.")
             
     def _set_env_id(self, env_id: Optional[str]):
         """ set environment id. """
@@ -266,6 +269,7 @@ class GymTraining:
     def _save_agent(self, agent: Agent):
         try:
             logger.save_agent(agent.state_dict)
+            logger.print(f"Saving the current agent is successfully completed: {logger.agent_save_dir()}")
         except FileNotFoundError:
             pass
             
@@ -275,6 +279,7 @@ class GymTraining:
                 ckpt = logger.load_agent()
                 agent.load_state_dict(ckpt)
                 self._agent_loaded = True
+                logger.print(f"Loading the saved agent is successfully completed: {logger.agent_save_dir()}")
             except FileNotFoundError:
                 pass
                 

@@ -104,20 +104,20 @@ class GaussianPolicyDistribution(PolicyDistribution):
     """Gaussian policy distribution for the continuous action type."""
     def __init__(self, pdparam: PolicyDistributionParameter) -> None:
         assert pdparam.num_continuous_branches > 0
-        self.disributions = []
+        self.distributions = []
         for param in pdparam.continuous_pdparams:
-            self.disributions.append(Normal(loc=param[:, 0], scale=param[:, 1]))
+            self.distributions.append(Normal(loc=param[:, 0], scale=param[:, 1]))
             
     def sample(self) -> ActionTensor:
         sampled_continuous_action = []
-        for dist in self.disributions:
+        for dist in self.distributions:
             sampled_continuous_action.append(dist.sample())
         sampled_continuous_action = torch.stack(sampled_continuous_action, dim=1)
         return ActionTensor.create(None, sampled_continuous_action)
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         action_log_prob = []
-        for i, dist in enumerate(self.disributions):
+        for i, dist in enumerate(self.distributions):
             action_log_prob.append(dist.log_prob(action.continuous_action[:, i]))
         return torch.stack(action_log_prob, dim=1)
     
