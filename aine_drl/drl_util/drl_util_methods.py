@@ -34,15 +34,21 @@ def polyak_update(src_net: nn.Module, target_net: nn.Module, src_ratio: float):
     for src_param, target_param in zip(src_net.parameters(), target_net.parameters()):
         target_param.data.copy_(src_ratio * src_param.data + (1.0 - src_ratio) * target_param.data)
 
-def calc_returns(rewards: torch.Tensor, terminateds: torch.Tensor, gamma: float):
+def compute_return(rewards: torch.Tensor, gamma: float) -> torch.Tensor:
     """
-    Calculates returns. `rewards`, `terminateds` can be multiple episodes but must be flattend.
+    Compute return.
+    
+    Args:
+        rewards (Tensor): whose shape is `(episode_len,)`
+        gamma (float): discount factor
+        
+    Returns:
+        Tensor: return whose shape is `(episode_len,)`
     """
     returns = torch.empty_like(rewards)
-    G = 0 # return at time step t
-    not_terminateds = 1 - terminateds
+    G = 0 # return at the time step t
     for t in reversed(range(len(returns))):
-        G = rewards[t] + not_terminateds[t] * gamma * G
+        G = rewards[t] + gamma * G
         returns[t] = G
     return returns
 
