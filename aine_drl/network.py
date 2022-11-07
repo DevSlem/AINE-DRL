@@ -99,6 +99,34 @@ class GaussianContinuousActionLayer(nn.Module):
         out = torch.reshape(out, (-1, self.num_continuous_actions * 2))
         continuous_pdparams = list(torch.split(out, 2, dim=1))
         return PolicyDistributionParameter.create(None, continuous_pdparams)
+    
+class PolicyGradientNetwork(nn.Module, ABC):
+    """
+    Policy gradient network.
+    """
+    
+    @abstractmethod
+    def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
+        """
+        Calculate policy distribution paraemters whose shape is `(batch_size, ...)`. \\
+        `batch_size` is `num_envs` x `n-step`. \\
+        When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
+        When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
+
+        Args:
+            obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
+
+        Returns:
+            PolicyDistributionParameter: policy distribution parameter
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    def train_step(self, 
+                   loss: torch.Tensor,
+                   grad_clip_max_norm: Optional[float],
+                   training_step: int):
+        raise NotImplementedError
 
 class ActorCriticSharedNetwork(nn.Module, ABC):
     """
@@ -116,10 +144,10 @@ class ActorCriticSharedNetwork(nn.Module, ABC):
         When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
 
         Args:
-            obs (torch.Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
+            obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
 
         Returns:
-            Tuple[PolicyDistributionParameter, torch.Tensor]: policy distribution parameter, state value
+            Tuple[PolicyDistributionParameter, Tensor]: policy distribution parameter, state value
         """
         raise NotImplementedError
     
