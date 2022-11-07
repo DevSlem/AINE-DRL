@@ -57,7 +57,7 @@ class GymTraining:
         gym_env.new_step_api = True
         
         if gym_action_communicator is None:
-            self.gym_action_communicator = self._make_gym_action_communicator(self.gym_env)
+            self.gym_action_communicator = gac.GymActionCommunicator.make(self.gym_env)
         else:
             self.gym_action_communicator = gym_action_communicator
         
@@ -70,7 +70,11 @@ class GymTraining:
         
         self._agent_loaded = False
         self.inference_gym_env = None
+        self.inference_gym_action_communicator = None
+        self.save_on = True
         self._set_env_id(env_id)
+        
+        self.dtype = np.float32
         
     @staticmethod
     def make(env_config: dict,
@@ -102,7 +106,8 @@ class GymTraining:
                'total_global_time_steps': 200000,
                'summary_freq': 1000,
                'agent_save_freq': None,
-               'inference_freq': None}}
+               'inference_freq': 10000,
+               'inference_render': True}}
         
         `env_config` YAML format::
         
@@ -116,7 +121,8 @@ class GymTraining:
                 total_global_time_steps: 200000
                 summary_freq: 1000
                 agent_save_freq: null
-                inference_freq: null
+                inference_freq: 10000
+                inference_render: true
         """
         
         num_envs = env_config["num_envs"]
@@ -138,6 +144,7 @@ class GymTraining:
         summary_freq = training_config.get("summary_freq", None)
         agent_save_freq = training_config.get("agent_save_freq", None)
         inference_freq = training_config.get("inference_freq", None)
+        inference_render = training_config.get("inference_render", True)
         
         gym_training = GymTraining(
             gym_env=gym_env,
@@ -150,6 +157,12 @@ class GymTraining:
             agent_save_freq=agent_save_freq,
             inference_freq=inference_freq
         )
+        
+        if inference_freq is not None:
+            render_mode = "human" if inference_render else None
+            inference_gym_env = gym.make(new_step_api=True, render_mode=render_mode, **gym_env_config)
+            inference_gym_action_communicator = gac.GymActionCommunicator.make(inference_gym_env)
+            gym_training.set_inference_gym_env(inference_gym_env, inference_gym_action_communicator)
         
         return gym_training
         
@@ -172,6 +185,7 @@ class GymTraining:
             if self.auto_retrain:
                 self._load_agent(agent)
             
+            self._agent_loaded = True
             self._train(agent, total_global_time_steps)
         except KeyboardInterrupt:
             logger.print(f"Training interrupted at the time step {agent.clock.global_time_step}.")
@@ -179,11 +193,10 @@ class GymTraining:
             self._save_agent(agent)
             logger.end()
             
-    def set_inference_gym_env(self, inference_gym_env: Env, is_render: bool = True):
+    def set_inference_gym_env(self, gym_env: Env, gym_action_communicator: gac.GymActionCommunicator):
         """Set manually the inference gym environment."""
-        self.inference_gym_env = inference_gym_env
-        self.is_render = is_render
-        self.inference_gym_env.render_mode = "human" if is_render else None
+        self.inference_gym_env = gym_env
+        self.inference_gym_action_communicator = gym_action_communicator
             
     def inference(self, agent: Agent, num_episodes: int = 1):
         """
@@ -192,31 +205,41 @@ class GymTraining:
         Args:
             num_episodes (int, optional): the number of inference episodes. Defaults to 1.
         """
-        assert self.inference_gym_env is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
+        assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
         
-        self._load_agent()
+        self._load_agent(agent)
         
         agent.behavior_type = BehaviorType.INFERENCE
         for _ in range(num_episodes):
-            obs = self.inference_gym_env.reset(seed=self.seed)
-            obs = obs[np.newaxis, ...] # (num_envs, *obs_shape) = (1, *obs_shape)
+            # (num_envs, *obs_shape) = (1, *obs_shape)
+            obs = self.inference_gym_env.reset(seed=self.seed).astype(self.dtype)[np.newaxis, ...]
             terminated = False
             cumulative_reward = 0.0
             while not terminated:
                 action = agent.select_action(obs)
-                next_obs, reward, teraminted, truncated, _ = self.inference_gym_env.step(self.gym_action_communicator.to_gym_action(action))
+                next_obs, reward, teraminted, truncated, _ = self.inference_gym_env.step(self.inference_gym_action_communicator.to_gym_action(action))
                 terminated = teraminted | truncated
-                obs = next_obs
+                obs = next_obs.astype(self.dtype)[np.newaxis, ...]
                 cumulative_reward += reward
             logger.print(f"inference mode - global time step {agent.clock.global_time_step}, cumulative reward: {cumulative_reward}")
             
         agent.behavior_type = BehaviorType.TRAIN
         
+    def close(self):
+        self.gym_env.close()
+        if self.inference_gym_env is not None:
+            self.inference_gym_env.close()
+        
     def _train(self, agent: Agent, total_gloabl_time_steps: int):
         gym_env = self.gym_env
-        obs = gym_env.reset(seed=self.seed)
+        obs = gym_env.reset(seed=self.seed).astype(self.dtype)
+        if not self.is_vector_env:
+            # (num_envs, *obs_shape) = (1, *obs_shape)
+            obs = obs[np.newaxis, ...]
+        
         if agent.clock.global_time_step >= total_gloabl_time_steps:
             logger.print(f"Since {self.env_id} agent already reached to the total time steps, you can't train the agent.")
+            self.save_on = False
             return
         
         logger.print("Training start!")
@@ -231,10 +254,10 @@ class GymTraining:
             agent.update(exp)
             
             # update current observation
-            if (not self.is_vector_env) and terminated:
-                obs = gym_env.reset(seed=self.seed)
+            if not self.is_vector_env and terminated:
+                obs = gym_env.reset(seed=self.seed).astype(self.dtype)[np.newaixs, ...]
             else:
-                obs = next_obs
+                obs = exp.next_obs
                 
             # summuary check
             if self.summary_freq is not None and agent.clock.check_global_time_step_freq(self.summary_freq):
@@ -248,16 +271,6 @@ class GymTraining:
                 self.inference(agent)
         
         logger.print("Training has been completed.")
-                
-    def _make_gym_action_communicator(self, gym_env: Union[Env, VectorEnv]) -> gac.GymActionCommunicator:
-        """Make automatically gym action communicator."""
-        action_space_type = type(gym_env.action_space)
-        if action_space_type is gym_space.Discrete or action_space_type is gym_space.MultiDiscrete:
-            return gac.GymDiscreteActionCommunicator(gym_env.action_space)
-        elif action_space_type is gym_space.Box:
-            return gac.GymContinuousActionCommunicator(gym_env.action_space)
-        else:
-            raise ValueError("Doesn't implement any gym action communicator for this action space yet. You need to set it manually.")
             
     def _set_env_id(self, env_id: Optional[str]):
         """ set environment id. """
@@ -267,11 +280,12 @@ class GymTraining:
         self.env_id = env_id if self.auto_retrain else logger.numbering_env_id(env_id)
             
     def _save_agent(self, agent: Agent):
-        try:
-            logger.save_agent(agent.state_dict)
-            logger.print(f"Saving the current agent is successfully completed: {logger.agent_save_dir()}")
-        except FileNotFoundError:
-            pass
+        if self.save_on:
+            try:
+                logger.save_agent(agent.state_dict)
+                logger.print(f"Saving the current agent is successfully completed: {logger.agent_save_dir()}")
+            except FileNotFoundError:
+                pass
             
     def _load_agent(self, agent: Agent):
         if not self._agent_loaded:
