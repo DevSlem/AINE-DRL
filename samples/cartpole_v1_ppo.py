@@ -25,17 +25,17 @@ class CartPoleActorCriticNet(aine_drl.ActorCriticSharedNetwork):
             nn.ReLU()
         )
         
-        self.actor_layer = nn.Linear(self.hidden_feature, discrete_action_count)
+        self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, discrete_action_count)
         self.critic_layer = nn.Linear(self.hidden_feature, 1)
         
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
     
     def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor]:
         encoding = self.encoding_layer(obs)
-        discrete_pdparam = self.actor_layer(encoding)
+        pdparam = self.actor_layer(encoding)
         v_pred = self.critic_layer(encoding)
         
-        return aine_drl.PolicyDistributionParameter.create([discrete_pdparam], None), v_pred
+        return pdparam, v_pred
     
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
         util.train_step(loss, self.optimizer, grad_clip_max_norm=grad_clip_max_norm, epoch=training_step)

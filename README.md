@@ -106,7 +106,7 @@ Fig 2. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO ag
 
 * [aine_drl](aine_drl/)
   * [agent](aine_drl/agent/)*
-  * [drl_util](aine_drl/util/)
+  * [drl_util](aine_drl/drl_util/)
   * [policy](aine_drl/policy/)*
   * [training](aine_drl/training/)
   * [trajectory](aine_drl/trajectory/)
