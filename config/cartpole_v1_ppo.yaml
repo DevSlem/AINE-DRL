@@ -6,10 +6,10 @@ CartPole-v1_PPO:
     training:
       seed: 0
       auto_retrain: true
-      total_global_time_steps: 30000
-      summary_freq: 500
+      total_global_time_steps: 50000
+      summary_freq: 1000
       agent_save_freq: null
-      inference_freq: 5000
+      inference_freq: 10000
       inference_render: true
   PPO:
     training_freq: 16

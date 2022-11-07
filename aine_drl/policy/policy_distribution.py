@@ -63,7 +63,7 @@ class PolicyDistribution(ABC):
     
     @abstractmethod
     def entropy(self) -> torch.Tensor:
-        """Returns entropy of distribution. The teturned entropy shape is `(batch_size, num_branches)`."""
+        """Returns entropy of distribution. The returned entropy shape is `(batch_size, num_branches)`."""
         raise NotImplementedError
     
 

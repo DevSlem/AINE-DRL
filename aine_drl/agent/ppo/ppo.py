@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple, Optional, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import ActorCriticSharedNetwork
@@ -37,20 +37,19 @@ class PPOConfig(NamedTuple):
 
 class PPO(Agent):
     """
-    Proximal policy optimization (PPO). See details in https://arxiv.org/abs/1707.06347.
+    Proximal Policy Optimization (PPO). See details in https://arxiv.org/abs/1707.06347.
+
+    Args:
+        config (PPOConfig): PPO configuration
+        network (ActorCriticSharedNetwork): standard actor critic network
+        policy (Policy): policy
+        num_envs (int): number of environments
     """
     def __init__(self, 
                  config: PPOConfig,
                  network: ActorCriticSharedNetwork,
                  policy: Policy,
                  num_envs: int) -> None:
-        """
-        Proximal Policy Optimization (PPO). See details in https://arxiv.org/abs/1707.06347.
-
-        Args:
-            config (PPOConfig): ppo configuration
-            network (ActorCriticSharedNetwork): standard actor critic network
-        """
         device = util.get_model_device(network)
         
         super().__init__(num_envs, device)
@@ -245,7 +244,7 @@ class PPO(Agent):
             epsilon_clip (float, optional): clipped range is [1 - epsilon, 1 + epsilon]. Defaults to 0.2.
 
         Returns:
-            Tensor: ppo actor loss
+            Tensor: PPO actor loss
         """
         assert not old_action_log_prob.requires_grad, "gradients of new_action_log_prob only flows."
         # pi_theta / pi_theta_old
