@@ -2,6 +2,15 @@
 
 A project for the DRL framework. **AINE** is the team name which means "Agent IN Environment".
 
+Table of Contents:
+
+* [Implementation](#implementation)
+* [Recent Experiment](#recent-experiment)
+* [Setup](#setup)
+* [Module](#module)
+
+## Implementation
+
 AINE-DRL supports below things.
 
 * deep reinforcement learning agents
@@ -9,17 +18,19 @@ AINE-DRL supports below things.
 * training with gym environment (vectorized environment also supported)
 * rendering gym environment with inference mode
 
-If you want to know how to use, see details in [sample codes](samples/).
+If you want to know how to use, see details in [sample codes](samples/) and [Wiki](https://github.com/DevSlem/AINE-DRL/wiki).
 
-## Algorithm
+### Agent
 
-### Implemented
+We provide basic deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read documentations in [Wiki](https://github.com/DevSlem/AINE-DRL/wiki). 
 
-- [x] [DQN](aine_drl/agent/dqn.py)
-- [x] [Double DQN](aine_drl/agent/dqn.py)
-- [x] [REINFORCE](aine_drl/agent/reinforce.py)
-- [x] [A2C](aine_drl/agent/a2c.py)
-- [x] [PPO](aine_drl/agent/ppo/ppo.py)
+|Agent|Source Code|
+|:---:|:---:|
+|REINFORCE|
+|[A2C](https://github.com/DevSlem/AINE-DRL/wiki/A2C)|[a2c](aine_drl/agent/a2c/)|
+|[PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO)|[ppo](aine_drl/agent/ppo)|
+|DQN|
+|Double DQN|
 
 ### TODO
 
