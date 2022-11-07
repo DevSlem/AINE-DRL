@@ -15,7 +15,7 @@ class Agent(ABC):
     """
     Deep reinforcement learning agent.
     """
-    def __init__(self, num_envs: int) -> None:
+    def __init__(self, num_envs: int, device: torch.device = None) -> None:
         """
         Deep reinforcement learning agent.
         
@@ -25,6 +25,7 @@ class Agent(ABC):
         self.num_envs = num_envs
         self.clock = Clock(num_envs)
         self._behavior_type = BehaviorType.TRAIN
+        self.device = device
 
         self.traced_env = 0
         self.cumulative_average_reward = util.IncrementalAverage()
@@ -44,10 +45,10 @@ class Agent(ABC):
             Action: selected action
         """
         if self.behavior_type == BehaviorType.TRAIN:
-            return self.select_action_train(torch.from_numpy(obs)).to_action()
+            return self.select_action_train(torch.from_numpy(obs).to(device=self.device)).to_action()
         elif self.behavior_type == BehaviorType.INFERENCE:
             with torch.no_grad():
-                return self.select_action_inference(torch.from_numpy(obs)).to_action()
+                return self.select_action_inference(torch.from_numpy(obs).to(device=self.device)).to_action()
         else:
             raise ValueError(f"Agent.behavior_type you currently use is invalid value. Your value is: {self.behavior_type}")
         

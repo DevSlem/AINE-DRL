@@ -51,13 +51,14 @@ class PPO(Agent):
             config (PPOConfig): ppo configuration
             network (ActorCriticSharedNetwork): standard actor critic network
         """
-        super().__init__(num_envs)
+        device = util.get_model_device(network)
+        
+        super().__init__(num_envs, device)
         
         self.config = config
         self.network = network
         self.policy = policy
         self.trajectory = PPOTrajectory(self.config.training_freq)
-        self.device = util.get_model_device(network)
         
         self.current_action_log_prob = None
         self.v_pred = None
@@ -134,7 +135,7 @@ class PPO(Agent):
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         with torch.no_grad():
             # feed forward 
-            pdparam, v_pred = self.network.forward(obs.to(device=self.device))
+            pdparam, v_pred = self.network.forward(obs)
             
             # action sampling
             dist = self.policy.get_policy_distribution(pdparam)
