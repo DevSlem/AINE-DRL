@@ -7,7 +7,7 @@ BipedalWalker-v3_PPO:
       seed: 0
       auto_retrain: true
       total_global_time_steps: 2000000
-      summary_freq: 50000
+      summary_freq: 25000
       agent_save_freq: null
       inference_freq: null
   PPO:

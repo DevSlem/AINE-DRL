@@ -56,6 +56,7 @@ def main():
     policy = aine_drl.GaussianPolicy()
     ppo = aine_drl.PPO.make(config_manager.env_config, network, policy)
     gym_training.train(ppo)
+    gym_training.close()
     
 if __name__ == "__main__":
     main()
