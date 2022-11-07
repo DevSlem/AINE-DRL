@@ -28,21 +28,26 @@ If you want to know how to use, see details in [sample codes](samples/).
 - [ ] A3C
 - [ ] SAC
 - [ ] Intrinsic Curiosity Module (ICM)
-## Experiment
+## Recent Experiment
 
 ### BipedalWalker-v3 with PPO
 
-See details of [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) environment.
+Training experiment in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) which is continuous action problem.
 
 Fig 1. [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) with PPO agent:
 
 ![](images/bipedal-walker-v3-ppo-cumulative-reward-graph.png)
 
-* gray - no gradient clipping
-* sky - gradient clipping with 0.5
-* pink - gradient clipping with 5.0
+* [configuration](config/bipedal_walker_v3_ppo.yaml)
+* [sample code](samples/bipedal_walker_v3_ppo.py)
 
-Source Code: [bipedal_walker_v3_ppo.py](samples/bipedal_walker_v3_ppo.py)
+You can train it using the command:
+
+```
+$ python samples/bipedal_walker_v3_ppo.py
+```
+
+If paging file error happens, see [Paging File Error](#paging-file-error).
 
 ## Setup
 
@@ -101,6 +106,19 @@ Fig 2. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO ag
 
 * [configuration](config/cartpole_v1_ppo.yaml)
 * [sample code](samples/cartpole_v1_ppo.py)
+
+### Paging File Error
+
+When you use too many workers (e.g., greater than 8), because of too many multi parallel environments in multi threads, **"The paging file is too small for this operation to complete."** error may happen. If it happens, you can mitigate it using the command (Windows):
+
+```
+$ pip install pefile
+$ python fixNvPe.py --input=C:\<Anaconda3 Path>\envs\aine-drl\Lib\site-packages\torch\lib\*.dll
+```
+
+`<Anaconda3 Path>` is one in which your Anaconda3 is installed.
+
+Reference: [cobryan05/fixNvPe.py (Github)](https://gist.github.com/cobryan05/7d1fe28dd370e110a372c4d268dcb2e5)  
 
 ## Module
 
