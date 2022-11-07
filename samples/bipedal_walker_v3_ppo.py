@@ -1,8 +1,8 @@
 import sys
-
 sys.path.append(".")
 
-import gym.vector
+from typing import Optional, Tuple
+
 import aine_drl
 import aine_drl.util as util
 from aine_drl.training import GymTraining
@@ -11,146 +11,52 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class ObsEncodingLayer(nn.Module):
-    def __init__(self, obs_shape, out_features) -> None:
+class BipedalWalkerActorCriticNet(aine_drl.ActorCriticSharedNetwork):
+    
+    def __init__(self, obs_shape, num_continuous_actions) -> None:
         super().__init__()
         
-        self.obs_shape = obs_shape
-        self.out_features = out_features
+        self.hidden_feature = 256
         
-        self.layers = nn.Sequential(
+        self.encoding_layer = nn.Sequential(
             nn.Linear(obs_shape, 256),
             nn.ReLU(),
-            nn.Linear(256, out_features),
-            nn.ReLU()
-        )
-        
-    def forward(self, states):
-        return self.layers(states)
-    
-class PolicyLayer(nn.Module):
-    def __init__(self, in_features, continous_continous_action_count) -> None:
-        super().__init__()
-        
-        self.in_features = in_features
-        self.continous_continous_action_count = continous_continous_action_count
-        
-        self.layers = nn.Sequential(
-            nn.Linear(in_features, 256),
+            nn.Linear(256, 512),
             nn.ReLU(),
-            nn.Linear(256, continous_continous_action_count * 2)
+            nn.Linear(512, self.hidden_feature)
         )
         
-    def forward(self, states):
-        out = self.layers(states)
-        out = torch.reshape(out, (-1, self.continous_continous_action_count, 2))
-        torch.abs_(out[..., 1])
-        return out
+        self.actor_layer = aine_drl.GaussianContinuousActionLayer(self.hidden_feature, num_continuous_actions)
+        self.critic_layer = nn.Linear(self.hidden_feature, 1)
+        
+        self.optimizer = optim.Adam(self.parameters(), lr=3e-4)
     
-class ValueLayer(nn.Module):
-    def __init__(self, in_features) -> None:
-        super().__init__()
+    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor]:
+        encoding = self.encoding_layer(obs)
+        pdparam = self.actor_layer(encoding)
+        v_pred = self.critic_layer(encoding)
         
-        self.in_features = in_features
-        
-        self.layers = nn.Sequential(
-            nn.Linear(in_features, 256),
-            nn.ReLU(),
-            nn.Linear(256, 1)
-        )
-        
-    def forward(self, states):
-        return self.layers(states)
+        return pdparam, v_pred
     
-class PolicyNet(nn.Module):
-    def __init__(self, obs_encoding_layer, policy_layer) -> None:
-        super().__init__()
-        
-        self.layers = nn.Sequential(
-            obs_encoding_layer,
-            policy_layer
-        )
-        
-    def forward(self, states):
-        pdparam = self.layers(states)
-        if pdparam.shape[0] == 1:
-            pdparam.squeeze_(0)
-        return pdparam
-    
-class ValueNet(nn.Module):
-    def __init__(self, obs_encoding_layer, value_layer) -> None:
-        super().__init__()
-        
-        self.layers = nn.Sequential(
-            obs_encoding_layer,
-            value_layer
-        )
-        
-    def forward(self, states):
-        return self.layers(states)
+    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
+        util.train_step(loss, self.optimizer, grad_clip_max_norm=grad_clip_max_norm, epoch=training_step)
     
 def main():
     seed = 0 # if you want to get the same results
     util.seed(seed)
     
-    # training setting
-    total_time_steps = 4000000
-    render_freq = 300000
-    summary_freq = 50000
-    epoch = 15
+    config_manager = aine_drl.util.ConfigManager("config/bipedal_walker_v3_ppo.yaml")
+    gym_training = GymTraining.make(config_manager.env_config, config_manager.env_id)
     
-    # create gym env
-    num_envs = 32
-    env = gym.vector.make("BipedalWalker-v3", num_envs=num_envs, new_step_api=True)
-    obs_shape = env.single_observation_space.shape[0]
-    continous_action_count = env.single_action_space.shape[0]
+    obs_shape = gym_training.gym_env.single_observation_space.shape[0]
+    continuous_action_count = gym_training.gym_env.single_action_space.shape[0]
     
-    # neural network
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    hidden_features = 512
-    obs_encoding_layer = ObsEncodingLayer(obs_shape, hidden_features)
-    policy_layer = PolicyLayer(hidden_features, continous_action_count)
-    value_layer = ValueLayer(hidden_features)
-    policy_net = PolicyNet(obs_encoding_layer, policy_layer).to(device=device)
-    value_net = ValueNet(obs_encoding_layer, value_layer).to(device=device)
-    
-    # optimizer
-    params = list(obs_encoding_layer.parameters()) + list(policy_layer.parameters()) + list(value_layer.parameters())
-    optimizer = optim.Adam(params, lr=3e-4)
-    
-    # PPO agent
-    net_spec = aine_drl.ActorCriticSharedNetSpec(
-        policy_net,
-        value_net,
-        optimizer,
-        value_loss_coef=0.5,
-        grad_clip_max_norm=5.0 # gradient clipping really really powerful!!!
-    )
-    categorical_policy = aine_drl.NormalPolicy()
-    on_policy_trajectory = aine_drl.OnPolicyTrajectory(16, num_envs)
-    ppo = aine_drl.PPO(
-        net_spec,
-        categorical_policy,
-        on_policy_trajectory,
-        aine_drl.Clock(num_envs),
-        gamma=0.99,
-        lam=0.95,
-        epsilon_clip=0.2,
-        entropy_coef=0.001,
-        epoch=epoch,
-        summary_freq=summary_freq
-    )
-    
-    # start training
-    gym_training = GymTraining(
-        ppo, 
-        env, 
-        seed=seed, 
-        env_id="BipedalWalker-v3_PPO", 
-        auto_retrain=True, 
-        render_freq=render_freq
-    )
-    gym_training.run_train(total_time_steps)
+    network = BipedalWalkerActorCriticNet(obs_shape, continuous_action_count).to(device=device)
+    policy = aine_drl.GaussianPolicy()
+    ppo = aine_drl.PPO.make(config_manager.env_config, network, policy)
+    gym_training.train(ppo)
+    gym_training.close()
     
 if __name__ == "__main__":
     main()

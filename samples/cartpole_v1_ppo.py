@@ -1,9 +1,8 @@
 import sys
-
 sys.path.append(".")
 
-import gym
-import gym.vector
+from typing import Optional, Tuple
+
 import aine_drl
 import aine_drl.util as util
 from aine_drl.training import GymTraining
@@ -11,114 +10,56 @@ from aine_drl.training import GymTraining
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import LambdaLR
 
-class ObsEncoderLayer(nn.Module):
-    def __init__(self, obs_shape, out_features) -> None:
+class CartPoleActorCriticNet(aine_drl.ActorCriticSharedNetwork):
+    
+    def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
-        self.obs_shape = obs_shape
-        self.out_features = out_features
+        self.hidden_feature = 64
         
-        self.layers = nn.Sequential(
-            nn.Linear(obs_shape, 64),
+        self.encoding_layer = nn.Sequential(
+            nn.Linear(obs_shape, 128),
             nn.ReLU(),
-            nn.Linear(64, out_features),
+            nn.Linear(128, self.hidden_feature),
             nn.ReLU()
         )
         
-    def forward(self, states):
-        return self.layers(states)
-
-class PolicyNet(nn.Module):
-    def __init__(self, obs_encoder_layer, policy_layer) -> None:
-        super().__init__()
+        self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, discrete_action_count)
+        self.critic_layer = nn.Linear(self.hidden_feature, 1)
         
-        self.layers = nn.Sequential(
-            obs_encoder_layer,
-            policy_layer
-        )
-        
-    def forward(self, states):
-        return self.layers(states)
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
     
-class ValueNet(nn.Module):
-    def __init__(self, obs_encoder_layer, value_layer) -> None:
-        super().__init__()
+    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor]:
+        encoding = self.encoding_layer(obs)
+        pdparam = self.actor_layer(encoding)
+        v_pred = self.critic_layer(encoding)
         
-        self.layers = nn.Sequential(
-            obs_encoder_layer,
-            value_layer
-        )
-        
-    def forward(self, states):
-        return self.layers(states)
+        return pdparam, v_pred
+    
+    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
+        util.train_step(loss, self.optimizer, grad_clip_max_norm=grad_clip_max_norm, epoch=training_step)
     
 def main():
     seed = 0 # if you want to get the same results
-    venv_mode = True
-    
     util.seed(seed)
-    total_time_steps = 400000
-    epoch = 3
     
-    if venv_mode:
-        num_envs = 3
-        env = gym.vector.make("CartPole-v1", num_envs=num_envs, new_step_api=True)
-        obs_shape = env.single_observation_space.shape[0]
-        action_count = env.single_action_space.n
+    config_manager = aine_drl.util.ConfigManager("config/cartpole_v1_ppo.yaml")
+    gym_training = GymTraining.make(config_manager.env_config, config_manager.env_id)
+    
+    if gym_training.is_vector_env:
+        obs_shape = gym_training.gym_env.single_observation_space.shape[0]
+        action_count = gym_training.gym_env.single_action_space.n
     else:
-        num_envs = 1
-        env = gym.make("CartPole-v1", new_step_api=True)
-        obs_shape = env.observation_space.shape[0]
-        action_count = env.action_space.n
+        obs_shape = gym_training.gym_env.observation_space.shape[0]
+        action_count = gym_training.gym_env.action_space.n
     
     device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    obs_encoder_layer = ObsEncoderLayer(obs_shape, 64)
-    policy_layer = nn.Sequential(
-        nn.Linear(obs_encoder_layer.out_features, action_count)
-    )
-    value_layer = nn.Sequential(
-        nn.Linear(obs_encoder_layer.out_features, 1)
-    )
-    
-    policy_net = PolicyNet(obs_encoder_layer, policy_layer).to(device=device)
-    value_net = ValueNet(obs_encoder_layer, value_layer).to(device=device)
-    
-    params = list(obs_encoder_layer.parameters()) + list(policy_layer.parameters()) + list(value_layer.parameters())
-    optimizer = optim.Adam(params, lr=0.001)
-    
-    net_spec = aine_drl.ActorCriticSharedNetSpec(
-        policy_net,
-        value_net,
-        optimizer,
-        value_loss_coef=0.5
-    )
-    
-    categorical_policy = aine_drl.CategoricalPolicy()
-    on_policy_trajectory = aine_drl.OnPolicyTrajectory(12, num_envs)
-    
-    ppo = aine_drl.PPO(
-        net_spec,
-        categorical_policy,
-        on_policy_trajectory,
-        aine_drl.Clock(num_envs),
-        gamma=0.99,
-        lam=0.95,
-        epsilon_clip=0.2,
-        entropy_coef=0.001,
-        epoch=epoch
-    )
-    
-    gym_training = GymTraining(
-        ppo, 
-        env, 
-        seed=seed, 
-        env_id="CartPole-v1_PPO", 
-        auto_retrain=False, 
-        render_freq=10000
-    )
-    gym_training.run_train(total_time_steps)
+    network = CartPoleActorCriticNet(obs_shape, action_count).to(device=device)
+    policy = aine_drl.CategoricalPolicy()
+    ppo = aine_drl.PPO.make(config_manager.env_config, network, policy)
+    gym_training.train(ppo)
+    gym_training.close()
     
 if __name__ == "__main__":
     main()

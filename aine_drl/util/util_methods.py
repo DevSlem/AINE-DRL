@@ -105,6 +105,7 @@ def create_dir(directory):
         print("Error: Failed to create the directory.")
 
 def get_model_device(model: nn.Module) -> torch.device:
+    """Returns the device of the model."""
     return next(model.parameters()).device
 
 def lr_scheduler_step(lr_scheduler, epoch: int):
@@ -152,3 +153,30 @@ def train_step(loss: torch.Tensor,
     
 def total_training_steps(total_time_steps: int, training_freq: int, epoch: int = 1) -> int:
     return total_time_steps // training_freq * epoch
+
+class IncrementalAverage:
+    """
+    Incremental average calculation implementation. 
+    It uses only two memories: average, n.
+    """
+    def __init__(self) -> None:
+        self.reset()
+        
+    def reset(self):
+        self._average = 0.0
+        self.n = 0
+        
+    def update(self, value):
+        """Update current average."""
+        self.n += 1
+        self._average = self._average + (value - self._average) / self.n
+        return self._average
+        
+    @property
+    def average(self):
+        """Returns current average."""
+        return self._average
+    
+    @property
+    def count(self) -> int:
+        return self.n

@@ -1,0 +1,45 @@
+@startuml Data Structure
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+scale 2
+title Data Structure
+
+object Values {
+    batch_size = num_envs x n_steps
+    num_branches = num_discrete_branches + num_continuous_branches
+}
+
+map ExperienceBatch {
+    obs => (batch_size, *obs_shape)
+    action => Action
+    next_obs => (batch_size, *obs_shape)
+    reward => (batch_size, 1)
+    terminated => (batch_size, 1)
+    num_envs => int
+    n_steps => int
+}
+
+map Action {
+    discrete_action => (batch_size, num_discrete_branches)
+    continuous_action => (batch_size, num_continuous_branches)
+}
+
+map PolicyParameter {
+    discrete_pdparams => (batch_size, *param_shape) x num_discrete_branches
+    continuous_pdparams => (batch_size, *param_shape) x num_continuous_branches
+}
+
+map ActorCriticExperienceBatch {
+    exp_batch => ExperienceBatch
+    log_prob => (batch_size, num_branches)
+    v_pred => (batch_size, 1)
+    entropy => (batch_size, num_branches)
+}
+
+Values -[hidden]-> ExperienceBatch
+ExperienceBatch -[hidden]-> Action
+Action -[hidden]-> PolicyParameter
+PolicyParameter -[hidden]-> ActorCriticExperienceBatch
+
+@enduml

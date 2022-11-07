@@ -1,0 +1,23 @@
+CartPole-v1_PPO:
+  num_envs: 3
+  Gym:
+    env:
+      id: "CartPole-v1"
+    training:
+      seed: 0
+      auto_retrain: true
+      total_global_time_steps: 50000
+      summary_freq: 1000
+      agent_save_freq: null
+      inference_freq: 10000
+      inference_render: true
+  PPO:
+    training_freq: 16
+    epoch: 3
+    mini_batch_size: 8
+    gamma: 0.99
+    lam: 0.95
+    epsilon_clip: 0.2
+    value_loss_coef: 0.5
+    entropy_coef: 0.001
+    grad_clip_max_norm: 5.0

@@ -1,76 +1,53 @@
 import sys
-
 sys.path.append(".")
 
-import gym
-import gym.vector
+from typing import Optional, Tuple
+
 import aine_drl
 import aine_drl.util as util
 from aine_drl.training import GymTraining
 
+import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class PolicyNet(nn.Module):
+class CartPolePolicyGradientcNet(aine_drl.PolicyGradientNetwork):
+    
     def __init__(self, obs_shape, discrete_action_count) -> None:
-        super(PolicyNet, self).__init__()
+        super().__init__()
         
-        self.obs_shape = obs_shape
-        self.discrete_action_count = discrete_action_count
-        
-        self.layers = nn.Sequential(
-            nn.Linear(obs_shape, 64),
+        self.policy_layer = nn.Sequential(
+            nn.Linear(obs_shape, 128),
             nn.ReLU(),
-            nn.Linear(64, discrete_action_count)
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            aine_drl.DiscreteActionLayer(64, discrete_action_count)
         )
-        
-    def forward(self, states):
-        return self.layers(states)
+                
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+    
+    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistributionParameter:
+        return self.policy_layer(obs)
+    
+    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
+        util.train_step(loss, self.optimizer, grad_clip_max_norm=grad_clip_max_norm, epoch=training_step)
     
 def main():
     seed = 0 # if you want to get the same results
-    venv_mode = False
-    
     util.seed(seed)
-    total_training_step = 300000
     
-    if venv_mode:
-        num_envs = 3
-        env = gym.vector.make("CartPole-v1", num_envs=num_envs, new_step_api=True)
-        obs_shape = env.single_observation_space.shape[0]
-        action_count = env.single_action_space.n
-    else:
-        num_envs = 1
-        env = gym.make("CartPole-v1", new_step_api=True)
-        obs_shape = env.observation_space.shape[0]
-        action_count = env.action_space.n
+    config_manager = aine_drl.util.ConfigManager("config/cartpole_v1_reinforce.yaml")
+    gym_training = GymTraining.make(config_manager.env_config, config_manager.env_id)
     
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    policy_net = PolicyNet(obs_shape, action_count)
-    optimizer = optim.Adam(policy_net.parameters(), lr=0.001)
-    net_spec = aine_drl.REINFORCENetSpec(
-        policy_net,
-        optimizer
-    )
-    categorical_policy = aine_drl.CategoricalPolicy()
-    mc_trajectory = aine_drl.MonteCarloTrajectory(num_envs)
-    reinforce = aine_drl.REINFORCE(
-        net_spec,
-        categorical_policy,
-        mc_trajectory,
-        aine_drl.Clock(num_envs),
-        gamma=0.99
-    )
+    obs_shape = gym_training.gym_env.observation_space.shape[0]
+    action_count = gym_training.gym_env.action_space.n
     
-    gym_training = GymTraining(
-        reinforce, 
-        env, 
-        seed=seed, 
-        env_id="CartPole-v1_REINFORCE", 
-        auto_retrain=False, 
-        render_freq=10000
-    )
-    gym_training.run_train(total_training_step)
+    device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    network = CartPolePolicyGradientcNet(obs_shape, action_count).to(device=device)
+    policy = aine_drl.CategoricalPolicy()
+    reinforce = aine_drl.REINFORCE.make(config_manager.env_config, network, policy)
+    gym_training.train(reinforce)
+    gym_training.close()
     
 if __name__ == "__main__":
     main()

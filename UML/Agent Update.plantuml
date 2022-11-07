@@ -1,0 +1,15 @@
+@startuml Agent Update
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+scale 2
+title Agent Update
+
+(*) --> [input experience] "store experience"
+if "reached training frequency" then
+--> [true] "train agent"
+--> (*)
+else
+--> [false] (*)
+
+@enduml

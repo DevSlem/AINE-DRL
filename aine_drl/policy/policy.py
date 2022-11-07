@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
+import aine_drl.policy.policy_distribution as pd
 import torch
-from torch.distributions import Distribution
 
 class Policy(ABC):
     """
@@ -8,26 +8,57 @@ class Policy(ABC):
     """
     
     @abstractmethod
-    def get_policy_distribution(self, pdparam: torch.Tensor) -> Distribution:
+    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
         """
-        Returns policy distribution that is action probability distribution.
+        Returns policy distribution which is action probability distribution.
 
         Args:
-            pdparam (torch.Tensor): policy distribution parameter that is noramlly the output of neural network
+            pdparam (PolicyDistributionParameter): policy distribution parameter which is generally the output of neural network
 
         Returns:
-            Distribution: policy distribution
+            PolicyDistribution: policy distribution
         """
         raise NotImplementedError
     
-    def update_hyperparams(self, time_step: int):
-        """
-        Update hyperparameters if they exists.
 
-        Args:
-            time_step (int): current time step during training
-        """
-        pass
+class CategoricalPolicy(Policy):
+    """
+    Categorical policy for the discrete action type.
     
-    def log_data(self, time_step: int):
-        pass
+    Args:
+        is_logits (bool, optional): wheter logits or probabilities mode. Defaults to logits.
+    """
+    def __init__(self, is_logits: bool = True) -> None:
+        self.is_logits = is_logits
+        
+    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+        return pd.CategoricalPolicyDistribution(pdparam, self.is_logits)
+    
+
+class GaussianPolicy(Policy):
+    """
+    Gaussian policy for the continuous action type.
+    """
+    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+        return pd.GaussianPolicyDistribution(pdparam)
+
+
+class GeneralPolicy(Policy):
+    """
+    General policy for the both discrete and continuous action type.
+    
+    Args:
+        is_logits (bool, optional): for the discrete action type, wheter logits or probabilities mode. Defaults to logits.
+    """
+    def __init__(self, is_logits: bool = True) -> None:
+        self.is_logits = is_logits
+    
+    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+        return pd.GeneralPolicyDistribution(pdparam, self.is_logits)
+
+
+class EpsilonGreedyPolicy(Policy):
+    """
+    TODO: implement
+    """
+    pass
