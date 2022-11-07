@@ -26,11 +26,11 @@ We provide basic deep reinforcement learning (DRL) agents. If you want to use th
 
 |Agent|Source Code|
 |:---:|:---:|
-|REINFORCE|
+|[REINFORCE](https://github.com/DevSlem/AINE-DRL/wiki/REINFORCE)|[reinforce](aine_drl/agent/reinforce/)|
 |[A2C](https://github.com/DevSlem/AINE-DRL/wiki/A2C)|[a2c](aine_drl/agent/a2c/)|
 |[PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO)|[ppo](aine_drl/agent/ppo)|
-|DQN|
-|Double DQN|
+|DQN|[dqn](aine_drl/agent/dqn/)|
+|Double DQN|[dqn](aine_drl/agent/dqn/)|
 
 ### TODO
 
