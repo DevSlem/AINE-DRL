@@ -133,9 +133,7 @@ class GymTraining:
                 gym_env = gym.vector.make(num_envs=num_envs, new_step_api=True, **gym_env_config)
             else:
                 gym_env = gym.make(new_step_api=True, **gym_env_config)
-                
-        assert num_envs == gym_env.num_envs
-            
+                            
         training_config = gym_config["training"]
         
         seed = training_config.get("seed", None)
@@ -255,7 +253,7 @@ class GymTraining:
             
             # update current observation
             if not self.is_vector_env and terminated:
-                obs = gym_env.reset(seed=self.seed).astype(self.dtype)[np.newaixs, ...]
+                obs = gym_env.reset(seed=self.seed).astype(self.dtype)[np.newaxis, ...]
             else:
                 obs = exp.next_obs
                 
@@ -321,7 +319,7 @@ class GymTraining:
             )
         else:
             exp = Experience(
-                obs[np.newaxis, ...].astype(np.float32),
+                obs.astype(np.float32),
                 action,
                 next_obs[np.newaxis, ...].astype(np.float32),
                 np.array([[reward]], dtype=np.float32),
