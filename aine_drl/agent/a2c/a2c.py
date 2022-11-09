@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Tuple
+from typing import Dict, NamedTuple, Optional, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import ActorCriticSharedNetwork
@@ -235,7 +235,7 @@ class A2C(Agent):
         return super().log_keys + ("Network/Actor Loss", "Network/Critic Loss")
     
     @property
-    def log_data(self) -> dict:
+    def log_data(self) -> Dict[str, tuple]:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
             ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)

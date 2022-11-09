@@ -54,8 +54,8 @@ class Action(NamedTuple):
         return ActionTensor(torch.from_numpy(self.discrete_action).to(device=device), torch.from_numpy(self.continuous_action).to(device=device))
     
     @staticmethod
-    def create(discrete_action: Optional[torch.Tensor],
-               continuous_action: Optional[torch.Tensor]) -> "ActionTensor":
+    def create(discrete_action: Optional[np.ndarray],
+               continuous_action: Optional[np.ndarray]) -> "Action":
         if discrete_action is None:
             discrete_action = np.empty(shape=(continuous_action.shape[0], 0))
         if continuous_action is None:
