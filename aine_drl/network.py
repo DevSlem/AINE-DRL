@@ -108,7 +108,7 @@ class PolicyGradientNetwork(nn.Module, ABC):
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
         """
-        Calculate policy distribution paraemters whose shape is `(batch_size, ...)`. \\
+        Compute policy distribution paraemters whose shape is `(batch_size, ...)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
         When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
@@ -137,7 +137,7 @@ class ActorCriticSharedNetwork(nn.Module, ABC):
     def forward(self, 
                 obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
         """
-        Calculate policy distribution paraemters whose shape is `(batch_size, ...)`, 
+        Compute policy distribution paraemters whose shape is `(batch_size, ...)`, 
         state value whose shape is `(batch_size, 1)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
@@ -151,6 +151,34 @@ class ActorCriticSharedNetwork(nn.Module, ABC):
         """
         raise NotImplementedError
     
+    @abstractmethod
+    def train_step(self, 
+                   loss: torch.Tensor,
+                   grad_clip_max_norm: Optional[float],
+                   training_step: int):
+        raise NotImplementedError
+
+class QValueNetwork(nn.Module, ABC):
+    """
+    Action value Q network.
+    """
+    
+    @abstractmethod
+    def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
+        """
+        Compute action value Q.  \\
+        Note that it only works to discrete action type. 
+        So, you must set only `PolicyDistributionParameter.discrete_pdparams` which is action values. \\
+        `batch_size` is `num_envs` x `n-step`.
+        
+        Args:
+            obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
+            
+        Returns:
+            PolicyDistributionParameter: discrete action value
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def train_step(self, 
                    loss: torch.Tensor,
