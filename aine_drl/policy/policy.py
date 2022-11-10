@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Dict, Tuple, Union
 import aine_drl.policy.policy_distribution as pd
 from aine_drl.drl_util import Decay, NoDecay, Clock
-from aine_drl.util.data_dict_provider import DataDictProvider
 
-class Policy(DataDictProvider, ABC):
+class Policy(ABC):
     """
     Policy abstract class. It returns policy distribution.
     """
@@ -21,6 +20,31 @@ class Policy(DataDictProvider, ABC):
             PolicyDistribution: policy distribution
         """
         raise NotImplementedError
+    
+    @property
+    def log_keys(self) -> Tuple[str, ...]:
+        """Returns log data keys."""
+        return tuple()
+    
+    @property
+    def log_data(self) -> Dict[str, tuple]:
+        """
+        Returns log data and reset it.
+
+        Returns:
+            Dict[str, tuple]: key: (value, time)
+        """
+        return {}
+    
+    @property
+    def state_dict(self) -> dict:
+        """Returns the state dict of the policy."""
+        return {}
+    
+    def load_state_dict(self, state_dict: dict):
+        """Load the state dict."""
+        pass
+
 
 class CategoricalPolicy(Policy):
     """
