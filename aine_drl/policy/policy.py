@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Union
 import aine_drl.policy.policy_distribution as pd
-import torch
+from aine_drl.drl_util import Decay, NoDecay, Clock
+from aine_drl.util.data_dict_provider import DataDictProvider
 
-class Policy(ABC):
+class Policy(DataDictProvider, ABC):
     """
     Policy abstract class. It returns policy distribution.
     """
@@ -19,7 +21,6 @@ class Policy(ABC):
             PolicyDistribution: policy distribution
         """
         raise NotImplementedError
-    
 
 class CategoricalPolicy(Policy):
     """
@@ -32,16 +33,14 @@ class CategoricalPolicy(Policy):
         self.is_logits = is_logits
         
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
-        return pd.CategoricalPolicyDistribution(pdparam, self.is_logits)
+        return pd.CategoricalDistribution(pdparam, self.is_logits)
     
-
 class GaussianPolicy(Policy):
     """
     Gaussian policy for the continuous action type.
     """
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
-        return pd.GaussianPolicyDistribution(pdparam)
-
+        return pd.GaussianDistribution(pdparam)
 
 class GeneralPolicy(Policy):
     """
@@ -56,8 +55,31 @@ class GeneralPolicy(Policy):
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
         return pd.GeneralPolicyDistribution(pdparam, self.is_logits)
 
-
 class EpsilonGreedyPolicy(Policy):
+    """
+    Epsilon-greedy policy for value-based method. It only works to the discrete action type.
+    
+    Args:
+        epsilon_decay (float | Decay): epsilon numerical value or decay instance. 0 <= epsilon <= 1
+    """
+    def __init__(self, epsilon_decay: Union[float, Decay]) -> None:
+        if type(epsilon_decay) is float:
+            epsilon_decay = NoDecay(epsilon_decay)
+        
+        self.epsilon_decay = epsilon_decay
+        self.clock = None
+        
+    def set_clock(self, clock: Clock):
+        """
+        Set clock to use epsilon decay.
+        """
+        self.clock = clock
+        
+    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+        t = self.clock.global_time_step if self.clock is not None else 0
+        return pd.EpsilonGreedyDistribution(pdparam, self.epsilon_decay(t))
+
+class BoltzmannPolicy(Policy):
     """
     TODO: implement
     """
