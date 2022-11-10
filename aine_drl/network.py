@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union, Any
+from typing import Dict, Optional, Tuple, Union, Any
 from aine_drl.policy.policy_distribution import PolicyDistributionParameter
 import torch
 import torch.nn as nn
@@ -57,7 +57,7 @@ class DiscreteActionLayer(nn.Module):
             for i in range(len(discrete_pdparams)):
                 discrete_pdparams[i] = F.softmax(discrete_pdparams[i], dim=1)
         
-        return PolicyDistributionParameter.create(discrete_pdparams, None)
+        return PolicyDistributionParameter.create(discrete_pdparams=discrete_pdparams)
     
 class GaussianContinuousActionLayer(nn.Module):
     """
@@ -98,9 +98,63 @@ class GaussianContinuousActionLayer(nn.Module):
         torch.abs_(out[..., 1])
         out = torch.reshape(out, (-1, self.num_continuous_actions * 2))
         continuous_pdparams = list(torch.split(out, 2, dim=1))
-        return PolicyDistributionParameter.create(None, continuous_pdparams)
+        return PolicyDistributionParameter.create(continuous_pdparams=continuous_pdparams)
     
-class PolicyGradientNetwork(nn.Module, ABC):
+class Network(nn.Module, ABC):
+    """
+    AINE-DRL network abstract class.
+    """
+    
+    @abstractmethod
+    def train_step(self, 
+                   loss: torch.Tensor,
+                   grad_clip_max_norm: Optional[float],
+                   training_step: int):
+        """
+        Gradient step for training.
+
+        Args:
+            loss (Tensor): computed loss
+            grad_clip_max_norm (float | None): maximum norm for the gradient clipping
+            training_step (int): current training step
+        """
+        raise NotImplementedError
+        
+    def basic_train_step(self,
+                          loss: torch.Tensor,
+                          optimizer: torch.optim.Optimizer,
+                          grad_clip_max_norm: Optional[float]):
+        optimizer.zero_grad()
+        loss.backward()
+        if grad_clip_max_norm is not None:
+            torch.nn.utils.clip_grad_norm_(self.parameters(), grad_clip_max_norm)
+        optimizer.step()
+    
+    @property
+    def log_keys(self) -> Tuple[str, ...]:
+        """Returns log data keys."""
+        return tuple()
+    
+    @property
+    def log_data(self) -> Dict[str, tuple]:
+        """
+        Returns log data and reset it.
+
+        Returns:
+            Dict[str, tuple]: key: (value, time)
+        """
+        return {}
+    
+    @property
+    def state_dict(self) -> dict:
+        """Returns the state dict of the policy."""
+        return {}
+    
+    def load_state_dict(self, state_dict: dict):
+        """Load the state dict."""
+        pass
+    
+class PolicyGradientNetwork(Network):
     """
     Policy gradient network.
     """
@@ -120,22 +174,14 @@ class PolicyGradientNetwork(nn.Module, ABC):
             PolicyDistributionParameter: policy distribution parameter
         """
         raise NotImplementedError
-    
-    @abstractmethod
-    def train_step(self, 
-                   loss: torch.Tensor,
-                   grad_clip_max_norm: Optional[float],
-                   training_step: int):
-        raise NotImplementedError
 
-class ActorCriticSharedNetwork(nn.Module, ABC):
+class ActorCriticSharedNetwork(Network):
     """
     Actor critic network.
     """
     
     @abstractmethod
-    def forward(self, 
-                obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
         """
         Compute policy distribution paraemters whose shape is `(batch_size, ...)`, 
         state value whose shape is `(batch_size, 1)`. \\
@@ -150,15 +196,8 @@ class ActorCriticSharedNetwork(nn.Module, ABC):
             Tuple[PolicyDistributionParameter, Tensor]: policy distribution parameter, state value
         """
         raise NotImplementedError
-    
-    @abstractmethod
-    def train_step(self, 
-                   loss: torch.Tensor,
-                   grad_clip_max_norm: Optional[float],
-                   training_step: int):
-        raise NotImplementedError
 
-class QValueNetwork(nn.Module, ABC):
+class QValueNetwork(Network):
     """
     Action value Q network.
     """
@@ -177,11 +216,4 @@ class QValueNetwork(nn.Module, ABC):
         Returns:
             PolicyDistributionParameter: discrete action value
         """
-        raise NotImplementedError
-
-    @abstractmethod
-    def train_step(self, 
-                   loss: torch.Tensor,
-                   grad_clip_max_norm: Optional[float],
-                   training_step: int):
         raise NotImplementedError
