@@ -35,14 +35,11 @@ class REINFORCE(Agent):
     def __init__(self, 
                  config: REINFORCEConfig,
                  network: PolicyGradientNetwork,
-                 policy: Policy) -> None:
-        device = util.get_model_device(network)
-        
-        super().__init__(1, device)
+                 policy: Policy) -> None:        
+        super().__init__(network, policy, num_envs=1)
         
         self.config = config
         self.network = network
-        self.policy = policy
         self.trajectory = REINFORCETrajectory()
         
         self.current_action_log_prob = None
@@ -191,13 +188,3 @@ class REINFORCE(Agent):
             ld["Network/Policy Loss"] = (self.policy_average_loss.average, self.clock.training_step)
             self.policy_average_loss.reset()
         return ld
-
-    @property
-    def state_dict(self) -> dict:
-        sd = super().state_dict
-        sd["reinforce_net"] = self.network.state_dict()
-        return sd
-    
-    def load_state_dict(self, state_dict: dict):
-        super().load_state_dict(state_dict)
-        self.network.load_state_dict(state_dict["reinforce_net"])

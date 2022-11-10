@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple
 from aine_drl.experience import Action, ActionTensor, Experience
+from aine_drl.network import Network
+from aine_drl.policy.policy import Policy
 import aine_drl.util as util
 from aine_drl.drl_util import Clock
 import numpy as np
@@ -11,21 +13,26 @@ class BehaviorType(Enum):
     TRAIN = 0,
     INFERENCE = 1
 
-class Agent(util.DataDictProvider, ABC):
+class Agent(ABC):
     """
     Deep reinforcement learning agent.
     """
-    def __init__(self, num_envs: int, device: torch.device = None) -> None:
+    def __init__(self, 
+                 network: Network,
+                 policy: Policy,
+                 num_envs: int) -> None:
         """
         Deep reinforcement learning agent.
         
         Args:
             num_envs (int): number of environments
         """
+        self.policy = policy
+        self.network = network
         self.num_envs = num_envs
-        self.clock = Clock(num_envs)
+        self._clock = Clock(num_envs)
         self._behavior_type = BehaviorType.TRAIN
-        self.device = device
+        self.device = util.get_model_device(network)
 
         self.traced_env = 0
         self.cumulative_average_reward = util.IncrementalAverage()
@@ -44,6 +51,8 @@ class Agent(util.DataDictProvider, ABC):
         Returns:
             Action: selected action
         """
+        assert self.policy is not None, "You must call `Agent.set_policy()` method before it."
+        
         if self.behavior_type == BehaviorType.TRAIN:
             return self.select_action_train(torch.from_numpy(obs).to(device=self.device)).to_action()
         elif self.behavior_type == BehaviorType.INFERENCE:
@@ -100,26 +109,9 @@ class Agent(util.DataDictProvider, ABC):
         raise NotImplementedError
     
     @property
-    def log_keys(self) -> Tuple[str, ...]:
-        """Returns log data keys."""
-        return ("Environment/Cumulative Reward", "Environment/Episode Length")
-        
-    @property
-    def log_data(self) -> Dict[str, tuple]:
-        """
-        Returns log data and reset it.
-
-        Returns:
-            Dict[str, tuple]: key: (value, time)
-        """
-        ld = {}
-        if self.cumulative_average_reward.count > 0:
-            ld["Environment/Cumulative Reward"] = (self.cumulative_average_reward.average, self.clock.global_time_step)
-            ld["Environment/Episode Length"] = (self.episode_average_len.average, self.clock.episode)
-            self.cumulative_average_reward.reset()
-            self.episode_average_len.reset()
-        return ld
-            
+    def clock(self) -> Clock:
+        return self._clock
+    
     @property
     def behavior_type(self) -> BehaviorType:
         """Returns behavior type. Defaults to train."""
@@ -129,12 +121,39 @@ class Agent(util.DataDictProvider, ABC):
     def behavior_type(self, value: BehaviorType):
         """Set behavior type."""
         self._behavior_type = value
+    
+    @property
+    def log_keys(self) -> Tuple[str, ...]:
+        """Returns log data keys."""
+        return self.policy.log_keys + self.network.log_keys + ("Environment/Cumulative Reward", "Environment/Episode Length")
+        
+    @property
+    def log_data(self) -> Dict[str, tuple]:
+        """
+        Returns log data and reset it.
+
+        Returns:
+            Dict[str, tuple]: key: (value, time)
+        """
+        ld = self.policy.log_data
+        ld.update(self.network.log_data)
+        if self.cumulative_average_reward.count > 0:
+            ld["Environment/Cumulative Reward"] = (self.cumulative_average_reward.average, self.clock.global_time_step)
+            ld["Environment/Episode Length"] = (self.episode_average_len.average, self.clock.episode)
+            self.cumulative_average_reward.reset()
+            self.episode_average_len.reset()
+        return ld
             
     @property
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
-        return self.clock.state_dict
+        sd = self.clock.state_dict
+        sd.update(self.policy.state_dict)
+        sd["network"] = self.network.state_dict()
+        return sd
     
     def load_state_dict(self, state_dict: dict):
         """Load the state dict."""
         self.clock.load_state_dict(state_dict)
+        self.policy.load_state_dict(state_dict)
+        self.network.load_state_dict(state_dict["network"])
