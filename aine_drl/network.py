@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, Union, Any
 from aine_drl.policy.policy_distribution import PolicyDistributionParameter
-from aine_drl.util.data_dict_provider import DataDictProvider
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -101,7 +100,7 @@ class GaussianContinuousActionLayer(nn.Module):
         continuous_pdparams = list(torch.split(out, 2, dim=1))
         return PolicyDistributionParameter.create(continuous_pdparams=continuous_pdparams)
     
-class Network(nn.Module, DataDictProvider, ABC):
+class Network(nn.Module, ABC):
     """
     AINE-DRL network abstract class.
     """
@@ -130,6 +129,21 @@ class Network(nn.Module, DataDictProvider, ABC):
         if grad_clip_max_norm is not None:
             torch.nn.utils.clip_grad_norm_(self.parameters(), grad_clip_max_norm)
         optimizer.step()
+        
+    @property
+    def log_keys(self) -> Tuple[str, ...]:
+        """Returns log data keys."""
+        return tuple()
+    
+    @property
+    def log_data(self) -> Dict[str, tuple]:
+        """
+        Returns log data and reset it.
+
+        Returns:
+            Dict[str, tuple]: key: (value, time)
+        """
+        return {}
     
 class PolicyGradientNetwork(Network):
     """
