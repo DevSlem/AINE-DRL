@@ -35,8 +35,8 @@ class PolicyDistributionParameter(NamedTuple):
         return self.num_discrete_branches + self.num_continuous_branches
     
     @staticmethod
-    def create(discrete_pdparams: Optional[List[torch.Tensor]],
-               continuous_pdparams: Optional[List[torch.Tensor]]) -> "PolicyDistributionParameter":
+    def create(discrete_pdparams: Optional[List[torch.Tensor]] = None,
+               continuous_pdparams: Optional[List[torch.Tensor]] = None) -> "PolicyDistributionParameter":
         if discrete_pdparams is None:
             discrete_pdparams = []
         if continuous_pdparams is None:
@@ -67,7 +67,7 @@ class PolicyDistribution(ABC):
         raise NotImplementedError
     
 
-class CategoricalPolicyDistribution(PolicyDistribution):
+class CategoricalDistribution(PolicyDistribution):
     """Categorical policy distribution for the discrete action type."""
     def __init__(self, pdparam: PolicyDistributionParameter, is_logits: bool = True) -> None:
         assert pdparam.num_discrete_branches > 0
@@ -100,7 +100,7 @@ class CategoricalPolicyDistribution(PolicyDistribution):
         return torch.stack(entropies, dim=1)
     
 
-class GaussianPolicyDistribution(PolicyDistribution):
+class GaussianDistribution(PolicyDistribution):
     """Gaussian policy distribution for the continuous action type."""
     def __init__(self, pdparam: PolicyDistributionParameter) -> None:
         assert pdparam.num_continuous_branches > 0
@@ -135,8 +135,8 @@ class GeneralPolicyDistribution(PolicyDistribution):
     Policy distribution of the continuous action type is gaussian.
     """
     def __init__(self, pdparam: PolicyDistributionParameter, is_logits: bool = True) -> None:
-        self.discrete_dist = CategoricalPolicyDistribution(pdparam, is_logits)
-        self.continuous_dist = GaussianPolicyDistribution(pdparam)
+        self.discrete_dist = CategoricalDistribution(pdparam, is_logits)
+        self.continuous_dist = GaussianDistribution(pdparam)
         
     def sample(self) -> ActionTensor:
         discrete_action = self.discrete_dist.sample()
@@ -152,3 +152,37 @@ class GeneralPolicyDistribution(PolicyDistribution):
         discrete_entropy = self.discrete_dist.entropy()
         continuous_entropy = self.continuous_dist.entropy()
         return torch.cat([discrete_entropy, continuous_entropy], dim=1)
+
+
+class EpsilonGreedyDistribution(CategoricalDistribution):
+    """
+    Epsilon-greedy policy distribution.
+    """
+    
+    def __init__(self, pdparam: PolicyDistributionParameter, epsilon: float) -> None:
+        pdparam = EpsilonGreedyDistribution.get_epsilon_greedy_pdparam(pdparam, epsilon)
+        super().__init__(pdparam, False)
+    
+    @staticmethod
+    def get_epsilon_greedy_pdparam(pdparam: PolicyDistributionParameter, epsilon: float) -> PolicyDistributionParameter:
+        epsilon_greedy_probs = []
+        
+        # set epsilon greedy probability distribution
+        for i in range(pdparam.num_discrete_branches):
+            q_values = pdparam.discrete_pdparams[i]
+            num_actions = q_values.shape[1]
+            
+            # epsilon-greedy probabilities
+            greedy_action_prob = 1.0 - epsilon + epsilon / num_actions
+            non_greedy_action_prob = epsilon / num_actions
+            
+            # get greedy action
+            greedy_action = q_values.argmax(dim=1, keepdim=True)
+            
+            # set epsilon greedy probability distribution
+            epsilon_greedy_prob = torch.full_like(q_values, non_greedy_action_prob)
+            epsilon_greedy_prob.scatter(1, greedy_action, greedy_action_prob)
+            epsilon_greedy_probs.append(epsilon_greedy_prob)
+            
+        return PolicyDistributionParameter.create(discrete_pdparams=epsilon_greedy_probs)
+        
