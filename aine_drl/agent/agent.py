@@ -11,7 +11,7 @@ class BehaviorType(Enum):
     TRAIN = 0,
     INFERENCE = 1
 
-class Agent(ABC):
+class Agent(util.DataDictProvider, ABC):
     """
     Deep reinforcement learning agent.
     """
