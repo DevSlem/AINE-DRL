@@ -4,7 +4,7 @@ from aine_drl.experience import Action, ActionTensor, Experience
 from aine_drl.network import Network
 from aine_drl.policy.policy import Policy
 import aine_drl.util as util
-from aine_drl.drl_util import Clock
+from aine_drl.drl_util import Clock, IClockNeed, ILogable
 import numpy as np
 import torch
 from enum import Enum
@@ -27,10 +27,18 @@ class Agent(ABC):
         Args:
             num_envs (int): number of environments
         """
+        self._clock = Clock(num_envs)
+        if isinstance(network, IClockNeed):
+            network.set_clock(self._clock)
+        if isinstance(policy, IClockNeed):
+            policy.set_clock(self._clock)
+            
+        self.__logable_network = network if isinstance(network, ILogable) else None
+        self.__logable_policy = policy if isinstance(policy, ILogable) else None
+        
         self.policy = policy
         self.network = network
         self.num_envs = num_envs
-        self._clock = Clock(num_envs)
         self._behavior_type = BehaviorType.TRAIN
         self.device = util.get_model_device(network)
 
@@ -125,7 +133,12 @@ class Agent(ABC):
     @property
     def log_keys(self) -> Tuple[str, ...]:
         """Returns log data keys."""
-        return self.policy.log_keys + self.network.log_keys + ("Environment/Cumulative Reward", "Environment/Episode Length")
+        lk = ("Environment/Cumulative Reward", "Environment/Episode Length")
+        if self.__logable_network is not None:
+            lk += self.__logable_network.log_keys
+        if self.__logable_policy is not None:
+            lk += self.__logable_policy.log_keys
+        return lk
         
     @property
     def log_data(self) -> Dict[str, tuple]:
@@ -135,25 +148,26 @@ class Agent(ABC):
         Returns:
             Dict[str, tuple]: key: (value, time)
         """
-        ld = self.policy.log_data
-        ld.update(self.network.log_data)
+        ld = {}
         if self.cumulative_average_reward.count > 0:
             ld["Environment/Cumulative Reward"] = (self.cumulative_average_reward.average, self.clock.global_time_step)
             ld["Environment/Episode Length"] = (self.episode_average_len.average, self.clock.episode)
             self.cumulative_average_reward.reset()
             self.episode_average_len.reset()
+        if self.__logable_network is not None:
+            ld.update(self.__logable_network.log_data)
+        if self.__logable_policy is not None:
+            ld.update(self.__logable_policy.log_data)
         return ld
             
     @property
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
         sd = self.clock.state_dict
-        sd.update(self.policy.state_dict)
         sd["network"] = self.network.state_dict()
         return sd
     
     def load_state_dict(self, state_dict: dict):
         """Load the state dict."""
         self.clock.load_state_dict(state_dict)
-        self.policy.load_state_dict(state_dict)
         self.network.load_state_dict(state_dict["network"])

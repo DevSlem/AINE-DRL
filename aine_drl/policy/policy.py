@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Union
 import aine_drl.policy.policy_distribution as pd
-from aine_drl.drl_util import Decay, NoDecay, Clock
+from aine_drl.drl_util import Decay, NoDecay, Clock, ILogable
 
 class Policy(ABC):
     """
@@ -20,31 +20,6 @@ class Policy(ABC):
             PolicyDistribution: policy distribution
         """
         raise NotImplementedError
-    
-    @property
-    def log_keys(self) -> Tuple[str, ...]:
-        """Returns log data keys."""
-        return tuple()
-    
-    @property
-    def log_data(self) -> Dict[str, tuple]:
-        """
-        Returns log data and reset it.
-
-        Returns:
-            Dict[str, tuple]: key: (value, time)
-        """
-        return {}
-    
-    @property
-    def state_dict(self) -> dict:
-        """Returns the state dict of the policy."""
-        return {}
-    
-    def load_state_dict(self, state_dict: dict):
-        """Load the state dict."""
-        pass
-
 
 class CategoricalPolicy(Policy):
     """
@@ -79,7 +54,7 @@ class GeneralPolicy(Policy):
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
         return pd.GeneralPolicyDistribution(pdparam, self.is_logits)
 
-class EpsilonGreedyPolicy(Policy):
+class EpsilonGreedyPolicy(Policy, ILogable):
     """
     Epsilon-greedy policy for value-based method. It only works to the discrete action type.
     
@@ -93,15 +68,20 @@ class EpsilonGreedyPolicy(Policy):
         self.epsilon_decay = epsilon_decay
         self.clock = None
         
-    def set_clock(self, clock: Clock):
-        """
-        Set clock to use epsilon decay.
-        """
-        self.clock = clock
-        
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
-        t = self.clock.global_time_step if self.clock is not None else 0
-        return pd.EpsilonGreedyDistribution(pdparam, self.epsilon_decay(t))
+        return pd.EpsilonGreedyDistribution(pdparam, self.epsilon_decay(self.clock.global_time_step))
+    
+    def set_clock(self, clock: Clock):
+        self.clock = clock
+    
+    @property
+    def log_keys(self) -> Tuple[str, ...]:
+        return ("Policy/Epsilon",)
+    
+    @property
+    def log_data(self) -> Dict[str, tuple]:
+        t = self.clock.global_time_step
+        return {"Policy/Epsilon": (self.epsilon_decay(t), t)}
 
 class BoltzmannPolicy(Policy):
     """

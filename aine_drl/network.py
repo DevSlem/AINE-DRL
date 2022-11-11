@@ -129,21 +129,6 @@ class Network(nn.Module, ABC):
         if grad_clip_max_norm is not None:
             torch.nn.utils.clip_grad_norm_(self.parameters(), grad_clip_max_norm)
         optimizer.step()
-        
-    @property
-    def log_keys(self) -> Tuple[str, ...]:
-        """Returns log data keys."""
-        return tuple()
-    
-    @property
-    def log_data(self) -> Dict[str, tuple]:
-        """
-        Returns log data and reset it.
-
-        Returns:
-            Dict[str, tuple]: key: (value, time)
-        """
-        return {}
     
 class PolicyGradientNetwork(Network):
     """
