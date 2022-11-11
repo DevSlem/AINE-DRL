@@ -16,17 +16,16 @@ class BehaviorType(Enum):
 class Agent(ABC):
     """
     Deep reinforcement learning agent.
+    
+    Args:
+        network (Network): deep neural network
+        policy (Policy): policy
+        num_envs (int): number of environments
     """
     def __init__(self, 
                  network: Network,
                  policy: Policy,
                  num_envs: int) -> None:
-        """
-        Deep reinforcement learning agent.
-        
-        Args:
-            num_envs (int): number of environments
-        """
         self._clock = Clock(num_envs)
         if isinstance(network, IClockNeed):
             network.set_clock(self._clock)
