@@ -1,6 +1,6 @@
 # AINE DRL
 
-A project for the DRL framework. **AINE** is the team name which means "Agent IN Environment".
+A project for the DRL framework. **AINE** means "Agent IN Environment".
 
 Table of Contents:
 
@@ -11,34 +11,34 @@ Table of Contents:
 
 ## Implementation
 
-AINE-DRL supports below things.
+AINE-DRL provides below things.
 
 * deep reinforcement learning agents
-* training interrupt and model save
 * training with gym environment (vectorized environment also supported)
-* rendering gym environment with inference mode
+* inference (rendering) with gym environment  
+* training interrupt and model save
 
 If you want to know how to use, see details in [sample codes](samples/) and [Wiki](https://github.com/DevSlem/AINE-DRL/wiki).
 
 ### Agent
 
-We provide basic deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read documentations in [Wiki](https://github.com/DevSlem/AINE-DRL/wiki). 
+AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read documentations in [Wiki](https://github.com/DevSlem/AINE-DRL/wiki). 
 
 |Agent|Source Code|
 |:---:|:---:|
 |[REINFORCE](https://github.com/DevSlem/AINE-DRL/wiki/REINFORCE)|[reinforce](aine_drl/agent/reinforce/)|
 |[A2C](https://github.com/DevSlem/AINE-DRL/wiki/A2C)|[a2c](aine_drl/agent/a2c/)|
 |[PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO)|[ppo](aine_drl/agent/ppo)|
-|DQN|[dqn](aine_drl/agent/dqn/)|
-|Double DQN|[dqn](aine_drl/agent/dqn/)|
+|[Double DQN](https://github.com/DevSlem/AINE-DRL/wiki/DoubleDQN)|[dqn](aine_drl/agent/dqn/)|
 
 ### TODO
 
-- [ ] SARSA
 - [ ] Prioritized Experience Replay 
 - [ ] A3C
 - [ ] SAC
 - [ ] Intrinsic Curiosity Module (ICM)
+- [ ] Random Network Distillation (RND)
+
 ## Recent Experiment
 
 ### BipedalWalker-v3 with PPO
@@ -95,9 +95,18 @@ Example:
 $ python samples/cartpole_v1_ppo.py
 ```
 
-Then, you can see the result in the shell. The result file is also generated in `results` directory. You can interrupt training by `ctrl + c`. You can also retrain at the interrupted time step.
+Then, you can see the training information in the shell:
 
-If you want to see the summarized results, input the command:
+```
+[AINE-DRL] Training start!
+[AINE-DRL] training time: 1.2, global time step: 1002, cumulative reward: 16.6
+[AINE-DRL] training time: 2.5, global time step: 2001, cumulative reward: 38.3
+[AINE-DRL] training time: 3.7, global time step: 3000, cumulative reward: 45.8
+```
+
+The graphical result file (Tensorboard) is generated in `results` directory. You can interrupt training by `ctrl + c`. You can also retrain at the interrupted time step.
+
+If you want to see the graphical result, input the command:
 
 ```
 $ tensorboard --logdir=results
