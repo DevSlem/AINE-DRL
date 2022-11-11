@@ -181,7 +181,7 @@ class EpsilonGreedyDistribution(CategoricalDistribution):
             
             # set epsilon greedy probability distribution
             epsilon_greedy_prob = torch.full_like(q_values, non_greedy_action_prob)
-            epsilon_greedy_prob.scatter(1, greedy_action, greedy_action_prob)
+            epsilon_greedy_prob.scatter_(1, greedy_action, greedy_action_prob)
             epsilon_greedy_probs.append(epsilon_greedy_prob)
             
         return PolicyDistributionParameter.create(discrete_pdparams=epsilon_greedy_probs)
