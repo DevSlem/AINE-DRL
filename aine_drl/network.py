@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union, Any
+from typing import Dict, Optional, Tuple, Union, Any
 from aine_drl.policy.policy_distribution import PolicyDistributionParameter
 import torch
 import torch.nn as nn
@@ -57,7 +57,7 @@ class DiscreteActionLayer(nn.Module):
             for i in range(len(discrete_pdparams)):
                 discrete_pdparams[i] = F.softmax(discrete_pdparams[i], dim=1)
         
-        return PolicyDistributionParameter.create(discrete_pdparams, None)
+        return PolicyDistributionParameter.create(discrete_pdparams=discrete_pdparams)
     
 class GaussianContinuousActionLayer(nn.Module):
     """
@@ -98,9 +98,39 @@ class GaussianContinuousActionLayer(nn.Module):
         torch.abs_(out[..., 1])
         out = torch.reshape(out, (-1, self.num_continuous_actions * 2))
         continuous_pdparams = list(torch.split(out, 2, dim=1))
-        return PolicyDistributionParameter.create(None, continuous_pdparams)
+        return PolicyDistributionParameter.create(continuous_pdparams=continuous_pdparams)
     
-class PolicyGradientNetwork(nn.Module, ABC):
+class Network(nn.Module, ABC):
+    """
+    AINE-DRL network abstract class.
+    """
+    
+    @abstractmethod
+    def train_step(self, 
+                   loss: torch.Tensor,
+                   grad_clip_max_norm: Optional[float],
+                   training_step: int):
+        """
+        Gradient step for training.
+
+        Args:
+            loss (Tensor): computed loss
+            grad_clip_max_norm (float | None): maximum norm for the gradient clipping
+            training_step (int): current training step
+        """
+        raise NotImplementedError
+        
+    def basic_train_step(self,
+                          loss: torch.Tensor,
+                          optimizer: torch.optim.Optimizer,
+                          grad_clip_max_norm: Optional[float]):
+        optimizer.zero_grad()
+        loss.backward()
+        if grad_clip_max_norm is not None:
+            torch.nn.utils.clip_grad_norm_(self.parameters(), grad_clip_max_norm)
+        optimizer.step()
+    
+class PolicyGradientNetwork(Network):
     """
     Policy gradient network.
     """
@@ -108,7 +138,7 @@ class PolicyGradientNetwork(nn.Module, ABC):
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
         """
-        Calculate policy distribution paraemters whose shape is `(batch_size, ...)`. \\
+        Compute policy distribution paraemters whose shape is `(batch_size, ...)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
         When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
@@ -120,24 +150,16 @@ class PolicyGradientNetwork(nn.Module, ABC):
             PolicyDistributionParameter: policy distribution parameter
         """
         raise NotImplementedError
-    
-    @abstractmethod
-    def train_step(self, 
-                   loss: torch.Tensor,
-                   grad_clip_max_norm: Optional[float],
-                   training_step: int):
-        raise NotImplementedError
 
-class ActorCriticSharedNetwork(nn.Module, ABC):
+class ActorCriticSharedNetwork(Network):
     """
     Actor critic network.
     """
     
     @abstractmethod
-    def forward(self, 
-                obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
         """
-        Calculate policy distribution paraemters whose shape is `(batch_size, ...)`, 
+        Compute policy distribution paraemters whose shape is `(batch_size, ...)`, 
         state value whose shape is `(batch_size, 1)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
@@ -150,10 +172,24 @@ class ActorCriticSharedNetwork(nn.Module, ABC):
             Tuple[PolicyDistributionParameter, Tensor]: policy distribution parameter, state value
         """
         raise NotImplementedError
+
+class QValueNetwork(Network):
+    """
+    Action value Q network.
+    """
     
     @abstractmethod
-    def train_step(self, 
-                   loss: torch.Tensor,
-                   grad_clip_max_norm: Optional[float],
-                   training_step: int):
+    def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
+        """
+        Compute action value Q.  \\
+        Note that it only works to discrete action type. 
+        So, you must set only `PolicyDistributionParameter.discrete_pdparams` which is action values. \\
+        `batch_size` is `num_envs` x `n-step`.
+        
+        Args:
+            obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
+            
+        Returns:
+            PolicyDistributionParameter: discrete action value
+        """
         raise NotImplementedError

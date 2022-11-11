@@ -1,0 +1,34 @@
+@startuml Clock Share
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+scale 2
+title Clock Share
+
+class Agent {
+    network
+    policy
+    clock
+}
+
+interface IClockNeed {
+    clock
+    set_clock()
+}
+
+interface ILogable {
+    log_keys()
+    log_data()
+}
+
+Agent::network o-- Network
+Agent::policy o-- Policy
+Agent::clock *-down- Clock
+IClockNeed <|-- ILogable
+IClockNeed::clock o-down- Clock
+Network <|-- NetworkWithLog
+ILogable <|-- NetworkWithLog
+Policy <|-- PolicyWithLog
+ILogable <|-- PolicyWithLog
+
+@enduml

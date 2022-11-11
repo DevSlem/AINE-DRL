@@ -38,7 +38,7 @@ class CartPoleActorCriticNet(aine_drl.ActorCriticSharedNetwork):
         return pdparam, v_pred
     
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        util.train_step(loss, self.optimizer, grad_clip_max_norm=grad_clip_max_norm, epoch=training_step)
+        self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
     
 def main():
     seed = 0 # if you want to get the same results

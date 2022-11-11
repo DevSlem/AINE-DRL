@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Tuple
+from typing import Dict, NamedTuple, Optional, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import ActorCriticSharedNetwork
@@ -43,14 +43,11 @@ class A2C(Agent):
                  config: A2CConfig,
                  network: ActorCriticSharedNetwork,
                  policy: Policy,
-                 num_envs: int) -> None:
-        device = util.get_model_device(network)
-        
-        super().__init__(num_envs, device)
+                 num_envs: int) -> None:        
+        super().__init__(network, policy, num_envs)
         
         self.config = config
         self.network = network
-        self.policy = policy
         self.trajectory = A2CTrajectory(self.config.training_freq)
         
         self.current_action_log_prob = None
@@ -235,7 +232,7 @@ class A2C(Agent):
         return super().log_keys + ("Network/Actor Loss", "Network/Critic Loss")
     
     @property
-    def log_data(self) -> dict:
+    def log_data(self) -> Dict[str, tuple]:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
             ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)
@@ -243,13 +240,3 @@ class A2C(Agent):
             self.actor_average_loss.reset()
             self.critic_average_loss.reset()
         return ld
-
-    @property
-    def state_dict(self) -> dict:
-        sd = super().state_dict
-        sd["a2c_net"] = self.network.state_dict()
-        return sd
-    
-    def load_state_dict(self, state_dict: dict):
-        super().load_state_dict(state_dict)
-        self.network.load_state_dict(state_dict["a2c_net"])

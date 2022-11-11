@@ -1,4 +1,6 @@
+from abc import ABC, abstractmethod
 import time
+from typing import Dict, Tuple
 from aine_drl.util import check_freq
 
 class Clock:
@@ -75,4 +77,29 @@ class Clock:
         state_dict = state_dict["clock"]
         for key, value in state_dict.items():
             setattr(self, f"_{key}", value)
-            
+
+class IClockNeed(ABC):
+    @abstractmethod
+    def set_clock(self, clock: Clock):
+        """
+        Set clock when Agent is instantiated.
+        """
+        raise NotImplementedError
+
+class ILogable(IClockNeed):
+    @property
+    @abstractmethod
+    def log_keys(self) -> Tuple[str, ...]:
+        """Returns log data keys."""
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def log_data(self) -> Dict[str, tuple]:
+        """
+        Returns log data and reset it.
+
+        Returns:
+            Dict[str, tuple]: key: (value, time)
+        """
+        raise NotImplementedError

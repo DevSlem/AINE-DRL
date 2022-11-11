@@ -26,6 +26,9 @@ def get_seed() -> Union[int, None]:
     global _random_seed
     return _random_seed
 
+def get_batch_list(arr, idxs) -> list:
+    return list(operator.itemgetter(*idxs)(arr))
+
 def get_batch(arr, idxs) -> np.ndarray:
     """
     Returns a batch that consists of elements for the indexes from the array.
