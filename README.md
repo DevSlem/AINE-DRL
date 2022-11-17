@@ -33,6 +33,8 @@ AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to
 
 ### TODO
 
+- [ ] Recurrent PPO
+- [ ] DDPG
 - [ ] Prioritized Experience Replay 
 - [ ] A3C
 - [ ] SAC

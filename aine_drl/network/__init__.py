@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Tuple, Union, Any
+from typing import Optional, Tuple, Union, Any
 from aine_drl.policy.policy_distribution import PolicyDistributionParameter
 import torch
 import torch.nn as nn
@@ -138,7 +138,7 @@ class PolicyGradientNetwork(Network):
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
         """
-        Compute policy distribution paraemters whose shape is `(batch_size, ...)`. \\
+        Compute policy distribution parameters whose shape is `(batch_size, ...)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
         When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
@@ -159,7 +159,7 @@ class ActorCriticSharedNetwork(Network):
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
         """
-        Compute policy distribution paraemters whose shape is `(batch_size, ...)`, 
+        Compute policy distribution parameters whose shape is `(batch_size, ...)`, 
         state value whose shape is `(batch_size, 1)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
