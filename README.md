@@ -1,4 +1,4 @@
-# AINE DRL
+# AINE-DRL
 
 A project for the DRL framework. **AINE** means "Agent IN Environment".
 
