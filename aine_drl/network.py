@@ -193,3 +193,56 @@ class QValueNetwork(Network):
             PolicyDistributionParameter: discrete action value
         """
         raise NotImplementedError
+
+class RecurrentNetwork(Network):
+    """
+    Standard recurrent neural network (RNN).
+    """
+    @staticmethod
+    def pack_lstm_hidden_state(lstm_hidden_state: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        """`(D x num_layers, batch_size, H_out) x 2` -> `(D x num_layers, batch_size, H_out x 2)`"""
+        return torch.cat(lstm_hidden_state, dim=2)
+    
+    @staticmethod
+    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """`(D x num_layers, batch_size, H_out x 2)` -> `(D x num_layers, batch_size, H_out) x 2`"""
+        return lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
+    
+    @abstractmethod
+    def hidden_state_shape(self, batch_size: int) -> torch.Size:
+        """
+        Returns recurrent hidden state shape. 
+        When you use LSTM, its shape is `(D x num_layers, batch_size, H_out x 2)`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use GRU, its shape is `(D x num_layers, batch_size, H_out)`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html. 
+        """
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def obs_shape(self) -> torch.Size:
+        raise NotImplementedError
+    
+class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
+    """Recurrent actor critic shared network."""
+        
+    @abstractmethod
+    def forward(self, 
+                obs: torch.Tensor, 
+                hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+        """
+        Compute policy distribution parameters whose shape is `(batch_size, ...)`, 
+        state value whose shape is `(batch_size, 1)` and next recurrent hidden state. \\
+        `batch_size` is flattened sequence batch whose shape is `sequence_batch_size` x `sequence_length`. \\
+        It's recommended to set recurrent layer to `batch_first=True`. \\
+        When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
+        When the action type is continuous, it's generally mean and standard deviation of gaussian distribution. \\
+        Recurrent hidden state is typically concatnated tensor of LSTM tuple (h, c) or GRU hidden state tensor.
+
+        Args:
+            obs (Tensor): observation of state whose shape is `(sequence_batch_size, sequence_length, *obs_shape)`
+            hidden-state (Tensor): whose shape is `(max_num_layers, sequence_batch_size, out_features)`
+
+        Returns:
+            Tuple[PolicyDistributionParameter, Tensor, Tensor]: policy distribution parameter, state value, recurrent hidden state
+        """
+        pass
