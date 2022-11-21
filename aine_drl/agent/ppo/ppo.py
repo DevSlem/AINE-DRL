@@ -183,9 +183,9 @@ class PPO(Agent):
                 
                 self.clock.tick_training_step()
                 
-            # log data
-            self.actor_average_loss.update(actor_loss.item())
-            self.critic_average_loss.update(critic_loss.item())
+                # log data
+                self.actor_average_loss.update(actor_loss.item())
+                self.critic_average_loss.update(critic_loss.item())
 
         
     def compute_adavantage_v_target(self, exp_batch: PPOExperienceBatch) -> Tuple[torch.Tensor, torch.Tensor]:
