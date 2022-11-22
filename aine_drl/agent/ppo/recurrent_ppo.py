@@ -17,10 +17,10 @@ class RecurrentPPOConfig(NamedTuple):
     Args:
         training_freq (int): start training when the number of calls of `Agent.update()` method is reached to training frequency
         epoch (int): training epoch
-        mini_batch_size (int): sampled batch is randomly split into mini batch size
-        sequence_length (int, optional): sequence length of recurrent network. Defaults to 1.
+        sequence_length (int): sequence length of recurrent network when training
+        num_sequences_per_step (int): number of sequences per train step, which are selected randomly
         gamma (float, optional): discount factor. Defaults to 0.99.
-        lam (float, optional): lambda which controls the balanace of GAE between bias and variance. Defaults to 0.95.
+        lam (float, optional): regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
         epsilon_clip (float, optional): clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
         value_loss_coef (float, optional): value loss multiplier. Defaults to 0.5.
         entropy_coef (float, optional): entropy multiplier. Defaults to 0.001.
@@ -29,7 +29,7 @@ class RecurrentPPOConfig(NamedTuple):
     training_freq: int
     epoch: int
     sequence_length: int
-    num_sequence_batch: int
+    num_sequences_per_step: int
     gamma: float = 0.99
     lam: float = 0.95
     epsilon_clip: float = 0.2
@@ -181,8 +181,8 @@ class RecurrentPPO(Agent):
         
         for _ in range(self.config.epoch):
             sample_sequences = torch.randperm(num_sequences)
-            for i in range(num_sequences // self.config.num_sequence_batch):
-                sample_sequence = sample_sequences[self.config.num_sequence_batch * i : self.config.num_sequence_batch * (i + 1)]
+            for i in range(num_sequences // self.config.num_sequences_per_step):
+                sample_sequence = sample_sequences[self.config.num_sequences_per_step * i : self.config.num_sequences_per_step * (i + 1)]
                 m = mask[sample_sequence]
                 
                 # feed forward
@@ -194,17 +194,17 @@ class RecurrentPPO(Agent):
                     discrete_action[sample_sequence].flatten(0, 1),
                     continuous_action[sample_sequence].flatten(0, 1)
                 )
-                new_action_log_prob = dist.log_prob(a).reshape(self.config.num_sequence_batch, -1, a.num_branches)
+                new_action_log_prob = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, a.num_branches)
                 actor_loss = PPO.compute_actor_loss(
                     advantage[sample_sequence][m],
                     old_action_log_prob[sample_sequence][m],
                     new_action_log_prob[m], # maybe cause problem
                     self.config.epsilon_clip
                 )
-                entropy = dist.entropy().reshape(self.config.num_sequence_batch, -1, a.num_branches)[m].mean()
+                entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, a.num_branches)[m].mean()
                 
                 # compute critic loss
-                v_pred = v_pred.reshape(self.config.num_sequence_batch, -1, 1)
+                v_pred = v_pred.reshape(self.config.num_sequences_per_step, -1, 1)
                 critic_loss = PPO.compute_critic_loss(v_pred[m], v_target[sample_sequence][m])
                 
                 # train step
@@ -317,7 +317,7 @@ class RecurrentPPO(Agent):
         with torch.no_grad():
             final_next_obs = exp_batch.next_obs[-self.num_envs:]
             final_hidden_state = self.next_hidden_state
-            _, final_next_v_pred, _ = self.network.forward(final_next_obs.unsqueeze(1), final_hidden_state)
+            _, final_next_v_pred, _ = self.network.forward(final_next_obs.unsqueeze(1), final_hidden_state.to(device=self.device))
         
         v_pred = torch.cat([exp_batch.v_pred, final_next_v_pred])
         
