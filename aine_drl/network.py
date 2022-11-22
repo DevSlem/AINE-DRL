@@ -206,7 +206,8 @@ class RecurrentNetwork(Network):
     @staticmethod
     def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """`(D x num_layers, batch_size, H_out x 2)` -> `(D x num_layers, batch_size, H_out) x 2`"""
-        return lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
+        lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
+        return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
     
     @abstractmethod
     def hidden_state_shape(self, batch_size: int) -> torch.Size:
@@ -217,11 +218,6 @@ class RecurrentNetwork(Network):
         """
         raise NotImplementedError
     
-    @property
-    @abstractmethod
-    def obs_shape(self) -> torch.Size:
-        raise NotImplementedError
-    
 class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
     """Recurrent actor critic shared network."""
         
@@ -230,6 +226,8 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
                 obs: torch.Tensor, 
                 hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
         """
+        ## Summary
+        
         Compute policy distribution parameters whose shape is `(batch_size, ...)`, 
         state value whose shape is `(batch_size, 1)` and next recurrent hidden state. \\
         `batch_size` is flattened sequence batch whose shape is `sequence_batch_size` x `sequence_length`. \\
@@ -244,5 +242,31 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
 
         Returns:
             Tuple[PolicyDistributionParameter, Tensor, Tensor]: policy distribution parameter, state value, recurrent hidden state
+            
+        ## Examples
+        
+        `forward()` method example when using LSTM::
+        
+            def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+                # encoding layer
+                # (batch_size, seq_len, *obs_shape) -> (batch_size * seq_len, *obs_shape)
+                seq_len = obs.shape[1]
+                flattend = obs.flatten(0, 1)
+                encoding = self.encoding_layer(flattend)
+                
+                # lstm layer
+                unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
+                # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
+                encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
+                encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
+                next_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+                
+                # actor-critic layer
+                # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
+                encoding = encoding.flatten(0, 1)
+                pdparam = self.actor_layer(encoding)
+                v_pred = self.critic_layer(encoding)
+                
+                return pdparam, v_pred, next_hidden_state
         """
         pass
