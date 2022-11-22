@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 
 # AINE-DRL
+/.vscode
 /results

@@ -1,0 +1,13 @@
+CartPole-v1-NoVelocity_RecurrentPPO:
+  num_envs: 16
+  Gym:
+    env:
+      id: "CartPole-v1"
+    training:
+      seed: 0
+      auto_retrain: false
+      total_global_time_steps: 5000000
+      summary_freq: 50000
+      agent_save_freq: null
+      inference_freq: null
+      inference_render: false

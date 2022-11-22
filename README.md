@@ -29,10 +29,15 @@ AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to
 |[REINFORCE](https://github.com/DevSlem/AINE-DRL/wiki/REINFORCE)|[reinforce](aine_drl/agent/reinforce/)|
 |[A2C](https://github.com/DevSlem/AINE-DRL/wiki/A2C)|[a2c](aine_drl/agent/a2c/)|
 |[PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO)|[ppo](aine_drl/agent/ppo)|
+|[Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO)|[ppo](aine_drl/agent/ppo/)|
 |[Double DQN](https://github.com/DevSlem/AINE-DRL/wiki/Double-DQN)|[dqn](aine_drl/agent/dqn/)|
 
 ### TODO
 
+- [ ] Agent Factory
+- [ ] Unity ML-Agents Training
+- [ ] Recurrent PPO improvement
+- [ ] DDPG
 - [ ] Prioritized Experience Replay 
 - [ ] A3C
 - [ ] SAC

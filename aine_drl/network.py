@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Tuple, Union, Any
+from typing import Optional, Tuple, Union, Any
 from aine_drl.policy.policy_distribution import PolicyDistributionParameter
 import torch
 import torch.nn as nn
@@ -138,7 +138,7 @@ class PolicyGradientNetwork(Network):
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
         """
-        Compute policy distribution paraemters whose shape is `(batch_size, ...)`. \\
+        Compute policy distribution parameters whose shape is `(batch_size, ...)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
         When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
@@ -159,7 +159,7 @@ class ActorCriticSharedNetwork(Network):
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
         """
-        Compute policy distribution paraemters whose shape is `(batch_size, ...)`, 
+        Compute policy distribution parameters whose shape is `(batch_size, ...)`, 
         state value whose shape is `(batch_size, 1)`. \\
         `batch_size` is `num_envs` x `n-step`. \\
         When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
@@ -193,3 +193,80 @@ class QValueNetwork(Network):
             PolicyDistributionParameter: discrete action value
         """
         raise NotImplementedError
+
+class RecurrentNetwork(Network):
+    """
+    Standard recurrent neural network (RNN).
+    """
+    @staticmethod
+    def pack_lstm_hidden_state(lstm_hidden_state: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        """`(D x num_layers, batch_size, H_out) x 2` -> `(D x num_layers, batch_size, H_out x 2)`"""
+        return torch.cat(lstm_hidden_state, dim=2)
+    
+    @staticmethod
+    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """`(D x num_layers, batch_size, H_out x 2)` -> `(D x num_layers, batch_size, H_out) x 2`"""
+        lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
+        return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
+    
+    @abstractmethod
+    def hidden_state_shape(self, batch_size: int) -> torch.Size:
+        """
+        Returns recurrent hidden state shape. 
+        When you use LSTM, its shape is `(D x num_layers, batch_size, H_out x 2)`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use GRU, its shape is `(D x num_layers, batch_size, H_out)`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html. 
+        """
+        raise NotImplementedError
+    
+class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
+    """Recurrent actor critic shared network."""
+        
+    @abstractmethod
+    def forward(self, 
+                obs: torch.Tensor, 
+                hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Compute policy distribution parameters whose shape is `(batch_size, ...)`, 
+        state value whose shape is `(batch_size, 1)` and next recurrent hidden state. \\
+        `batch_size` is flattened sequence batch whose shape is `sequence_batch_size` x `sequence_length`. \\
+        It's recommended to set recurrent layer to `batch_first=True`. \\
+        When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
+        When the action type is continuous, it's generally mean and standard deviation of gaussian distribution. \\
+        Recurrent hidden state is typically concatnated tensor of LSTM tuple (h, c) or GRU hidden state tensor.
+
+        Args:
+            obs (Tensor): observation of state whose shape is `(sequence_batch_size, sequence_length, *obs_shape)`
+            hidden-state (Tensor): whose shape is `(max_num_layers, sequence_batch_size, out_features)`
+
+        Returns:
+            Tuple[PolicyDistributionParameter, Tensor, Tensor]: policy distribution parameter, state value, recurrent hidden state
+            
+        ## Examples
+        
+        `forward()` method example when using LSTM::
+        
+            def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+                # encoding layer
+                # (batch_size, seq_len, *obs_shape) -> (batch_size * seq_len, *obs_shape)
+                seq_len = obs.shape[1]
+                flattend = obs.flatten(0, 1)
+                encoding = self.encoding_layer(flattend)
+                
+                # lstm layer
+                unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
+                # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
+                encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
+                encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
+                next_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+                
+                # actor-critic layer
+                # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
+                encoding = encoding.flatten(0, 1)
+                pdparam = self.actor_layer(encoding)
+                v_pred = self.critic_layer(encoding)
+                
+                return pdparam, v_pred, next_hidden_state
+        """
+        pass

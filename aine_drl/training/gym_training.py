@@ -314,8 +314,8 @@ class GymTraining:
                 obs.astype(np.float32),
                 action,
                 next_obs.astype(np.float32),
-                reward.astype(np.float32),
-                terminated.astype(np.float32)
+                reward.astype(np.float32)[..., np.newaxis],
+                terminated.astype(np.float32)[..., np.newaxis]
             )
         else:
             exp = Experience(
