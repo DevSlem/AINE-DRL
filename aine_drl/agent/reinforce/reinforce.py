@@ -36,6 +36,9 @@ class REINFORCE(Agent):
                  config: REINFORCEConfig,
                  network: PolicyGradientNetwork,
                  policy: Policy) -> None:        
+        if not isinstance(network, PolicyGradientNetwork):
+            raise ValueError("The network type must be PolicyGradientNetwork.")
+        
         super().__init__(network, policy, num_envs=1)
         
         self.config = config

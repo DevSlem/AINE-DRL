@@ -44,6 +44,9 @@ class A2C(Agent):
                  network: ActorCriticSharedNetwork,
                  policy: Policy,
                  num_envs: int) -> None:        
+        if not isinstance(network, ActorCriticSharedNetwork):
+            raise ValueError("The network type must be ActorCriticSharedNetwork.")
+        
         super().__init__(network, policy, num_envs)
         
         self.config = config

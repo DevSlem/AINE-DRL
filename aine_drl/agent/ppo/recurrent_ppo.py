@@ -15,9 +15,9 @@ class RecurrentPPOConfig(NamedTuple):
     Recurrent PPO configuration.
 
     Args:
-        training_freq (int): start training when the number of calls of `Agent.update()` method is reached to training frequency
-        epoch (int): training epoch
-        sequence_length (int): sequence length of recurrent network when training
+        training_freq (int): training frequency which is the number of time steps to gather experiences
+        epoch (int): number of using total experiences to update parameters
+        sequence_length (int): sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
         num_sequences_per_step (int): number of sequences per train step, which are selected randomly
         gamma (float, optional): discount factor. Defaults to 0.99.
         lam (float, optional): regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
@@ -53,6 +53,9 @@ class RecurrentPPO(Agent):
                  network: RecurrentActorCriticSharedNetwork,
                  policy: Policy,
                  num_envs: int) -> None:        
+        if not isinstance(network, RecurrentActorCriticSharedNetwork):
+            raise ValueError("The network type must be RecurrentActorCriticSharedNetwork.")
+        
         super().__init__(network, policy, num_envs)
         
         self.config = config
