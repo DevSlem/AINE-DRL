@@ -54,7 +54,7 @@ class RecurrentPPO(Agent):
                  policy: Policy,
                  num_envs: int) -> None:        
         if not isinstance(network, RecurrentActorCriticSharedNetwork):
-            raise ValueError("The network type must be RecurrentActorCriticSharedNetwork.")
+            raise TypeError("The network type must be RecurrentActorCriticSharedNetwork.")
         
         super().__init__(network, policy, num_envs)
         

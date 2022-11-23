@@ -35,7 +35,7 @@ class DoubleDQN(Agent):
                  policy: Union[Policy, EpsilonGreedyPolicy, BoltzmannPolicy],
                  num_envs: int) -> None:     
         if not isinstance(network, QValueNetwork):
-            raise ValueError("The network type must be QValueNetwork.")
+            raise TypeError("The network type must be QValueNetwork.")
         
         super().__init__(network, policy, num_envs)
         
