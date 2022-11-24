@@ -45,7 +45,7 @@ def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: i
     
     try:
         
-        for agent_key, config in agent_config.keys():
+        for agent_key, config in agent_config.items():
             if agent_key == "REINFORCE":
                 if num_envs != 1:
                     raise ValueError(f"num_envs value must be 1, but {num_envs}.")
