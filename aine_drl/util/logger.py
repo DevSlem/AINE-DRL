@@ -41,7 +41,10 @@ class logger:
     
     @classmethod
     def set_log_dir(cls, env_id: str):
-        cls._log_dir = f"{cls._log_base_dir}/{env_id}"
+        if cls._logger is None:
+            cls._log_dir = f"{cls._log_base_dir}/{env_id}"
+        else:
+            raise Exception("logger is currently working. You must have called it after ending the current logger using logger.end() method.")
     
     @classmethod
     def start(cls, env_id: str, ):
@@ -50,7 +53,7 @@ class logger:
             cls.set_log_dir(env_id)
             cls._logger = SummaryWriter(cls._log_dir)
         else:
-            raise Exception("logger is currently progressing. You must have called it after ending the current logger using logger.end() method.")
+            raise Exception("logger is currently working. You must have called it after ending the current logger using logger.end() method.")
     
     @classmethod
     def agent_save_dir(cls):
