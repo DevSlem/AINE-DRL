@@ -4,13 +4,11 @@ CartPole-v1_PPO:
     env:
       id: "CartPole-v1"
     training:
-      seed: 0
-      auto_retrain: true
-      total_global_time_steps: 150000
+      total_global_time_steps: 100000
       summary_freq: 1000
-      agent_save_freq: null
       inference_freq: 10000
       inference_render: true
+      seed: 0
   PPO:
     training_freq: 16
     epoch: 3
