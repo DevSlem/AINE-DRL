@@ -64,8 +64,12 @@ class AINEConfig:
                 auto_retrain: false
                 seed: 0
         """
-        if (isinstance(gym_env, Env) and self.num_envs != 1) or (isinstance(gym_env, VectorEnv) and self.num_envs != gym_env.num_envs):
-            raise ValueError("When you use custom gym_env, num_envs in the configuration must equal to the number of environments in gym_env.")
+        if isinstance(gym_env, VectorEnv):
+            if self.num_envs != gym_env.num_envs:
+                raise ValueError("When you use custom gym_env and the type is VectorEnv, num_envs in the configuration must equal to the number of environments in gym_env.")
+        elif isinstance(gym_env, Env):
+            if self.num_envs != 1:
+                raise ValueError("When you use custom gym_env and the type is Env, num_envs in the configuration must equal to 1.")
             
         return GymTraining.make(
             self.training_env_id,
