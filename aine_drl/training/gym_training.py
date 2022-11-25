@@ -78,6 +78,9 @@ class GymTraining:
         self._logger_started = False
         self.training_env_id = training_env_id if self.config.auto_retrain else logger.numbering_env_id(training_env_id)
         
+        self.inference_gym_env = None
+        self.inference_gym_action_communicator = None
+        
         self.dtype = np.float32
         
     @staticmethod
