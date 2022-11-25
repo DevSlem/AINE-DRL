@@ -39,7 +39,7 @@ if __name__ == "__main__":
     util.seed(seed)
     
     # AINE-DRL configuration manager
-    aine_config = aine_drl.AINEConfig("config/cartpole_v1_reinforce.yaml")
+    aine_config = aine_drl.AINEConfig("config/samples/cartpole_v1_reinforce.yaml")
     
     # make gym training instance
     gym_training = aine_config.make_gym_training()
