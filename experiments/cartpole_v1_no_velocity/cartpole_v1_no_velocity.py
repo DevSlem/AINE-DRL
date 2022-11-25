@@ -2,19 +2,15 @@ import sys
 sys.path.append(".")
 
 from typing import List, Optional, Tuple, Union
-
-import aine_drl
-import aine_drl.util as util
-from aine_drl.training import GymTraining
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 import gym
 import gym.spaces
 import gym.vector
+import aine_drl
+import aine_drl.util as util
 
 class CartPoleNoVelEnv(gym.vector.VectorEnv):
     """CartPole with no velocity."""
@@ -39,14 +35,16 @@ class CartPoleNoVelEnv(gym.vector.VectorEnv):
         return self.masked_obs(full_obs), reward, terminated, truncated, info        
 
 class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNetwork):
+    # Recurrent PPO uses RecurrentActorCriticSharedNetwork.
     
-    def __init__(self, obs_shape, discrete_action_count) -> None:
+    def __init__(self, obs_shape, num_discrete_actions) -> None:
         super().__init__()
         
         self.lstm_in_feature = 128
         self.hidden_feature = 64
         self._obs_shape = obs_shape
         
+        # encoding layer for shared network
         self.encoding_layer = nn.Sequential(
             nn.Linear(obs_shape, 64),
             nn.ReLU(),
@@ -54,13 +52,17 @@ class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNe
             nn.ReLU()
         )
         
+        # recurrent layer using LSTM
         self.lstm_layer = nn.LSTM(self.lstm_in_feature, self.hidden_feature, batch_first=True)
         
-        self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, discrete_action_count)
+        # actor-critic layer
+        self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, num_discrete_actions)
         self.critic_layer = nn.Linear(self.hidden_feature, 1)
         
+        # optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=3e-4)
     
+    # override
     def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
         # encoding layer
         # (batch_size, seq_len, *obs_shape) -> (batch_size * seq_len, *obs_shape)
@@ -83,19 +85,23 @@ class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNe
         
         return pdparam, v_pred, next_hidden_state
     
+    # override
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
         self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
         
+    # override
     def hidden_state_shape(self, batch_size: int) -> torch.Size:
         return torch.Size((1, batch_size, self.hidden_feature * 2))
     
 class CartPoleNoVelActorCriticNet(aine_drl.ActorCriticSharedNetwork):
+    # Naive PPO uses ActorCriticSharedNetwork.
     
-    def __init__(self, obs_shape, discrete_action_count) -> None:
+    def __init__(self, obs_shape, num_discrete_actions) -> None:
         super().__init__()
         
         self.hidden_feature = 128
         
+        # encoding layer for shared network
         self.encoding_layer = nn.Sequential(
             nn.Linear(obs_shape, 64),
             nn.ReLU(),
@@ -105,11 +111,14 @@ class CartPoleNoVelActorCriticNet(aine_drl.ActorCriticSharedNetwork):
             nn.ReLU()
         )
         
-        self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, discrete_action_count)
+        # actor-critic layer
+        self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, num_discrete_actions)
         self.critic_layer = nn.Linear(self.hidden_feature, 1)
         
+        # optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
     
+    # overrride
     def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor]:
         encoding = self.encoding_layer(obs)
         pdparam = self.actor_layer(encoding)
@@ -117,62 +126,64 @@ class CartPoleNoVelActorCriticNet(aine_drl.ActorCriticSharedNetwork):
         
         return pdparam, v_pred
     
+    # override
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
         self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
-        
+
+
 def train_recurrent_ppo():
-    config_manager = aine_drl.util.ConfigManager("config/cartpole_v1_no_velocity_recurrent_ppo.yaml")
-    num_envs = config_manager.env_config["num_envs"]
-    gym_env = CartPoleNoVelEnv(num_envs)
-    gym_training = GymTraining.make(config_manager.env_config, config_manager.env_id, gym_env=gym_env)
+    # AINE-DRL configuration manager
+    aine_config = aine_drl.AINEConfig("config/experiments/cartpole_v1_no_velocity_recurrent_ppo.yaml")
     
-    if gym_training.is_vector_env:
-        obs_shape = gym_training.gym_env.single_observation_space.shape[0]
-        action_count = gym_training.gym_env.single_action_space.n
-    else:
-        obs_shape = gym_training.gym_env.observation_space.shape[0]
-        action_count = gym_training.gym_env.action_space.n
+    # make gym training instance
+    gym_env = CartPoleNoVelEnv(aine_config.num_envs)
+    gym_training = aine_config.make_gym_training(gym_env)
     
-    device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPoleNoVelRecurrentActorCriticNet(obs_shape, action_count).to(device=device)
+    # create recurrent actor-critic shared network
+    obs_shape = gym_training.observation_space.shape[0]
+    num_actions = gym_training.action_space.n
+    network = CartPoleNoVelRecurrentActorCriticNet(obs_shape, num_actions)
+    
+    # create policy for discrete action type
     policy = aine_drl.CategoricalPolicy()
-    config = aine_drl.RecurrentPPOConfig(
-        training_freq=256,
-        epoch=4,
-        sequence_length=8,
-        num_sequences_per_step=16,
-        grad_clip_max_norm=5.0
-    )
-    recurrent_ppo = aine_drl.RecurrentPPO(config, network, policy, num_envs)
+    
+    # make Recurrent PPO agent
+    recurrent_ppo = aine_config.make_agent(network, policy)
+    
+    # training start!
     gym_training.train(recurrent_ppo)
-    gym_training.close() 
     
-def train_ppo():
-    config_manager = aine_drl.util.ConfigManager("config/cartpole_v1_no_velocity_ppo.yaml")
-    num_envs = config_manager.env_config["num_envs"]
-    gym_env = CartPoleNoVelEnv(num_envs)
-    gym_training = GymTraining.make(config_manager.env_config, config_manager.env_id, gym_env=gym_env)
-    
-    if gym_training.is_vector_env:
-        obs_shape = gym_training.gym_env.single_observation_space.shape[0]
-        action_count = gym_training.gym_env.single_action_space.n
-    else:
-        obs_shape = gym_training.gym_env.observation_space.shape[0]
-        action_count = gym_training.gym_env.action_space.n
-        
-    device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPoleNoVelActorCriticNet(obs_shape, action_count).to(device=device)
-    policy = aine_drl.CategoricalPolicy()
-    ppo = aine_drl.PPO.make(config_manager.env_config, network, policy)
-    gym_training.train(ppo)
+    # training close safely
     gym_training.close()
     
-def main():
-    seed = 0 # if you want to get the same results
+def train_naive_ppo():
+    # AINE-DRL configuration manager
+    aine_config = aine_drl.AINEConfig("config/experiments/cartpole_v1_no_velocity_ppo.yaml")
+    
+    # make gym training instance
+    gym_env = CartPoleNoVelEnv(aine_config.num_envs)
+    gym_training = aine_config.make_gym_training(gym_env)
+    
+    # create actor-critic shared network
+    obs_shape = gym_training.observation_space.shape[0]
+    num_actions = gym_training.action_space.n
+    network = CartPoleNoVelActorCriticNet(obs_shape, num_actions)
+    
+    # create policy for discrete action type
+    policy = aine_drl.CategoricalPolicy()
+    
+    # make Naive PPO agent
+    ppo = aine_config.make_agent(network, policy)
+    
+    # training start!
+    gym_training.train(ppo)
+    
+    # training close safely
+    gym_training.close()
+    
+if __name__ == "__main__":
+    seed = 0
     util.seed(seed)
     
     train_recurrent_ppo()
-    train_ppo()
-    
-if __name__ == "__main__":
-    main()
+    train_naive_ppo()
