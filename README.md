@@ -163,7 +163,7 @@ $ tensorboard --logdir=results/<sub_directory>
 
 then, you can open the TensorBoard like below it.
 
-Fig 2. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO agent:
+Fig 3. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO:
 
 ![](images/cartpole-v1-ppo-cumulative-reward-graph.png) 
 
