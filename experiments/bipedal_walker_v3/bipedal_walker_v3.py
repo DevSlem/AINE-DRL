@@ -2,14 +2,11 @@ import sys
 sys.path.append(".")
 
 from typing import Optional, Tuple
-
-import aine_drl
-import aine_drl.util as util
-from aine_drl.training import GymTraining
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import aine_drl
+import aine_drl.util as util
 
 class BipedalWalkerActorCriticNet(aine_drl.ActorCriticSharedNetwork):
     
@@ -39,24 +36,40 @@ class BipedalWalkerActorCriticNet(aine_drl.ActorCriticSharedNetwork):
         return pdparam, v_pred
     
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        util.train_step(loss, self.optimizer, grad_clip_max_norm=grad_clip_max_norm, epoch=training_step)
+        self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
+        
+def train_ppo():
+    # AINE-DRL configuration manager
+    aine_config = aine_drl.AINEConfig("config/experiments/bipedal_walker_v3_ppo.yaml")
     
-def main():
+    # make gym training instance
+    gym_training = aine_config.make_gym_training()
+    
+    # create actor-critic shared network
+    obs_shape = gym_training.observation_space.shape[0]
+    num_continuous_actions = gym_training.action_space.shape[0]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    network = BipedalWalkerActorCriticNet(obs_shape, num_continuous_actions).to(device=device)
+    
+    # create policy for continuous action type
+    policy = aine_drl.GaussianPolicy()
+    
+    # make PPO agent
+    ppo = aine_config.make_agent(network, policy)
+    
+    # training start!
+    gym_training.train(ppo)
+    
+    # training close safely
+    gym_training.close()
+    
+def train_sac():
+    # will be added soon after SAC is implemented
+    pass
+    
+if __name__ == "__main__":
     seed = 0 # if you want to get the same results
     util.seed(seed)
     
-    config_manager = aine_drl.util.ConfigManager("config/bipedal_walker_v3_ppo.yaml")
-    gym_training = GymTraining.make(config_manager.env_config, config_manager.env_id)
-    
-    obs_shape = gym_training.gym_env.single_observation_space.shape[0]
-    continuous_action_count = gym_training.gym_env.single_action_space.shape[0]
-    
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = BipedalWalkerActorCriticNet(obs_shape, continuous_action_count).to(device=device)
-    policy = aine_drl.GaussianPolicy()
-    ppo = aine_drl.PPO.make(config_manager.env_config, network, policy)
-    gym_training.train(ppo)
-    gym_training.close()
-    
-if __name__ == "__main__":
-    main()
+    train_ppo()
+    train_sac()

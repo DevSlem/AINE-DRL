@@ -15,6 +15,7 @@ CartPole-v1_PPO:
     mini_batch_size: 8
     gamma: 0.99
     lam: 0.95
+    advantage_normalization: false
     epsilon_clip: 0.2
     value_loss_coef: 0.5
     entropy_coef: 0.001
