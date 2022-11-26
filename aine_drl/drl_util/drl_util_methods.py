@@ -1,3 +1,4 @@
+from typing import Union
 import torch.nn as nn
 import torch
 
@@ -85,3 +86,6 @@ def compute_gae(v_preds: torch.Tensor,
         gaes[:, t] = discounted_gae
      
     return gaes
+
+def normalize(x: torch.Tensor, mask: Union[bool, torch.Tensor] = True) -> torch.Tensor:
+    return (x - x[mask].mean()) / (x[mask].std() + 1e-8)
