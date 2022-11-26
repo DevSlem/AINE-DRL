@@ -11,6 +11,20 @@ import torch.nn.functional as F
 import copy
 
 class DoubleDQNConfig(NamedTuple):
+    """
+    Double DQN configurations. 
+    If both `replace_freq` and `polyak_ratio` are `None`, it uses `replace_freq` as `1`. If both of them are activated, it uses `replace_freq`.
+
+    Args:
+        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
+        `batch_size (int)`: size of experience batch from experience replay
+        `capacity (int)`: number of experineces to be stored in experience replay
+        `epoch (int)`: number of parameters updates at each `training_freq`
+        `gamma (float, optional)`: discount factor. Defaults to 0.99.
+        `replace_freq (int | None, optional)`: freqeuncy which totally replaces target network with update network. Defaults to None.
+        `polyak_ratio (float | None, optional)`: smooth replace multiplier. `polyak_ratio` must be 0 < p <= 1. Defaults to None.
+        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
+    """
     training_freq: int
     batch_size: int
     capacity: int
@@ -34,6 +48,14 @@ class DoubleDQN(Agent):
                  network: QValueNetwork,
                  policy: Union[Policy, EpsilonGreedyPolicy, BoltzmannPolicy],
                  num_envs: int) -> None:     
+        # .\aine_drl\agent\dqn\double_dqn.py:174: 
+        # UserWarning: Using a target size (torch.Size([128, 128, 1])) that is different to the input size (torch.Size([128, 1])). 
+        # This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+        # td_loss += F.mse_loss(q_value, q_target_value)
+        raise NotImplementedError("Bug detected")
+        if not isinstance(network, QValueNetwork):
+            raise TypeError("The network type must be QValueNetwork.")
+        
         super().__init__(network, policy, num_envs)
         
         self.config = config

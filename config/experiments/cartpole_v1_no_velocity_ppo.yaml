@@ -1,16 +1,10 @@
-CartPole-v1-NoVelocity_PPO:
+CartPole-v1-NoVelocity_Naive_PPO:
   num_envs: 16
   Gym:
-    env:
-      id: "CartPole-v1"
     training:
-      seed: 0
-      auto_retrain: false
       total_global_time_steps: 5000000
       summary_freq: 50000 
-      agent_save_freq: null
-      inference_freq: null
-      inference_render: false
+      seed: 0
   PPO:
     training_freq: 256
     epoch: 4
@@ -18,6 +12,6 @@ CartPole-v1-NoVelocity_PPO:
     gamma: 0.99
     lam: 0.95
     epsilon_clip: 0.2
-    value_loss_coef: 0.5
+    value_loss_coef: 0.2
     entropy_coef: 0.001
     grad_clip_max_norm: 5.0

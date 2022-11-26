@@ -36,23 +36,30 @@ class logger:
     def log_dir(cls) -> str:
         """Returns the log directory."""
         if cls._log_dir is None:
-            raise Exception("You must call logger.start() method first before call this method.")
+            raise Exception("You must have initialized log directory.")
         return cls._log_dir
     
     @classmethod
-    def start(cls, env_id: str):
-        """Set logging setting."""
-        if cls._log_dir is None:
+    def set_log_dir(cls, env_id: str):
+        if cls._logger is None:
             cls._log_dir = f"{cls._log_base_dir}/{env_id}"
+        else:
+            raise Exception("logger is currently working. You must have called it after ending the current logger using logger.end() method.")
+    
+    @classmethod
+    def start(cls, env_id: str, ):
+        """Set logging setting."""
+        if cls._logger is None:
+            cls.set_log_dir(env_id)
             cls._logger = SummaryWriter(cls._log_dir)
         else:
-            raise Exception("logger is currently progressing. You should call it after ending the current logger using logger.end() method.")
+            raise Exception("logger is currently working. You must have called it after ending the current logger using logger.end() method.")
     
     @classmethod
     def agent_save_dir(cls):
         """Returns agent save directory."""
         if cls._log_dir is None:
-            raise Exception("You must call logger.start() method first before call this method.")
+            raise Exception("You must have initialized log directory.")
         return f"{cls._log_dir}/agent.pt"
         
     @classmethod

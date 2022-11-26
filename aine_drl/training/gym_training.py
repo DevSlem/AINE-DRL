@@ -1,50 +1,60 @@
-from argparse import ArgumentTypeError
-from typing import List, Union, Optional
-
+from typing import List, Union, Optional, NamedTuple
 import gym.spaces as gym_space
 import gym
+import gym.vector
 from gym import Env
 from gym.vector import VectorEnv
-
 from aine_drl.agent.agent import Agent, BehaviorType
 from aine_drl.experience import Experience
-from aine_drl.util import logger, ConfigManager
+from aine_drl.util import logger
 import aine_drl.training.gym_action_communicator as gac
-
 import numpy as np
+
+class GymTrainingConfig(NamedTuple):
+    """
+    dd
+
+    Args:
+        total_global_time_steps (int): total global time steps to train
+        summary_freq (int): summary frequency
+        agent_save_freq (int | None, optional): agent save frequency. Defaults to `summary_freq` x 10
+        inference_freq (int | None, optional): inference frequency. Defaults to no inference.
+        inference_render (bool, optional): whether render the environment when inference mode. Defaults to no rendering.
+        auto_retrain (bool, optional): enable to retrain the agent. if you want to do, you must set custom `env_id`. Defaults to False.
+        seed (int | List[int] | None, optional): gym environment random seed. Defaults to None.
+    """
+    total_global_time_steps: int
+    summary_freq: int
+    agent_save_freq: Optional[int] = None
+    inference_freq: Optional[int] = None
+    inference_render: bool = False
+    auto_retrain: bool = False
+    seed: Union[int, List[int], None] = None
 
 class GymTraining:
     """
     Gym training class.
 
     Args:
+        training_env_id (str): training environment id
+        training_config (GymTrainingConfig): gym training configuration
         gym_env (Env | VectorEnv): gym environment
         gym_action_communicator (GymActionCommunicator | None, optional): action communicator between AINE-DRL and Gym. Defaults to auto set.
-        env_id (str | None, optional): custom environment id. Defaults to `gym_env` id.
-        seed (int | List[int] | None, optional): gym environment random seed. Defaults to None.
-        auto_retrain (bool, optional): enable to retrain the agent. if you want to do, you must set custom `env_id`. Defaults to False.
-        total_global_time_steps (int | None, optional): total global time steps to train. Defaults to None.
-        summary_freq (int | None, optional): summary frequency. Defaults to not summary.
-        agent_save_freq (int | None, optional): agent save frequency. Defaults to `summary_freq` x 10
-        inference_freq (int | None, optional): inference frequency. Defaults to not inference.
-        
     """
     def __init__(self,
+                 training_env_id: str,
+                 training_config: GymTrainingConfig,
                  gym_env: Union[Env, VectorEnv],
-                 gym_action_communicator: Optional[gac.GymActionCommunicator] = None,
-                 env_id: Optional[str] = None,
-                 seed: Union[int, List[int], None] = None,
-                 auto_retrain: bool = False,
-                 total_global_time_steps: Optional[int] = None,
-                 summary_freq: Optional[int] = None,
-                 agent_save_freq: Optional[int] = None,
-                 inference_freq: Optional[int] = None) -> None:
+                 gym_action_communicator: Optional[gac.GymActionCommunicator] = None) -> None:
         
-        if env_id is None and auto_retrain == True:
-            raise ValueError("You must set auto_retrain to False when env_id is None.")
+        assert training_config.total_global_time_steps >= 1
+        assert training_config.summary_freq >= 1
+        assert training_config.agent_save_freq is None or training_config.agent_save_freq >= 1
+        assert training_config.inference_freq is None or training_config.inference_freq >= 1
         
+        self.config = training_config
         self.gym_env = gym_env
-        
+                
         if isinstance(gym_env, VectorEnv):
             self.num_envs = gym_env.num_envs
             self.is_vector_env = True
@@ -52,33 +62,31 @@ class GymTraining:
             self.num_envs = 1
             self.is_vector_env = False
         else:
-            raise ArgumentTypeError(f"You've instantiated GymTraining with {type(self.gym_env)} which isn't gym environment. Reinstantiate it.")
+            raise TypeError(f"You've instantiated GymTraining with {type(self.gym_env)} which isn't gym environment. Reinstantiate it.")
         
-        gym_env.new_step_api = True
+        assert gym_env.new_step_api == True  # type: ignore
         
         if gym_action_communicator is None:
             self.gym_action_communicator = gac.GymActionCommunicator.make(self.gym_env)
         else:
             self.gym_action_communicator = gym_action_communicator
         
-        self.seed = seed
-        self.auto_retrain = auto_retrain
-        self.total_global_time_steps = total_global_time_steps
-        self.summary_freq = summary_freq
-        self.agent_save_freq = summary_freq * 10 if agent_save_freq is None else agent_save_freq
-        self.inference_freq = inference_freq
+        if self.config.agent_save_freq is None:
+            self.config = self.config._replace(agent_save_freq=self.config.summary_freq * 10)
         
         self._agent_loaded = False
+        self._logger_started = False
+        self.training_env_id = training_env_id if self.config.auto_retrain else logger.numbering_env_id(training_env_id)
+        
         self.inference_gym_env = None
         self.inference_gym_action_communicator = None
-        self.save_on = True
-        self._set_env_id(env_id)
         
         self.dtype = np.float32
         
     @staticmethod
-    def make(env_config: dict,
-             env_id: Optional[str] = None,
+    def make(training_env_id: str,
+             gym_config: dict,
+             num_envs: Optional[int] = None,
              gym_env: Union[Env, VectorEnv, None] = None,
              gym_action_communicator: Optional[gac.GymActionCommunicator] = None) -> "GymTraining":
         """
@@ -87,9 +95,9 @@ class GymTraining:
         Helps to make `GymTraining` instance.
 
         Args:
-            env_config (dict): environment configuration which includes `num_envs`, `Gym`
-            env_id (str | None, optional): custom environment id. Defaults to `gym_env` id.
-            gym_env (Env | VectorEnv | None, optional): gym environment. Defaults to making it from the config.
+            training_env_id (str): training environment id
+            gym_config (dict): gym environment configuration whose the main key `Gym` includes `env` or `training` 
+            gym_env (Env | VectorEnv | None, optional): gym environment. Defaults to making it from the configuration.
             gym_action_communicator (GymActionCommunicator | None, optional): action communicator between AINE-DRL and Gym. Defaults to auto set.
 
         Returns:
@@ -97,10 +105,9 @@ class GymTraining:
             
         ## Example
         
-        `env_config` dictionary format::
+        `training_env_config` dictionary format::
         
-            {'num_envs': 3,
-             'Gym': {'env': {'id': 'CartPole-v1'},
+            {'Gym': {'env': {'id': 'CartPole-v1'},
               'training': {'seed': 0,
                'auto_retrain': True,
                'total_global_time_steps': 200000,
@@ -108,57 +115,32 @@ class GymTraining:
                'agent_save_freq': None,
                'inference_freq': 10000,
                'inference_render': True}}
-        
-        `env_config` YAML format::
-        
-            num_envs: 3
-            Gym:
-              env:
-                id: "CartPole-v1"
-              training:
-                seed: 0
-                auto_retrain: false
-                total_global_time_steps: 200000
-                summary_freq: 1000
-                agent_save_freq: null
-                inference_freq: 10000
-                inference_render: true
         """
         
-        num_envs = env_config["num_envs"]
-        gym_config = env_config["Gym"]        
+        gym_config = gym_config["Gym"]
+        gym_env_config = None
         if gym_env is None:
+            if num_envs is None or num_envs < 1:
+                raise ValueError(f"If you want to make a gym environment using the configuration, you must set valid num_envs parameter, but you've set {num_envs}.")
+            
             gym_env_config = gym_config["env"]
             if num_envs > 1:
                 gym_env = gym.vector.make(num_envs=num_envs, new_step_api=True, **gym_env_config)
             else:
                 gym_env = gym.make(new_step_api=True, **gym_env_config)
                             
-        training_config = gym_config["training"]
-        
-        seed = training_config.get("seed", None)
-        auto_retrain = training_config.get("auto_retrain", False)
-        total_global_time_steps = training_config.get("total_global_time_steps", None)
-        summary_freq = training_config.get("summary_freq", None)
-        agent_save_freq = training_config.get("agent_save_freq", None)
-        inference_freq = training_config.get("inference_freq", None)
-        inference_render = training_config.get("inference_render", True)
+        training_config = GymTrainingConfig(**gym_config["training"])
         
         gym_training = GymTraining(
-            gym_env=gym_env,
-            gym_action_communicator=gym_action_communicator,
-            env_id=env_id,
-            seed=seed,
-            auto_retrain=auto_retrain,
-            total_global_time_steps=total_global_time_steps,
-            summary_freq=summary_freq,
-            agent_save_freq=agent_save_freq,
-            inference_freq=inference_freq
+            training_env_id,
+            training_config,
+            gym_env,
+            gym_action_communicator
         )
         
-        if inference_freq is not None:
-            render_mode = "human" if inference_render else None
-            inference_gym_env = gym.make(new_step_api=True, render_mode=render_mode, **gym_env_config)
+        if gym_env_config is not None and training_config.inference_freq is not None:
+            gym_env_config["render_mode"] = "human" if training_config.inference_render else None
+            inference_gym_env = gym.make(new_step_api=True, **gym_env_config)
             inference_gym_action_communicator = gac.GymActionCommunicator.make(inference_gym_env)
             gym_training.set_inference_gym_env(inference_gym_env, inference_gym_action_communicator)
         
@@ -174,22 +156,28 @@ class GymTraining:
             total_global_time_steps (int | None, optional): training total time steps. Defaults to internal setting.
         """
         if total_global_time_steps is None:
-            if self.total_global_time_steps is None:
+            if self.config.total_global_time_steps is None:
                 raise ValueError("You must set either Agent.total_global_time_steps or total_global_time_steps parameter.")
-            total_global_time_steps = self.total_global_time_steps
+            total_global_time_steps = self.config.total_global_time_steps
+        
+        if agent.clock.global_time_step >= total_global_time_steps:
+            logger.print(f"Since {self.training_env_id} already reached to the total global time steps, you can't train the agent.")
+            return
         
         try:
-            logger.start(self.env_id)
-            if self.auto_retrain:
-                self._load_agent(agent)
-            
+            logger.start(self.training_env_id)
+            self._logger_started = True
+            if self.config.auto_retrain:
+                self._try_load_agent(agent)
             self._agent_loaded = True
+            
             self._train(agent, total_global_time_steps)
         except KeyboardInterrupt:
             logger.print(f"Training interrupted at the time step {agent.clock.global_time_step}.")
         finally:
             self._save_agent(agent)
             logger.end()
+            self._logger_started = False
             
     def set_inference_gym_env(self, gym_env: Env, gym_action_communicator: gac.GymActionCommunicator):
         """Set manually the inference gym environment."""
@@ -205,12 +193,16 @@ class GymTraining:
         """
         assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
         
-        self._load_agent(agent)
+        if not self._logger_started:
+            logger.set_log_dir(self.training_env_id)
+        self._try_load_agent(agent)
+        
+        seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
         
         agent.behavior_type = BehaviorType.INFERENCE
         for _ in range(num_episodes):
             # (num_envs, *obs_shape) = (1, *obs_shape)
-            obs = self.inference_gym_env.reset(seed=self.seed).astype(self.dtype)[np.newaxis, ...]
+            obs = self.inference_gym_env.reset(seed=seed).astype(self.dtype)[np.newaxis, ...]
             terminated = False
             cumulative_reward = 0.0
             while not terminated:
@@ -227,21 +219,24 @@ class GymTraining:
         self.gym_env.close()
         if self.inference_gym_env is not None:
             self.inference_gym_env.close()
+            
+    @property
+    def observation_space(self) -> gym_space.Space:
+        return self.gym_env.single_observation_space if self.is_vector_env else self.gym_env.observation_space  # type: ignore
+    
+    @property
+    def action_space(self) -> gym_space.Space:
+        return self.gym_env.single_action_space if self.is_vector_env else self.gym_env.action_space  # type: ignore
         
-    def _train(self, agent: Agent, total_gloabl_time_steps: int):
+    def _train(self, agent: Agent, total_global_time_steps: int):
+        logger.print(f"\'{self.training_env_id}\' training start!")
         gym_env = self.gym_env
-        obs = gym_env.reset(seed=self.seed).astype(self.dtype)
+        obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)
         if not self.is_vector_env:
             # (num_envs, *obs_shape) = (1, *obs_shape)
             obs = obs[np.newaxis, ...]
         
-        if agent.clock.global_time_step >= total_gloabl_time_steps:
-            logger.print(f"Since {self.env_id} agent already reached to the total time steps, you can't train the agent.")
-            self.save_on = False
-            return
-        
-        logger.print("Training start!")
-        for _ in range(agent.clock.global_time_step, total_gloabl_time_steps, self.num_envs):
+        for _ in range(agent.clock.global_time_step, total_global_time_steps, self.num_envs):
             # take action and observe
             action = agent.select_action(obs)
             next_obs, reward, terminated, truncated, _ = self.gym_env.step(self.gym_action_communicator.to_gym_action(action))
@@ -253,39 +248,31 @@ class GymTraining:
             
             # update current observation
             if not self.is_vector_env and terminated:
-                obs = gym_env.reset(seed=self.seed).astype(self.dtype)[np.newaxis, ...]
+                obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
             else:
                 obs = exp.next_obs
                 
             # summuary check
-            if self.summary_freq is not None and agent.clock.check_global_time_step_freq(self.summary_freq):
+            if agent.clock.check_global_time_step_freq(self.config.summary_freq):
                 self._summary(agent)
                 
-            if agent.clock.check_global_time_step_freq(self.agent_save_freq):
+            if agent.clock.check_global_time_step_freq(self.config.agent_save_freq):  # type: ignore
                 self._save_agent(agent)
                 
             # inference check
-            if self.inference_freq is not None and agent.clock.check_global_time_step_freq(self.inference_freq):
+            if self.config.inference_freq is not None and agent.clock.check_global_time_step_freq(self.config.inference_freq):
                 self.inference(agent)
         
         logger.print("Training has been completed.")
             
-    def _set_env_id(self, env_id: Optional[str]):
-        """ set environment id. """
-        if env_id is None:
-            gym_env_id = self.gym_env.get_attr("spec")[0].id if self.is_vector_env else self.gym_env.spec.id
-            env_id = gym_env_id
-        self.env_id = env_id if self.auto_retrain else logger.numbering_env_id(env_id)
-            
     def _save_agent(self, agent: Agent):
-        if self.save_on:
-            try:
-                logger.save_agent(agent.state_dict)
-                logger.print(f"Saving the current agent is successfully completed: {logger.agent_save_dir()}")
-            except FileNotFoundError:
-                pass
+        try:
+            logger.save_agent(agent.state_dict)
+            logger.print(f"Saving the current agent is successfully completed: {logger.agent_save_dir()}")
+        except FileNotFoundError:
+            pass
             
-    def _load_agent(self, agent: Agent):
+    def _try_load_agent(self, agent: Agent):
         if not self._agent_loaded:
             try:
                 ckpt = logger.load_agent()

@@ -26,6 +26,8 @@ class Agent(ABC):
                  network: Network,
                  policy: Policy,
                  num_envs: int) -> None:
+        assert num_envs >= 1, "The number of environments must be greater than or euqal to 1."
+        
         self._clock = Clock(num_envs)
         if isinstance(network, IClockNeed):
             network.set_clock(self._clock)
