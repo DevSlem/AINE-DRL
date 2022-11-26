@@ -12,19 +12,19 @@ from torch.nn.utils.rnn import pad_sequence
 
 class RecurrentPPOConfig(NamedTuple):
     """
-    Recurrent PPO configuration.
+    Recurrent PPO configurations.
 
     Args:
-        training_freq (int): training frequency which is the number of time steps to gather experiences
-        epoch (int): number of using total experiences to update parameters
-        sequence_length (int): sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
-        num_sequences_per_step (int): number of sequences per train step, which are selected randomly
-        gamma (float, optional): discount factor. Defaults to 0.99.
-        lam (float, optional): regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
-        epsilon_clip (float, optional): clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
-        value_loss_coef (float, optional): value loss multiplier. Defaults to 0.5.
-        entropy_coef (float, optional): entropy multiplier. Defaults to 0.001.
-        grad_clip_max_norm (float | None, optional): gradient clipping maximum value. Defaults to no gradient clipping.
+        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
+        `epoch (int)`: number of using total experiences to update parameters at each training frequency
+        `sequence_length (int)`: sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
+        `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
+        `gamma (float, optional)`: discount factor. Defaults to 0.99.
+        `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
+        `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
+        `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
+        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
+        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
     """
     training_freq: int
     epoch: int
@@ -70,58 +70,6 @@ class RecurrentPPO(Agent):
         
         self.actor_average_loss = util.IncrementalAverage()
         self.critic_average_loss = util.IncrementalAverage()
-        
-    # @staticmethod
-    # def make(env_config: dict,
-    #          network: RecurrentActorCriticNetwork,
-    #          policy: Policy):
-    #     """
-    #     ## Summary
-        
-    #     Helps to make PPO agent.
-
-    #     Args:
-    #         env_config (dict): environment configuration which inlcudes `num_envs`, `PPO`
-    #         network (ActorCriticSharedNetwork): standard actor critic network
-    #         policy (Policy): policy
-
-    #     Returns:
-    #         PPO: `PPO` instance
-            
-    #     ## Example
-        
-    #     `env_config` dictionary format::
-        
-    #         {'num_envs': 3,
-    #          'PPO': {'training_freq': 16,
-    #           'epoch': 3,
-    #           'mini_batch_size': 8,
-    #           'gamma': 0.99,
-    #           'lam': 0.95,
-    #           'epsilon_clip': 0.2,
-    #           'value_loss_coef': 0.5,
-    #           'entropy_coef': 0.001,
-    #           'grad_clip_max_norm': 5.0}}}
-        
-            
-    #     `env_config` YAML Format::
-        
-    #         num_envs: 3
-    #         PPO:
-    #           training_freq: 16
-    #           epoch: 3
-    #           mini_batch_size: 8
-    #           gamma: 0.99
-    #           lam: 0.95
-    #           epsilon_clip: 0.2
-    #           value_loss_coef: 0.5
-    #           entropy_coef: 0.001
-    #           grad_clip_max_norm: 5.0
-    #     """
-    #     num_envs = env_config["num_envs"]
-    #     ppo_config = RecurrentPPOConfig(**env_config["RecurrentPPO"])
-    #     return RecurrentPPO(ppo_config, network, policy, num_envs)
-        
         
     def update(self, experience: Experience):
         super().update(experience)

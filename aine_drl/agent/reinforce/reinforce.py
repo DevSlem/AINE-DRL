@@ -7,16 +7,15 @@ from aine_drl.policy.policy import Policy
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
-import torch.nn.functional as F
 
 class REINFORCEConfig(NamedTuple):
     """
     REINFORCE configuration.
 
     Args:
-        gamma (float): discount factor. Defaults to 0.99.
-        entropy_coef (float, optional): entropy multiplier. Defaults to 0.001.
-        grad_clip_max_norm (float | None, optional): gradient clipping maximum value. Defaults to no gradient clipping.
+        `gamma (float, optional)`: discount factor. Defaults to 0.99.
+        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
+        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
     """
     gamma: float = 0.99
     entropy_coef: float = 0.001
