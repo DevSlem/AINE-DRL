@@ -58,7 +58,7 @@ Train agents in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki
 
 > Note that SAC is not implemented yet.
 
-Fig 1. [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) cumulative reward:
+Fig 1. [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) cumulative reward (blue: PPO):
 
 ![](images/bipedal-walker-v3-cumulative-reward.png)
 
@@ -81,9 +81,9 @@ $ tensorboard --logdir=experiments/bipedal_walker_v3
 
 ### CartPole-v1 with No Velocity
 
-Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, We remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. The experiment shows to require memory ability in POMDP setting.
+Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, we remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. This experiment shows to require memory ability in POMDP setting.
 
-Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward:
+Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward (purple: Recurrent PPO, sky: Naive PPO):
 
 ![](images/cartpole-v1-with-no-velocity-cumulative-reward.png)
 
