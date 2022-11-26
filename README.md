@@ -5,7 +5,7 @@ A project for the DRL framework. **AINE** means "Agent IN Environment".
 Table of Contents:
 
 * [Implementation](#implementation)
-* [Recent Experiment](#recent-experiment)
+* [Experiments](#experiments)
 * [Setup](#setup)
 * [Module](#module)
 
@@ -14,9 +14,9 @@ Table of Contents:
 AINE-DRL provides below things.
 
 * deep reinforcement learning agents
-* training with gym environment (vectorized environment also supported)
-* inference (rendering) with gym environment  
+* training with gym environment (vectorized environment also supported) and inference (rendering)
 * training interrupt and model save
+* YAML configuration format
 
 If you want to know how to use, see details in [sample codes](samples/) and [Wiki](https://github.com/DevSlem/AINE-DRL/wiki).
 
@@ -32,7 +32,9 @@ AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to
 |[Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO)|[ppo](aine_drl/agent/ppo/)|
 |[Double DQN](https://github.com/DevSlem/AINE-DRL/wiki/Double-DQN)|[dqn](aine_drl/agent/dqn/)|
 
-### TODO
+
+<details>
+<summary><h3>TODO</h3></summary>
 
 - [ ] Agent Factory
 - [ ] Unity ML-Agents Training
@@ -44,26 +46,62 @@ AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to
 - [ ] Intrinsic Curiosity Module (ICM)
 - [ ] Random Network Distillation (RND)
 
-## Recent Experiment
+</details>
 
-### BipedalWalker-v3 with PPO
+## Experiments
 
-Training experiment in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) which is continuous action problem.
+You can see our experiments (source code and result) in [experiments](experiments/). We show some recent experiments.
 
-Fig 1. [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) with PPO agent:
+### BipedalWalker-v3 with PPO and SAC
 
-![](images/bipedal-walker-v3-ppo-cumulative-reward-graph.png)
+Train agents in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) which is continuous action problem.
 
-* [configuration](config/bipedal_walker_v3_ppo.yaml)
-* [sample code](samples/bipedal_walker_v3_ppo.py)
+> Note that SAC is not implemented yet.
+
+Fig 1. [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) cumulative reward:
+
+![](images/bipedal-walker-v3-cumulative-reward.png)
+
+* [experiment](experiments/bipedal_walker_v3/)
+* [PPO configuration](config/experiments/bipedal_walker_v3_ppo.yaml)
 
 You can train it using the command:
 
 ```
-$ python samples/bipedal_walker_v3_ppo.py
+$ python experiments/bipedal_walker_v3/train.py
 ```
 
 If paging file error happens, see [Paging File Error](#paging-file-error).
+
+You can see graphical experiment results using the command:
+
+```
+$ tensorboard --logdir=experiments/bipedal_walker_v3
+```
+
+### CartPole-v1 with No Velocity
+
+Compare Recurrent PPO (using LSTM) and Naive PPO in [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, We remove "cart velocity" and "pole velocity at tip" from the observation space. The experiment shows to require memory ability in POMDP setting.
+
+Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward:
+
+![](/assets/images/cartpole-v1-with-no-velocity-cumulative-reward.png)
+
+* [experiment](experiments/cartpole_v1_no_velocity/)
+* [Recurrent PPO configuration](config/experiments/cartpole_v1_no_velocity_recurrent_ppo.yaml)
+* [Naive PPO configuration](config/experiments/cartpole_v1_no_velocity_ppo.yaml)
+
+You can train it using the command:
+
+```
+$ python experiments/cartpole_v1_no_velocity/train.py
+```
+
+You can see graphical experiment results using the command:
+
+```
+$ tensorboard --logdir=experiments/cartpole_v1_no_velocity
+```
 
 ## Setup
 
@@ -103,13 +141,13 @@ $ python samples/cartpole_v1_ppo.py
 Then, you can see the training information in the shell:
 
 ```
-[AINE-DRL] Training start!
-[AINE-DRL] training time: 1.2, global time step: 1002, cumulative reward: 16.6
-[AINE-DRL] training time: 2.5, global time step: 2001, cumulative reward: 38.3
-[AINE-DRL] training time: 3.7, global time step: 3000, cumulative reward: 45.8
+[AINE-DRL] 'CartPole-v1_PPO' training start!
+[AINE-DRL] training time: 1.0, global time step: 1002, cumulative reward: 16.6
+[AINE-DRL] training time: 2.0, global time step: 2001, cumulative reward: 38.3
+[AINE-DRL] training time: 3.1, global time step: 3000, cumulative reward: 45.8
 ```
 
-The graphical result file (Tensorboard) is generated in `results` directory. You can interrupt training by `ctrl + c`. You can also retrain at the interrupted time step.
+The graphical result file (Tensorboard) is generated in `results` directory. You can interrupt training by `ctrl + c` and you can also retrain at the interrupted time step.
 
 If you want to see the graphical result, input the command:
 
@@ -129,7 +167,7 @@ Fig 2. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO ag
 
 ![](images/cartpole-v1-ppo-cumulative-reward-graph.png) 
 
-* [configuration](config/cartpole_v1_ppo.yaml)
+* [configuration](config/samples/cartpole_v1_ppo.yaml)
 * [sample code](samples/cartpole_v1_ppo.py)
 
 ### Paging File Error
@@ -154,7 +192,17 @@ Reference: [cobryan05/fixNvPe.py (Github)](https://gist.github.com/cobryan05/7d1
   * [training](aine_drl/training/)
   * [trajectory](aine_drl/trajectory/)
   * [util](aine_drl/util/)
+  * [aine_config](aine_drl/aine_config.py)*
   * [experience](aine_drl/experience.py)*
   * [network](aine_drl/network.py)*
 
-> Note that `*` indicates you can directly access API in the module by `aine_drl`.
+> Note that `*` indicates you can directly access API in the module using `aine_drl`.
+
+API access example:
+
+```python
+import aine_drl
+
+# aine_drl.aine_config.AINEConfig but you can directly access using aine_drl.AINEConfig
+aine_drl.AINEConfig("config/samples/cartpole_v1_ppo.yaml")
+```
