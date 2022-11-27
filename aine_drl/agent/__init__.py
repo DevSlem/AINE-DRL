@@ -1,4 +1,4 @@
-from .agent import *
+from .agent import BehaviorType, Agent
 # DRL Agents
 from .dqn import *
 from .reinforce import *
