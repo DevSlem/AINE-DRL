@@ -57,7 +57,7 @@ class DiscreteActionLayer(nn.Module):
             for i in range(len(discrete_pdparams)):
                 discrete_pdparams[i] = F.softmax(discrete_pdparams[i], dim=1)
         
-        return PolicyDistributionParameter.create(discrete_pdparams=discrete_pdparams)
+        return PolicyDistributionParameter.new(discrete_pdparams=discrete_pdparams)
     
 class GaussianContinuousActionLayer(nn.Module):
     """
@@ -98,7 +98,7 @@ class GaussianContinuousActionLayer(nn.Module):
         torch.abs_(out[..., 1])
         out = torch.reshape(out, (-1, self.num_continuous_actions * 2))
         continuous_pdparams = list(torch.split(out, 2, dim=1))
-        return PolicyDistributionParameter.create(continuous_pdparams=continuous_pdparams)
+        return PolicyDistributionParameter.new(continuous_pdparams=continuous_pdparams)
     
 class Network(nn.Module, ABC):
     """

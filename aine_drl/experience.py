@@ -54,8 +54,11 @@ class Action(NamedTuple):
         return ActionTensor(torch.from_numpy(self.discrete_action).to(device=device), torch.from_numpy(self.continuous_action).to(device=device))
     
     @staticmethod
-    def create(discrete_action: Optional[np.ndarray],
-               continuous_action: Optional[np.ndarray]) -> "Action":
+    def new(discrete_action: Optional[np.ndarray] = None,
+               continuous_action: Optional[np.ndarray] = None) -> "Action":
+        if discrete_action is None and continuous_action is None:
+            raise ValueError("You must input at least one valid argument, but both of them are None.")
+        
         if discrete_action is None:
             discrete_action = np.empty(shape=(continuous_action.shape[0], 0))
         if continuous_action is None:
@@ -131,11 +134,14 @@ class ActionTensor(NamedTuple):
         return ActionTensor(discrete_action, continuous_action)
     
     @staticmethod
-    def create(discrete_action: Optional[torch.Tensor],
-               continuous_action: Optional[torch.Tensor]) -> "ActionTensor":
+    def new(discrete_action: Optional[torch.Tensor] = None,
+               continuous_action: Optional[torch.Tensor] = None) -> "ActionTensor":
         """
         Helps to instantiate `ActionTensor`. If you don't use either discrete or continuous action, set the parameter to `None`.
         """
+        if discrete_action is None and continuous_action is None:
+            raise ValueError("You must input at least one valid argument, but both of them are None.")
+        
         if discrete_action is None:
             discrete_action = torch.empty(size=(continuous_action.shape[0], 0), device=continuous_action.device)
         if continuous_action is None:
