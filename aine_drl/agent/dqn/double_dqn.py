@@ -1,9 +1,9 @@
-from typing import NamedTuple, Optional, Tuple, Union, Dict
+from typing import NamedTuple, Optional, Tuple, Dict
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import QValueNetwork
 from aine_drl.agent.dqn.dqn_trajectory import DoubleDQNExperienceBatch, DoubleDQNTrajectory
-from aine_drl.policy.policy import Policy, EpsilonGreedyPolicy, BoltzmannPolicy
+from aine_drl.policy.policy import ActionType, Policy
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
@@ -41,15 +41,17 @@ class DoubleDQN(Agent):
     Args:
         config (DoubleDQNConfig): Double DQN configuration
         network (QValueNetwork): Q value network
-        policy (Policy | EpsilonGreedyPolicy | BoltzmannPolicy): policy
+        policy (Policy): discrete action policy
     """
     def __init__(self,
                  config: DoubleDQNConfig,
                  network: QValueNetwork,
-                 policy: Union[Policy, EpsilonGreedyPolicy, BoltzmannPolicy],
+                 policy: Policy,
                  num_envs: int) -> None:
         if not isinstance(network, QValueNetwork):
-            raise TypeError("The network type must be QValueNetwork.")
+            raise TypeError(f"The network type must be QValueNetwork.")
+        if policy.action_type is not ActionType.DISCRETE:
+            raise TypeError(f"The policy must be discrete action policy, but \"{type(policy).__name__}\" is \"{policy.action_type}\".")
         
         super().__init__(network, policy, num_envs)
         
