@@ -82,8 +82,8 @@ class DoubleDQNTrajectory:
             self._get_batch_tensor(self.obs, sample_idx, device),
             action,
             torch.from_numpy(self._sample_next_obs(sample_idx)).to(device=device),
-            self._get_batch_tensor(self.reward, sample_idx, device).unsqueeze_(-1),
-            self._get_batch_tensor(self.terminated, sample_idx, device).unsqueeze_(-1),
+            self._get_batch_tensor(self.reward, sample_idx, device),
+            self._get_batch_tensor(self.terminated, sample_idx, device),
             n_steps=self.batch_size
         )
         return experience_batch

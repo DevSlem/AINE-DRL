@@ -47,12 +47,7 @@ class DoubleDQN(Agent):
                  config: DoubleDQNConfig,
                  network: QValueNetwork,
                  policy: Union[Policy, EpsilonGreedyPolicy, BoltzmannPolicy],
-                 num_envs: int) -> None:     
-        # .\aine_drl\agent\dqn\double_dqn.py:174: 
-        # UserWarning: Using a target size (torch.Size([128, 128, 1])) that is different to the input size (torch.Size([128, 1])). 
-        # This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
-        # td_loss += F.mse_loss(q_value, q_target_value)
-        raise NotImplementedError("Bug detected")
+                 num_envs: int) -> None:
         if not isinstance(network, QValueNetwork):
             raise TypeError("The network type must be QValueNetwork.")
         
@@ -77,55 +72,6 @@ class DoubleDQN(Agent):
             self.update_target_network = self._replace_net
             
         self.average_td_loss = util.IncrementalAverage()
-        
-    @staticmethod
-    def make(env_config: dict,
-             network: QValueNetwork,
-             policy: Union[Policy, EpsilonGreedyPolicy, BoltzmannPolicy]):
-        """
-        ## Summary
-        
-        Helps to make Double DQN agent.
-
-        Args:
-            env_config (dict): environment configuration which inlcudes `num_envs`, `DoubleDQN`
-            network (QValueNetwork): Q value network
-            policy (Policy | EpsilonGreedyPolicy | BoltzmannPolicy): policy, generally used epsilon-greedy, boltzmann policy
-
-        Returns:
-            DoubleDQN: `DoubleDQN` instance
-            
-        ## Example
-        
-        `env_config` dictionary format::
-        
-            {'num_envs': 3,
-             'DoubleDQN': {'training_freq': 16,
-              'batch_size': 128,
-              'capacity': 1000,
-              'epoch': 3,
-              'gamma': 0.99,
-              'replace_freq': 12,
-              'polyak_ratio': None,
-              'grad_clip_max_norm': 5.0}}}
-        
-            
-        `env_config` YAML Format::
-        
-            num_envs: 3
-            DoubleDQN:
-              training_freq: 16
-              batch_size: 128
-              capacity: 1000
-              epoch: 3
-              gamma: 0.99
-              replace_freq: 12
-              polyak_ratio: null
-              grad_clip_max_norm: 5.0
-        """
-        num_envs = env_config["num_envs"]
-        double_dqn_config = DoubleDQNConfig(**env_config["DoubleDQN"])
-        return DoubleDQN(double_dqn_config, network, policy, num_envs)
         
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         # feed forward

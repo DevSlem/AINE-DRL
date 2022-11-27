@@ -4,6 +4,7 @@ sys.path.append(".")
 from typing import Optional
 import aine_drl
 import aine_drl.util as util
+from aine_drl.drl_util import LinearDecay
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     network = CartPoleQValueNet(obs_shape, action_count).to(device=device)
     
     # create policy for discrete action type
-    policy = aine_drl.CategoricalPolicy()
+    policy = aine_drl.EpsilonGreedyPolicy(LinearDecay(0.2, 0.01, 0, int(gym_training.config.summary_freq * 0.8)))
     
     # make Double DQN agent
     double_dqn = aine_config.make_agent(network, policy)
