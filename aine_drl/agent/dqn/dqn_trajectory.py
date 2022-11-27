@@ -59,7 +59,7 @@ class DoubleDQNTrajectory:
         
         discrete_action = np.split(experience.action.discrete_action, num_envs, axis=0)
         continuous_action = np.split(experience.action.continuous_action, num_envs, axis=0)
-        action = [Action.create(d, c) for d, c in zip(discrete_action, continuous_action)]
+        action = [Action.new(d, c) for d, c in zip(discrete_action, continuous_action)]
         
         for i in range(num_envs):
             self._recent_idx = (self._recent_idx + 1) % self.capacity

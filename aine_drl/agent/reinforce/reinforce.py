@@ -48,48 +48,7 @@ class REINFORCE(Agent):
         self.entropy = None
         
         self.policy_average_loss = util.IncrementalAverage()
-        
-    @staticmethod
-    def make(env_config: dict,
-             network: PolicyGradientNetwork,
-             policy: Policy):
-        """
-        ## Summary
-        
-        Helps to make REINFORCE agent. `num_envs` field must be 1.
-
-        Args:
-            env_config (dict): environment configuration which inlcudes `num_envs`, `REINFORCE`
-            network (PolicyGradientNetwork): standard policy gradient network
-            policy (Policy): policy
-
-        Returns:
-            REINFORCE: `REINFORCE` instance
-            
-        ## Example
-        
-        `env_config` dictionary format::
-        
-            {'num_envs': 1,
-             'REINFORCE': {'gamma': 0.99,
-              'entropy_coef': 0.001,
-              'grad_clip_max_norm': 5.0}}}
-        
-            
-        `env_config` YAML Format::
-        
-            num_envs: 1
-            REINFORCE:
-              gamma: 0.99
-              entropy_coef: 0.001
-              grad_clip_max_norm: 5.0
-        """
-        num_envs = env_config["num_envs"]
-        assert num_envs == 1
-        reinforce_config = REINFORCEConfig(**env_config["REINFORCE"])
-        return REINFORCE(reinforce_config, network, policy)
-        
-        
+    
     def update(self, experience: Experience):
         super().update(experience)
         

@@ -58,53 +58,7 @@ class A2C(Agent):
         self.entropy = None
         
         self.actor_average_loss = util.IncrementalAverage()
-        self.critic_average_loss = util.IncrementalAverage()
-        
-    @staticmethod
-    def make(env_config: dict,
-             network: ActorCriticSharedNetwork,
-             policy: Policy):
-        """
-        ## Summary
-        
-        Helps to make A2C agent.
-
-        Args:
-            env_config (dict): environment configuration which inlcudes `num_envs`, `A2C`
-            network (ActorCriticSharedNetwork): standard actor critic network
-            policy (Policy): policy
-
-        Returns:
-            A2C: `A2C` instance
-            
-        ## Example
-        
-        `env_config` dictionary format::
-        
-            {'num_envs': 3,
-             'A2C': {'training_freq': 16,
-              'gamma': 0.99,
-              'lam': 0.95,
-              'value_loss_coef': 0.5,
-              'entropy_coef': 0.001,
-              'grad_clip_max_norm': 5.0}}}
-        
-            
-        `env_config` YAML Format::
-        
-            num_envs: 3
-            A2C:
-              training_freq: 16
-              gamma: 0.99
-              lam: 0.95
-              value_loss_coef: 0.5
-              entropy_coef: 0.001
-              grad_clip_max_norm: 5.0
-        """
-        num_envs = env_config["num_envs"]
-        a2c_config = A2CConfig(**env_config["A2C"])
-        return A2C(a2c_config, network, policy, num_envs)
-        
+        self.critic_average_loss = util.IncrementalAverage()    
         
     def update(self, experience: Experience):
         super().update(experience)

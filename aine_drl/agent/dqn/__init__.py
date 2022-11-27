@@ -1,1 +1,1 @@
-from .double_dqn import *
+from .double_dqn import DoubleDQNConfig, DoubleDQN

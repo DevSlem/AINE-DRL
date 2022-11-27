@@ -35,7 +35,7 @@ class PolicyDistributionParameter(NamedTuple):
         return self.num_discrete_branches + self.num_continuous_branches
     
     @staticmethod
-    def create(discrete_pdparams: Optional[List[torch.Tensor]] = None,
+    def new(discrete_pdparams: Optional[List[torch.Tensor]] = None,
                continuous_pdparams: Optional[List[torch.Tensor]] = None) -> "PolicyDistributionParameter":
         if discrete_pdparams is None:
             discrete_pdparams = []
@@ -84,7 +84,7 @@ class CategoricalDistribution(PolicyDistribution):
         for dist in self.distributions:
             sampled_discrete_action.append(dist.sample())
         sampled_discrete_action = torch.stack(sampled_discrete_action, dim=1)
-        return ActionTensor.create(sampled_discrete_action, None)
+        return ActionTensor.new(discrete_action=sampled_discrete_action)
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         action_log_prob = []
@@ -113,7 +113,7 @@ class GaussianDistribution(PolicyDistribution):
         for dist in self.distributions:
             sampled_continuous_action.append(dist.sample())
         sampled_continuous_action = torch.stack(sampled_continuous_action, dim=1)
-        return ActionTensor.create(None, sampled_continuous_action)
+        return ActionTensor.new(continuous_action=sampled_continuous_action)
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         action_log_prob = []
@@ -184,5 +184,5 @@ class EpsilonGreedyDistribution(CategoricalDistribution):
             epsilon_greedy_prob.scatter_(1, greedy_action, greedy_action_prob)
             epsilon_greedy_probs.append(epsilon_greedy_prob)
             
-        return PolicyDistributionParameter.create(discrete_pdparams=epsilon_greedy_probs)
+        return PolicyDistributionParameter.new(discrete_pdparams=epsilon_greedy_probs)
         
