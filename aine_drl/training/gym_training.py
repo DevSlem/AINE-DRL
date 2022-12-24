@@ -9,6 +9,7 @@ from aine_drl.experience import Experience
 from aine_drl.util import logger
 import aine_drl.training.gym_action_communicator as gac
 import numpy as np
+import torch
 
 class GymTrainingConfig(NamedTuple):
     """
@@ -20,7 +21,7 @@ class GymTrainingConfig(NamedTuple):
         agent_save_freq (int | None, optional): agent save frequency. Defaults to `summary_freq` x 10
         inference_freq (int | None, optional): inference frequency. Defaults to no inference.
         inference_render (bool, optional): whether render the environment when inference mode. Defaults to no rendering.
-        auto_retrain (bool, optional): enable to retrain the agent. if you want to do, you must set custom `env_id`. Defaults to False.
+        generate_new_training_result (bool, optional): whether or not it generates new training result files. Defaults to False.
         seed (int | List[int] | None, optional): gym environment random seed. Defaults to None.
     """
     total_global_time_steps: int
@@ -28,7 +29,7 @@ class GymTrainingConfig(NamedTuple):
     agent_save_freq: Optional[int] = None
     inference_freq: Optional[int] = None
     inference_render: bool = False
-    auto_retrain: bool = False
+    generate_new_training_result: bool = False
     seed: Union[int, List[int], None] = None
 
 class GymTraining:
@@ -76,7 +77,7 @@ class GymTraining:
         
         self._agent_loaded = False
         self._logger_started = False
-        self.training_env_id = training_env_id if self.config.auto_retrain else logger.numbering_env_id(training_env_id)
+        self.training_env_id = training_env_id if not self.config.generate_new_training_result else logger.numbering_env_id(training_env_id)
         
         self.inference_gym_env = None
         self.inference_gym_action_communicator = None
@@ -138,7 +139,7 @@ class GymTraining:
             gym_action_communicator
         )
         
-        if gym_env_config is not None and training_config.inference_freq is not None:
+        if gym_env_config is not None:
             gym_env_config["render_mode"] = "human" if training_config.inference_render else None
             inference_gym_env = gym.make(new_step_api=True, **gym_env_config)
             inference_gym_action_communicator = gac.GymActionCommunicator.make(inference_gym_env)
@@ -167,7 +168,7 @@ class GymTraining:
         try:
             logger.start(self.training_env_id)
             self._logger_started = True
-            if self.config.auto_retrain:
+            if not self.config.generate_new_training_result:
                 self._try_load_agent(agent)
             self._agent_loaded = True
             
@@ -184,34 +185,54 @@ class GymTraining:
         self.inference_gym_env = gym_env
         self.inference_gym_action_communicator = gym_action_communicator
             
-    def inference(self, agent: Agent, num_episodes: int = 1):
+    def inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
         """
         Inference the environment.
 
         Args:
+            agent (Agent): DRL agent to inference
             num_episodes (int, optional): the number of inference episodes. Defaults to 1.
+            agent_save_file_dir (str, optional): set the agent save file directory when you want to load manually one. Defaults to auto loading.
         """
+        try:            
+            if agent_save_file_dir is None:
+                logger.print(f"\'{self.training_env_id}\' inference start!")
+            else:
+                logger.print(f"\'{agent_save_file_dir}\' inference start!")
+            self._inference(agent, num_episodes, agent_save_file_dir)
+        except KeyboardInterrupt:
+            logger.print(f"Inference interrupted.")
+        
+    def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
         assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
         
         if not self._logger_started:
             logger.set_log_dir(self.training_env_id)
-        self._try_load_agent(agent)
+        self._try_load_agent(agent, agent_save_file_dir=agent_save_file_dir)
         
         seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
         
         agent.behavior_type = BehaviorType.INFERENCE
-        for _ in range(num_episodes):
+        
+        for episode in range(num_episodes):
             # (num_envs, *obs_shape) = (1, *obs_shape)
             obs = self.inference_gym_env.reset(seed=seed).astype(self.dtype)[np.newaxis, ...]
             terminated = False
             cumulative_reward = 0.0
             while not terminated:
+                # take action and observe
                 action = agent.select_action(obs)
                 next_obs, reward, teraminted, truncated, _ = self.inference_gym_env.step(self.inference_gym_action_communicator.to_gym_action(action))
                 terminated = teraminted | truncated
-                obs = next_obs.astype(self.dtype)[np.newaxis, ...]
+                
+                # cumulate the reward
                 cumulative_reward += reward
-            logger.print(f"inference mode - global time step {agent.clock.global_time_step}, cumulative reward: {cumulative_reward}")
+                
+                # inference the agent
+                exp = self._make_experience(obs, action, next_obs, reward, terminated, is_vector_env=False)
+                agent.inference(exp)
+                obs = exp.next_obs
+            logger.print(f"inference mode - episode: {episode}, cumulative reward: {cumulative_reward}")
             
         agent.behavior_type = BehaviorType.TRAIN
         
@@ -243,7 +264,7 @@ class GymTraining:
             terminated = terminated | truncated
             
             # update the agent
-            exp = self._make_experience(obs, action, next_obs, reward, terminated)
+            exp = self._make_experience(obs, action, next_obs, reward, terminated, self.is_vector_env)
             agent.update(exp)
             
             # update current observation
@@ -261,7 +282,7 @@ class GymTraining:
                 
             # inference check
             if self.config.inference_freq is not None and agent.clock.check_global_time_step_freq(self.config.inference_freq):
-                self.inference(agent)
+                self._inference(agent)
         
         logger.print("Training has been completed.")
             
@@ -272,7 +293,15 @@ class GymTraining:
         except FileNotFoundError:
             pass
             
-    def _try_load_agent(self, agent: Agent):
+    def _try_load_agent(self, agent: Agent, agent_save_file_dir: Optional[str] = None):
+        if agent_save_file_dir is not None:
+            try:
+                ckpt = torch.load(agent_save_file_dir)
+                agent.load_state_dict(ckpt)
+            except FileNotFoundError as ex:
+                raise FileNotFoundError(f"The agent save file directory is invalid: {agent_save_file_dir}") from ex
+            return
+        
         if not self._agent_loaded:
             try:
                 ckpt = logger.load_agent()
@@ -295,8 +324,8 @@ class GymTraining:
         for key, value in log_data.items():
             logger.log(key, value[0], value[1])
                 
-    def _make_experience(self, obs, action, next_obs, reward, terminated) -> Experience:
-        if self.is_vector_env:
+    def _make_experience(self, obs, action, next_obs, reward, terminated, is_vector_env: bool) -> Experience:
+        if is_vector_env:
             exp = Experience(
                 obs.astype(np.float32),
                 action,
