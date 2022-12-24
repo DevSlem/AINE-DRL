@@ -89,6 +89,12 @@ $ tensorboard --logdir=experiments/bipedal_walker_v3
 
 Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, we remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. This experiment shows to require memory ability in POMDP setting.
 
+Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference rendering (cumulative reward - Recurrent PPO: 500, Naive PPO: 28):
+
+|Recurrent PPO|Naive PPO|
+|:---:|:---:|
+|![](images/cartpole-v1-with-no-velocity-inference-recurrent-ppo.webp)|![](images/cartpole-v1-with-no-velocity-inference-naive-ppo.webp)|
+
 Fig 3. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward (purple: Recurrent PPO, sky: Naive PPO):
 
 ![](images/cartpole-v1-with-no-velocity-cumulative-reward.png)
@@ -101,6 +107,12 @@ You can train it using the command:
 
 ```
 $ python experiments/cartpole_v1_no_velocity/train.py
+```
+
+You can inference it using the command:
+
+```
+$ python experiments/cartpole_v1_no_velocity/train.py -m=inference
 ```
 
 You can see graphical experiment results using the command:
