@@ -80,6 +80,15 @@ class Agent(ABC):
         assert experience.num_envs == self.num_envs
         
         self._update_info(experience)
+      
+    def inference(self, experience: Experience):
+        """
+        Inference the agent.
+
+        Args:
+            experience (Experience): experience
+        """
+        pass
             
     def _update_info(self, experience: Experience):
         self.clock.tick_gloabl_time_step()

@@ -1,6 +1,7 @@
 import sys
 sys.path.append(".")
 
+import argparse
 from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
@@ -11,9 +12,33 @@ import gym.spaces
 import gym.vector
 import aine_drl
 import aine_drl.util as util
+import aine_drl.training.gym_action_communicator as gac
 
-class CartPoleNoVelEnv(gym.vector.VectorEnv):
-    """CartPole with no velocity."""
+class CartPoleNoVelEnv(gym.Env):
+    """CartPole with no velocity env."""
+    def __init__(self) -> None:        
+        super().__init__()
+        
+        self.gym_env = gym.make("CartPole-v1", new_step_api=True, render_mode="human")
+        self.obs_mask = np.array([1, 0, 1, 0], dtype=np.bool8)
+        
+    def masked_obs(self, full_obs):
+        return full_obs[self.obs_mask]
+
+    def reset(self, *, seed: Optional[int] = None, return_info: bool = False, options: Optional[dict] = None):
+        full_obs = self.gym_env.reset(seed=seed, return_info=return_info, options=options)
+        return self.masked_obs(full_obs)
+
+    def step(self, action):
+        full_obs, reward, terminated, truncated, info = self.gym_env.step(action)
+        return self.masked_obs(full_obs), reward, terminated, truncated, info      
+    
+    @property
+    def action_space(self):
+        return self.gym_env.action_space
+    
+class CartPoleNoVelVectorEnv(gym.vector.VectorEnv):
+    """CartPole with no velocity vector env."""
 
     def __init__(self, num_envs: int):
         self.gym_env = gym.vector.make("CartPole-v1", num_envs=num_envs, new_step_api=True)
@@ -131,12 +156,12 @@ class CartPoleNoVelActorCriticNet(aine_drl.ActorCriticSharedNetwork):
         self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
 
 
-def train_recurrent_ppo():
+def run_recurrent_ppo(inference: bool = False):
     # AINE-DRL configuration manager
     aine_config = aine_drl.AINEConfig("config/experiments/cartpole_v1_no_velocity_recurrent_ppo.yaml")
     
     # make gym training instance
-    gym_env = CartPoleNoVelEnv(aine_config.num_envs)
+    gym_env = CartPoleNoVelVectorEnv(aine_config.num_envs)
     gym_training = aine_config.make_gym_training(gym_env)
     
     # create recurrent actor-critic shared network
@@ -150,18 +175,22 @@ def train_recurrent_ppo():
     # make Recurrent PPO agent
     recurrent_ppo = aine_config.make_agent(network, policy)
     
-    # training start!
-    gym_training.train(recurrent_ppo)
+    if not inference:
+        gym_training.train(recurrent_ppo)
+    else:
+        inference_gym_env = CartPoleNoVelEnv()
+        gym_training.set_inference_gym_env(inference_gym_env, gac.GymActionCommunicator.make(inference_gym_env))
+        gym_training.inference(recurrent_ppo, num_episodes=10, agent_save_file_dir="experiments/cartpole_v1_no_velocity/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt")
     
     # training close safely
     gym_training.close()
     
-def train_naive_ppo():
+def run_naive_ppo(inference: bool = False):
     # AINE-DRL configuration manager
     aine_config = aine_drl.AINEConfig("config/experiments/cartpole_v1_no_velocity_ppo.yaml")
     
     # make gym training instance
-    gym_env = CartPoleNoVelEnv(aine_config.num_envs)
+    gym_env = CartPoleNoVelVectorEnv(aine_config.num_envs)
     gym_training = aine_config.make_gym_training(gym_env)
     
     # create actor-critic shared network
@@ -175,15 +204,29 @@ def train_naive_ppo():
     # make Naive PPO agent
     ppo = aine_config.make_agent(network, policy)
     
-    # training start!
-    gym_training.train(ppo)
+    if not inference:
+        gym_training.train(ppo)
+    else:
+        inference_gym_env = CartPoleNoVelEnv()
+        gym_training.set_inference_gym_env(inference_gym_env, gac.GymActionCommunicator.make(inference_gym_env))
+        gym_training.inference(ppo, num_episodes=10, agent_save_file_dir="experiments/cartpole_v1_no_velocity/CartPole-v1-NoVelocity_Naive_PPO/agent.pt")
     
     # training close safely
     gym_training.close()
     
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--mode", default="training")
+    mode = parser.parse_args().mode
+    
     seed = 0
     util.seed(seed)
     
-    train_recurrent_ppo()
-    train_naive_ppo()
+    if mode == "training":
+        run_recurrent_ppo()
+        run_naive_ppo()
+    elif mode == "inference": 
+        # run_recurrent_ppo(inference=True)
+        run_naive_ppo(inference=True)
+    else:
+        raise ValueError(f"\'training\', \'inference\' are only supported modes but you've input {mode}.")

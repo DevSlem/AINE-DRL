@@ -58,9 +58,9 @@ Train agents in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki
 
 > Note that SAC is not implemented yet.
 
-Fig 1. [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) cumulative reward (blue: PPO):
+Fig 1. BipedalWalker-v3 inference rendering (PPO):
 
-![](images/bipedal-walker-v3-cumulative-reward.png)
+![](images/bipedal-walker-v3-inference.webp)
 
 * [experiment](experiments/bipedal_walker_v3/)
 * [PPO configuration](config/experiments/bipedal_walker_v3_ppo.yaml)
@@ -73,6 +73,12 @@ $ python experiments/bipedal_walker_v3/train.py
 
 If paging file error happens, see [Paging File Error](#paging-file-error).
 
+You can inference it using the command:
+
+```
+$ python experiments/bipedal_walker_v3/train.py -m=inference
+```
+
 You can see graphical experiment results using the command:
 
 ```
@@ -83,7 +89,13 @@ $ tensorboard --logdir=experiments/bipedal_walker_v3
 
 Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, we remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. This experiment shows to require memory ability in POMDP setting.
 
-Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward (purple: Recurrent PPO, sky: Naive PPO):
+Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference rendering (cumulative reward - Recurrent PPO: 500, Naive PPO: 28):
+
+|Recurrent PPO|Naive PPO|
+|:---:|:---:|
+|![](images/cartpole-v1-with-no-velocity-inference-recurrent-ppo.webp)|![](images/cartpole-v1-with-no-velocity-inference-naive-ppo.webp)|
+
+Fig 3. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward (purple: Recurrent PPO, sky: Naive PPO):
 
 ![](images/cartpole-v1-with-no-velocity-cumulative-reward.png)
 
@@ -95,6 +107,12 @@ You can train it using the command:
 
 ```
 $ python experiments/cartpole_v1_no_velocity/train.py
+```
+
+You can inference it using the command:
+
+```
+$ python experiments/cartpole_v1_no_velocity/train.py -m=inference
 ```
 
 You can see graphical experiment results using the command:
@@ -163,7 +181,7 @@ $ tensorboard --logdir=results/<sub_directory>
 
 then, you can open the TensorBoard like below it.
 
-Fig 3. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO:
+Fig 4. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO:
 
 ![](images/cartpole-v1-ppo-cumulative-reward-graph.png) 
 

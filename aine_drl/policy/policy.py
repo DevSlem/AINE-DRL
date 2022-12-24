@@ -2,11 +2,22 @@ from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Union
 import aine_drl.policy.policy_distribution as pd
 from aine_drl.drl_util import Decay, NoDecay, Clock, ILogable
+from enum import Flag, auto
+
+class ActionType(Flag):
+    DISCRETE = auto()
+    CONTINUOUS = auto()
+    BOTH = DISCRETE | CONTINUOUS
 
 class Policy(ABC):
     """
     Policy abstract class. It returns policy distribution.
     """
+    
+    @property
+    @abstractmethod
+    def action_type(self) -> ActionType:
+        raise NotImplementedError
     
     @abstractmethod
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
@@ -31,6 +42,10 @@ class CategoricalPolicy(Policy):
     def __init__(self, is_logits: bool = True) -> None:
         self.is_logits = is_logits
         
+    @property
+    def action_type(self) -> ActionType:
+        return ActionType.DISCRETE
+        
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
         return pd.CategoricalDistribution(pdparam, self.is_logits)
     
@@ -38,6 +53,11 @@ class GaussianPolicy(Policy):
     """
     Gaussian policy for the continuous action type.
     """
+    
+    @property
+    def action_type(self) -> ActionType:
+        return ActionType.CONTINUOUS
+    
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
         return pd.GaussianDistribution(pdparam)
 
@@ -50,6 +70,10 @@ class GeneralPolicy(Policy):
     """
     def __init__(self, is_logits: bool = True) -> None:
         self.is_logits = is_logits
+    
+    @property
+    def action_type(self) -> ActionType:
+        return ActionType.BOTH
     
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
         return pd.GeneralPolicyDistribution(pdparam, self.is_logits)
@@ -67,6 +91,10 @@ class EpsilonGreedyPolicy(Policy, ILogable):
         
         self.epsilon_decay = epsilon_decay
         self.clock = None
+        
+    @property
+    def action_type(self) -> ActionType:
+        return ActionType.DISCRETE
         
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
         return pd.EpsilonGreedyDistribution(pdparam, self.epsilon_decay(self.clock.global_time_step))
