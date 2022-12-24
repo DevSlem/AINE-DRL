@@ -71,6 +71,11 @@ class RecurrentPPO(Agent):
         self.actor_average_loss = util.IncrementalAverage()
         self.critic_average_loss = util.IncrementalAverage()
         
+        # for inference mode
+        self.inference_current_hidden_state = torch.zeros(network.hidden_state_shape(1))
+        self.inference_next_hidden_state = torch.zeros(network.hidden_state_shape(1))
+        self.inference_prev_terminated = torch.zeros(1, 1)
+        
     def update(self, experience: Experience):
         super().update(experience)
         
@@ -87,6 +92,9 @@ class RecurrentPPO(Agent):
         # if training frequency is reached, start training
         if self.trajectory.count == self.config.training_freq:
             self.train()
+            
+    def inference(self, experience: Experience):
+        self.inference_prev_terminated = torch.from_numpy(experience.terminated)
             
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         with torch.no_grad():
@@ -107,10 +115,12 @@ class RecurrentPPO(Agent):
             return action
     
     def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
-        # pdparam, _, _ = self.network.forward(obs)
-        # dist = self.policy.get_policy_distribution(pdparam)
-        # return dist.sample()
-        raise NotImplementedError
+        self.inference_current_hidden_state = self.inference_next_hidden_state * (1.0 - self.inference_prev_terminated)
+        pdparam, _, hidden_state = self.network.forward(obs.unsqueeze(1), self.inference_current_hidden_state.to(device=self.device))
+        dist = self.policy.get_policy_distribution(pdparam)
+        action = dist.sample()
+        self.inference_next_hidden_state = hidden_state.cpu()
+        return action
             
     def train(self):
         exp_batch = self.trajectory.sample(self.device)
