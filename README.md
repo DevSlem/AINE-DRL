@@ -62,10 +62,6 @@ Fig 1. BipedalWalker-v3 inference rendering (PPO):
 
 ![](images/bipedal-walker-v3-inference.webp)
 
-Fig 2. [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) cumulative reward (blue: PPO):
-
-![](images/bipedal-walker-v3-cumulative-reward.png)
-
 * [experiment](experiments/bipedal_walker_v3/)
 * [PPO configuration](config/experiments/bipedal_walker_v3_ppo.yaml)
 
