@@ -6,6 +6,8 @@ BipedalWalker-v3_PPO:
     training:
       total_global_time_steps: 2000000
       summary_freq: 50000
+      inference_freq: 100000
+      inference_render: true
       seed: 0
   PPO:
     training_freq: 16
