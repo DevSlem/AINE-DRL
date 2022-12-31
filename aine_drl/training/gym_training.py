@@ -202,40 +202,7 @@ class GymTraining:
             self._inference(agent, num_episodes, agent_save_file_dir)
         except KeyboardInterrupt:
             logger.print(f"Inference interrupted.")
-        
-    def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
-        assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
-        
-        if not self._logger_started:
-            logger.set_log_dir(self.training_env_id)
-        self._try_load_agent(agent, agent_save_file_dir=agent_save_file_dir)
-        
-        seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
-        
-        agent.behavior_type = BehaviorType.INFERENCE
-        
-        for episode in range(num_episodes):
-            # (num_envs, *obs_shape) = (1, *obs_shape)
-            obs = self.inference_gym_env.reset(seed=seed).astype(self.dtype)[np.newaxis, ...]
-            terminated = False
-            cumulative_reward = 0.0
-            while not terminated:
-                # take action and observe
-                action = agent.select_action(obs)
-                next_obs, reward, teraminted, truncated, _ = self.inference_gym_env.step(self.inference_gym_action_communicator.to_gym_action(action))
-                terminated = teraminted | truncated
-                
-                # cumulate the reward
-                cumulative_reward += reward
-                
-                # inference the agent
-                exp = self._make_experience(obs, action, next_obs, reward, terminated, is_vector_env=False)
-                agent.inference(exp)
-                obs = exp.next_obs
-            logger.print(f"inference mode - episode: {episode}, cumulative reward: {cumulative_reward}")
             
-        agent.behavior_type = BehaviorType.TRAIN
-        
     def close(self):
         self.gym_env.close()
         if self.inference_gym_env is not None:
@@ -250,7 +217,7 @@ class GymTraining:
         return self.gym_env.single_action_space if self.is_vector_env else self.gym_env.action_space  # type: ignore
         
     def _train(self, agent: Agent, total_global_time_steps: int):
-        logger.print(f"\'{self.training_env_id}\' training start!")
+        logger.print(f"\'{self.training_env_id}\' training start!")        
         gym_env = self.gym_env
         obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)
         if not self.is_vector_env:
@@ -285,6 +252,39 @@ class GymTraining:
                 self._inference(agent)
         
         logger.print("Training has been completed.")
+        
+    def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
+        assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
+        
+        if not self._logger_started:
+            logger.set_log_dir(self.training_env_id)
+        self._try_load_agent(agent, agent_save_file_dir=agent_save_file_dir)
+        
+        seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
+        
+        agent.behavior_type = BehaviorType.INFERENCE
+        
+        for episode in range(num_episodes):
+            # (num_envs, *obs_shape) = (1, *obs_shape)
+            obs = self.inference_gym_env.reset(seed=seed).astype(self.dtype)[np.newaxis, ...]
+            terminated = False
+            cumulative_reward = 0.0
+            while not terminated:
+                # take action and observe
+                action = agent.select_action(obs)
+                next_obs, reward, teraminted, truncated, _ = self.inference_gym_env.step(self.inference_gym_action_communicator.to_gym_action(action))
+                terminated = teraminted | truncated
+                
+                # cumulate the reward
+                cumulative_reward += reward
+                
+                # inference the agent
+                exp = self._make_experience(obs, action, next_obs, reward, terminated, is_vector_env=False)
+                agent.inference(exp)
+                obs = exp.next_obs
+            logger.print(f"inference mode - episode: {episode}, cumulative reward: {cumulative_reward}")
+            
+        agent.behavior_type = BehaviorType.TRAIN
             
     def _save_agent(self, agent: Agent):
         try:
