@@ -98,13 +98,13 @@ class CategoricalDistribution(PolicyDistribution):
         action_log_prob = []
         for i, dist in enumerate(self.distributions):
             action_log_prob.append(dist.log_prob(action.discrete_action[:, i]))
-        return torch.stack(action_log_prob, dim=1).sum(dim=1).unsqueeze(dim=1)
+        return torch.stack(action_log_prob, dim=1).sum(dim=1, keepdim=True)
     
     def entropy(self) -> torch.Tensor:
         entropies = []
         for dist in self.distributions:
             entropies.append(dist.entropy())
-        return torch.stack(entropies, dim=1).sum(dim=1).unsqueeze(dim=1)
+        return torch.stack(entropies, dim=1).sum(dim=1, keepdim=True)
     
 
 class GaussianDistribution(PolicyDistribution):
