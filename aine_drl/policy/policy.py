@@ -54,12 +54,17 @@ class GaussianPolicy(Policy):
     Gaussian policy for the continuous action type.
     """
     
+    def __init__(self, is_log_std: bool = True) -> None:
+        super().__init__()
+        
+        self.is_log_std = is_log_std
+    
     @property
     def action_type(self) -> ActionType:
         return ActionType.CONTINUOUS
     
     def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
-        return pd.GaussianDistribution(pdparam)
+        return pd.GaussianDistribution(pdparam, self.is_log_std)
 
 class GeneralPolicy(Policy):
     """
