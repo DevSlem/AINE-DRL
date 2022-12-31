@@ -257,13 +257,16 @@ class RecurrentPPO(Agent):
         sequence_start_hidden_state.swapaxes_(0, 1)
         
         pad = lambda x: pad_sequence(x, batch_first=True, padding_value=self.config.padding_value)
+        
         stacked_obs = pad(stacked_obs)
         stacked_discrete_action = pad(stacked_discrete_action)
         stacked_continuous_action = pad(stacked_continuous_action)
         stacked_action_log_prob = pad(stacked_action_log_prob)
         stacked_advantage = pad(stacked_advantage)
         stacked_v_target = pad(stacked_v_target)
-        stacked_mask = pad(stacked_mask) > 0.5
+        stacked_mask = pad(stacked_mask)
+        eps = torch.finfo(torch.float32).eps
+        stacked_mask = self.config.padding_value - eps < stacked_mask < self.config.padding_value + eps
         
         return stacked_obs, stacked_discrete_action, stacked_continuous_action, stacked_action_log_prob, stacked_advantage, stacked_v_target, stacked_mask, sequence_start_hidden_state
 
