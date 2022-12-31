@@ -94,9 +94,6 @@ class GaussianContinuousActionLayer(nn.Module):
         
     def forward(self, x: torch.Tensor) -> PolicyDistributionParameter:
         out = self.layer(x)
-        out = torch.reshape(out, (-1, self.num_continuous_actions, 2))
-        torch.abs_(out[..., 1])
-        out = torch.reshape(out, (-1, self.num_continuous_actions * 2))
         continuous_pdparams = list(torch.split(out, 2, dim=1))
         return PolicyDistributionParameter.new(continuous_pdparams=continuous_pdparams)
     
@@ -129,6 +126,46 @@ class Network(nn.Module, ABC):
         if grad_clip_max_norm is not None:
             torch.nn.utils.clip_grad_norm_(self.parameters(), grad_clip_max_norm)
         optimizer.step()
+
+class VNetwork(Network):
+    """
+    State Value Function V(s) Estimator.
+    """
+    
+    @abstractmethod
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
+        """
+        Estimate state value V. \\
+        `batch_size` equals to `num_envs x n_steps`.
+
+        Args:
+            obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
+
+        Returns:
+            Tensor: state value whose shape is `(batch_size, 1)`
+        """
+        raise NotImplementedError
+    
+class QNetwork(Network):
+    """
+    Action Value Function Q(s,a) Estimator. It's generally used for continuous action type.
+    """
+    
+    @abstractmethod
+    def forward(self, obs: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        """
+        Estimate action value Q. \\
+        `batch_size` equals to `num_envs x n_steps`. \\
+        Observation (or feature extracted from it) should be concatenated with action and then feed forward it.
+        
+        Args:
+            obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
+            action (Tensor): continuous action whose shape is `(batch_size, num_action_branches)`
+            
+        Returns:
+            Tensor: action value whose shape is `(batch_size, 1)`
+        """
+        raise NotImplementedError
     
 class PolicyGradientNetwork(Network):
     """
@@ -269,4 +306,33 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
                 
                 return pdparam, v_pred, next_hidden_state
         """
+        raise NotImplementedError
+    
+class SACNetwork(Network):
+    """
+    Soft Actor Critic (SAC) network.
+    """
+    
+    @property
+    @abstractmethod
+    def v_net(self) -> VNetwork:
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def q_net1(self) -> QNetwork:
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def q_net2(self) -> QNetwork:
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def actor(self) -> PolicyGradientNetwork:
+        raise NotImplementedError
+    
+    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
+        """It's not called from SAC agent."""
         pass
