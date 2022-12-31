@@ -4,6 +4,7 @@ from .dqn import *
 from .reinforce import *
 from .a2c import *
 from .ppo import *
+from .sac import *
 
 # agent utility
 
@@ -63,6 +64,9 @@ def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: i
             elif agent_key == "DoubleDQN":
                 config = DoubleDQNConfig(**config)
                 return DoubleDQN(config, network, policy, num_envs)  # type: ignore
+            elif agent_key == "SAC":
+                config = SACConfig(**config)
+                return SAC(config, network, policy, num_envs) # type: ignore
         
         raise ValueError("There's no agent configuration.")
     except Exception as e:
