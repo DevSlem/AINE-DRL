@@ -19,6 +19,7 @@ class RecurrentPPOConfig(NamedTuple):
         `epoch (int)`: number of using total experiences to update parameters at each training frequency
         `sequence_length (int)`: sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
         `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
+        `padding_value (float, optional)`: pad sequences to the value for the same `sequence_length`. Defaults to 0.
         `gamma (float, optional)`: discount factor. Defaults to 0.99.
         `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
         `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
@@ -30,6 +31,7 @@ class RecurrentPPOConfig(NamedTuple):
     epoch: int
     sequence_length: int
     num_sequences_per_step: int
+    padding_value: float = 0.0
     gamma: float = 0.99
     lam: float = 0.95
     epsilon_clip: float = 0.2
@@ -254,7 +256,7 @@ class RecurrentPPO(Agent):
         # (num_sequences, max_num_layers, *out_features) -> (max_num_layers, num_sequences, *out_features)
         sequence_start_hidden_state.swapaxes_(0, 1)
         
-        pad = lambda x: pad_sequence(x, batch_first=True)
+        pad = lambda x: pad_sequence(x, batch_first=True, padding_value=self.config.padding_value)
         stacked_obs = pad(stacked_obs)
         stacked_discrete_action = pad(stacked_discrete_action)
         stacked_continuous_action = pad(stacked_continuous_action)
