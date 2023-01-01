@@ -227,18 +227,24 @@ class GymTraining:
         for _ in range(agent.clock.global_time_step, total_global_time_steps, self.num_envs):
             # take action and observe
             action = agent.select_action(obs)
-            next_obs, reward, terminated, truncated, _ = self.gym_env.step(self.gym_action_communicator.to_gym_action(action))
+            next_obs, reward, terminated, truncated, info = self.gym_env.step(self.gym_action_communicator.to_gym_action(action))
             terminated = terminated | truncated
             
+            # if vector env is terminated, next_obs isn't real final observation of the terminated episode
+            # since the envs are automatically reset at the end of each episode
+            real_next_obs = next_obs.copy()
+            if self.is_vector_env and "final_observation" in info.keys():
+                real_next_obs[terminated] = np.stack(info["final_observation"][terminated], axis=0)
+            
             # update the agent
-            exp = self._make_experience(obs, action, next_obs, reward, terminated, self.is_vector_env)
+            exp = self._make_experience(obs, action, real_next_obs, reward, terminated, self.is_vector_env)
             agent.update(exp)
             
             # update current observation
             if not self.is_vector_env and terminated:
                 obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
             else:
-                obs = exp.next_obs
+                obs = next_obs
                 
             # summuary check
             if agent.clock.check_global_time_step_freq(self.config.summary_freq):
