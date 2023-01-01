@@ -204,10 +204,10 @@ if __name__ == "__main__":
     util.seed(seed)
     
     if mode == "training":
-        # run_ppo()
-        run_sac()
+        run_ppo()
+        # run_sac()
     elif mode == "inference": 
         run_ppo(inference=True)
-        run_sac(inference=True)
+        # run_sac(inference=True)
     else:
         raise ValueError(f"\'training\', \'inference\' are only supported modes but you've input {mode}.")
