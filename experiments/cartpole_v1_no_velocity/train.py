@@ -45,6 +45,7 @@ class CartPoleNoVelVectorEnv(gym.vector.VectorEnv):
         self.obs_mask = np.array([1, 0, 1, 0], dtype=np.bool8)
         low = self.gym_env.single_observation_space.low[self.obs_mask]
         high = self.gym_env.single_observation_space.high[self.obs_mask]
+        self.final_obs_key = "final_observation"
         
         super().__init__(num_envs, gym.spaces.Box(low, high), self.gym_env.single_action_space, True)
         
@@ -57,6 +58,12 @@ class CartPoleNoVelVectorEnv(gym.vector.VectorEnv):
         
     def step(self, actions):
         full_obs, reward, terminated, truncated, info = self.gym_env.step(actions)
+        if self.final_obs_key in info.keys():
+            is_final = info[f"_{self.final_obs_key}"]
+            final_obs = info[self.final_obs_key][is_final]
+            for i, item in enumerate(final_obs):
+                final_obs[i] = item[self.obs_mask]
+            info[self.final_obs_key][is_final] = final_obs
         return self.masked_obs(full_obs), reward, terminated, truncated, info        
 
 class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNetwork):
