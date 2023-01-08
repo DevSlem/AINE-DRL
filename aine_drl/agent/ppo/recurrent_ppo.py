@@ -265,8 +265,8 @@ class RecurrentPPO(Agent):
         stacked_advantage = pad(stacked_advantage)
         stacked_v_target = pad(stacked_v_target)
         stacked_mask = pad(stacked_mask)
-        eps = torch.finfo(torch.float32).eps
-        stacked_mask = self.config.padding_value - eps < stacked_mask < self.config.padding_value + eps
+        eps = torch.finfo(torch.float32).eps * 2.0
+        stacked_mask = (stacked_mask < self.config.padding_value - eps) | (stacked_mask > self.config.padding_value + eps)
         
         return stacked_obs, stacked_discrete_action, stacked_continuous_action, stacked_action_log_prob, stacked_advantage, stacked_v_target, stacked_mask, sequence_start_hidden_state
 
