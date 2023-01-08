@@ -11,6 +11,21 @@ from .sac import *
 from ..network import Network
 from ..policy import Policy
 
+def find_agent_key(agent_config: dict) -> str:
+    agent_keys = (
+        "REINFORCE",
+        "A2C",
+        "PPO",
+        "RecurrentPPO",
+        "DoubleDQN",
+        "SAC"
+    )
+    
+    for agent_key in agent_keys:
+        if agent_key in agent_config.keys():
+            return agent_key
+    return ""
+
 def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: int) -> Agent:
     """
     ## Summary
