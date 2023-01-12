@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union, Any
+from typing import Optional, Tuple, Union, Any, Iterator
 from aine_drl.policy.policy_distribution import PolicyDistributionParameter
 import torch
 import torch.nn as nn
@@ -306,6 +306,159 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
                 
                 return pdparam, v_pred, next_hidden_state
         """
+        raise NotImplementedError
+    
+class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
+    """
+    Recurrent Actor Critic Shared Two Value Network. 
+    It combines extrinsic and intrinsic reward streams. 
+    Each stream can be different episodic or non-episodic, and can have different discount factors.  
+    It constitutes of encoding layers with recurrent layer and of 3 output layers which are policy, extrinsic value and intrinsic value layers. 
+    LSTM or GRU are commonly used as the recurrent layer.
+    """
+        
+    @abstractmethod
+    def forward(self, 
+                obs: torch.Tensor, 
+                recurrent_hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Feed forward method to estimate policy distribution parameter (pdparam), extrinsic state value, intrinsic state value using the recurrent layer.\\
+        When the action type is discrete, pdparam is generally logits or soft-max distribution. \\
+        When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
+        
+        Args:
+            obs (Tensor): observation sequences
+            recurrent_hidden_state (Tensor): recurrent hidden state at the first time step of the sequences
+
+        Returns:
+            Tuple[PolicyDistributionParameter, Tensor, Tensor, Tensor]: policy distribution parameter, extrinsic state value, intrinsic state value, next recurrent hidden state
+        
+        ## Input/Output Details
+        
+        `batch_size` is flattened sequence batch whose shape is `sequence_batch_size` x `sequence_length`. \\
+        
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |observation sequences|`(sequence_batch_size, sequence_length, *obs_shape)`|
+        |recurrent hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
+        
+        Output:
+        
+        |Output|Shape|
+        |:---|:---|
+        |policy distribution parameter|details in `PolicyDistributionParameter`|
+        |extrinsic state value|`(batch_size, 1)`|
+        |intrinsic state value|`(batch-size, 1)`|
+        |next recurrent hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
+        
+        It's recommended to set the recurrent layer to `batch_first=True`. \\
+        Recurrent hidden state is typically concatnated tensor of LSTM tuple (h, c) or GRU hidden state tensor.
+            
+        ## Examples
+        
+        `forward()` method example when using LSTM::
+        
+            def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+                # encoding layer
+                # (batch_size, seq_len, *obs_shape) -> (batch_size * seq_len, *obs_shape)
+                seq_len = obs.shape[1]
+                flattend = obs.flatten(0, 1)
+                encoding = self.encoding_layer(flattend)
+                
+                # lstm layer
+                unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
+                # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
+                encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
+                encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
+                next_recurrent_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+                
+                # actor-critic layer
+                # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
+                encoding = encoding.flatten(0, 1)
+                pdparam = self.actor_layer(encoding)
+                extrinsic_value = self.extrinic_critic_layer(encoding)
+                intrinsic_value = self.intrinsic_value(encoding)
+                
+                return pdparam, extrinsic_value, intrinsic_value, next_recurrent_hidden_state
+        """
+        raise NotImplementedError
+
+class RNDNetwork(nn.Module):
+    """
+    Random Network Distillation (RND) Network. 
+    It constitutes of predictor and target networks. 
+    The target network is determinsitic, which means it will be never updated.
+    """
+    
+    @property
+    @abstractmethod
+    def predictor(self) -> nn.Module:
+        """Predictor network."""
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def target(self) -> nn.Module:
+        """Target network."""
+        raise NotImplementedError
+    
+    def forward(self, next_obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Compute both predicted feature and target feature.
+
+        Args:
+            next_obs (Tensor): next observation batch
+
+        Returns:
+            Tuple[Tensor, Tensor]: predicted feature, target feature
+            
+        ## Input/Output Details
+        
+        `out_features` depends on you.
+        
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |next observation batch|`(batch_size, *obs_shape)`|
+        
+        Output:
+        
+        |Input|Shape|
+        |:---|:---|
+        |predicted feature|`(batch_size, out_features)`|
+        |target feature|`(batch_size, out_features)`|
+        """
+        predicted_feature = self.predictor(next_obs)
+        with torch.no_grad():
+            target_feature = self.target(next_obs)
+        return predicted_feature, target_feature
+    
+    # override
+    def parameters(self, recurse: bool = True) -> Iterator[nn.parameter.Parameter]:
+        return self.predictor.parameters(recurse)
+    
+class RecurrentActorCriticSharedRNDNetwork(RecurrentNetwork):
+    """
+    It constitutes of `RecurrentActorCriticSharedTwoValueNetwork` and `RNDNetwork`. 
+    See details in each docs. 
+    You don't need to implement `forward()` method.
+    """
+    
+    @property
+    @abstractmethod
+    def actor_critic_net(self) -> RecurrentActorCriticSharedTwoValueNetwork:
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def rnd_net(self) -> RNDNetwork:
         raise NotImplementedError
     
 class SACNetwork(Network):
