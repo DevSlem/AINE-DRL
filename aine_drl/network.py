@@ -247,7 +247,7 @@ class RecurrentNetwork(Network):
         return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
     
     @abstractmethod
-    def hidden_state_shape(self, batch_size: int) -> torch.Size:
+    def hidden_state_shape(self, batch_size: int) -> Tuple[int, ...]:
         """
         Returns recurrent hidden state shape. 
         When you use LSTM, its shape is `(D x num_layers, batch_size, H_out x 2)`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
@@ -320,7 +320,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
     @abstractmethod
     def forward(self, 
                 obs: torch.Tensor, 
-                recurrent_hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor, torch.Tensor]:
+                hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -330,21 +330,21 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
         
         Args:
             obs (Tensor): observation sequences
-            recurrent_hidden_state (Tensor): recurrent hidden state at the first time step of the sequences
+            hidden_state (Tensor): recurrent hidden state at the first time step of the sequences
 
         Returns:
             Tuple[PolicyDistributionParameter, Tensor, Tensor, Tensor]: policy distribution parameter, extrinsic state value, intrinsic state value, next recurrent hidden state
         
         ## Input/Output Details
         
-        `batch_size` is flattened sequence batch whose shape is `sequence_batch_size` x `sequence_length`. \\
+        `batch_size` is flattened sequence batch whose shape is `sequence_batch_size` x `sequence_length`.
         
         Input:
         
         |Input|Shape|
         |:---|:---|
         |observation sequences|`(sequence_batch_size, sequence_length, *obs_shape)`|
-        |recurrent hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
+        |hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
         
         Output:
         
@@ -353,10 +353,10 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
         |policy distribution parameter|details in `PolicyDistributionParameter`|
         |extrinsic state value|`(batch_size, 1)`|
         |intrinsic state value|`(batch-size, 1)`|
-        |next recurrent hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
+        |next hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
         
         It's recommended to set the recurrent layer to `batch_first=True`. \\
-        Recurrent hidden state is typically concatnated tensor of LSTM tuple (h, c) or GRU hidden state tensor.
+        Hidden state is typically concatnated tensor of LSTM tuple (h, c) or GRU hidden state tensor.
             
         ## Examples
         
@@ -374,7 +374,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
                 # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
                 encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
                 encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
-                next_recurrent_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+                next_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
                 
                 # actor-critic layer
                 # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
@@ -383,7 +383,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
                 extrinsic_value = self.extrinic_critic_layer(encoding)
                 intrinsic_value = self.intrinsic_value(encoding)
                 
-                return pdparam, extrinsic_value, intrinsic_value, next_recurrent_hidden_state
+                return pdparam, extrinsic_value, intrinsic_value, next_hidden_state
         """
         raise NotImplementedError
 
