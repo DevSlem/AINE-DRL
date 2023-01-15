@@ -1,7 +1,9 @@
 from typing import NamedTuple, Optional
 from aine_drl.trajectory.batch_trajectory import BatchTrajectory
-from aine_drl.experience import ActionTensor, Experience
+from aine_drl.experience import ActionTensor, Experience, Action
 import torch
+from aine_drl.util import StaticRecursiveBuffer
+import numpy as np
 
 class PPOExperienceBatch(NamedTuple):
     obs: torch.Tensor
@@ -105,3 +107,58 @@ class RecurrentPPOTrajectory:
         )
         self.reset()
         return exp_batch
+    
+class RecurrentPPORNDExperience(NamedTuple):
+    obs: np.ndarray
+    action: Action
+    next_obs: np.ndarray
+    reward: np.ndarray
+    terminated: np.ndarray
+    action_log_prob: np.ndarray
+    ext_state_value: np.ndarray
+    int_state_value: np.ndarray
+    hidden_state: np.ndarray
+    
+class RecurrentPPORNDExperienceBatchTensor(NamedTuple):
+    obs: torch.Tensor
+    action: ActionTensor
+    next_obs: torch.Tensor
+    reward: torch.Tensor
+    terminated: torch.Tensor
+    action_log_prob: torch.Tensor
+    ext_state_value: torch.Tensor
+    int_state_value: torch.Tensor
+    hidden_state: torch.Tensor
+    n_steps: int
+
+class RecurrentPPORNDTrajectory:
+    def __init__(self, training_freq: int) -> None:
+        self._buffer = StaticRecursiveBuffer(RecurrentPPORNDExperience._fields, training_freq)
+        
+    @property
+    def can_train(self) -> bool:
+        return self._buffer.is_full
+        
+    def reset(self):
+        self._next_obs_buffer = None
+        self._buffer.reset()
+        
+    def add(self, experience: RecurrentPPORNDExperience):
+        exp_dict = experience._asdict()
+        self._next_obs_buffer = exp_dict.pop("next_obs")
+        self._buffer.add(exp_dict)
+    
+    def sample(self, device: Optional[torch.device] = None):
+        exp_buffers = self._buffer.buffer_dict
+        exp_batch = {}
+        for key, buffer in exp_buffers.items():
+            if key == "action":
+                exp_batch[key] = Action.to_batch(buffer).to_action_tensor(device=device)
+            else:
+                exp_batch[key] = torch.from_numpy(np.concatenate(buffer, axis=0)).to(device=device)
+        obs_buffer = exp_buffers["obs"]
+        obs_buffer.append(self._next_obs_buffer)
+        exp_batch["next_obs"] = torch.from_numpy(np.concatenate(obs_buffer[1:], axis=0)).to(device=device)
+        exp_batch["n_steps"] = self._buffer.count
+        self.reset()
+        return RecurrentPPORNDExperienceBatchTensor(**exp_batch)
