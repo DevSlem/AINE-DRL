@@ -148,7 +148,7 @@ class IncrementalAverage:
     def update(self, value):
         """Update current average."""
         self.n += 1
-        self._average = self._average + (value - self._average) / self.n
+        self._average += (value - self._average) / self.n
         return self._average
         
     @property
@@ -159,3 +159,63 @@ class IncrementalAverage:
     @property
     def count(self) -> int:
         return self.n
+
+class IncrementalMeanVarianceFromBatch:
+    """
+    Incremental mean and variance calculation from batch. 
+    See details in https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm.
+    
+    Args:
+        ddof (int, optional): delta degrees of freedom (DDOF) - especially 0 means biased variance, 1 means unibased variance. Defaults to 1.
+    """
+    def __init__(self, ddof: int = 1) -> None:
+        self._ddof = ddof
+        self.reset()
+        
+    @property
+    def mean(self) -> float:
+        return self._mean
+    
+    @property
+    def variance(self) -> float:
+        return self._var
+    
+    @property
+    def batch_size(self) -> float:
+        return self._n
+    
+    def reset(self):
+        self._mean = 0.0
+        self._var = 0
+        self._n = 0
+    
+    def update(self, batch: np.ndarray):
+        batch_mean = batch.mean()
+        batch_var = batch.var(ddof=self._ddof)
+        batch_size = len(batch)
+        self.update_from_batch_mean_var(batch_mean, batch_var, batch_size)
+        
+    def update_from_batch_mean_var(self, batch_mean: float, batch_var: float, batch_size: int):
+        # n: batch size
+        # M: sum of squares
+        # a: old batch
+        # b: new batch
+        # d: DDOF
+        d = self._ddof
+        
+        n_a = self._n
+        n_b = batch_size
+        n = n_a + n_b
+        
+        # update mean
+        delta = batch_mean - self._mean
+        self._mean += delta * n_b / n
+
+        # update variance
+        M_a = self._var * (n_a - d)
+        M_b = batch_var * (n_b - d)
+        M = M_a + M_b + delta**2 * n_a * n_b / n
+        self._var = M / (n - d)
+        
+        # update batch size
+        self._n = n
