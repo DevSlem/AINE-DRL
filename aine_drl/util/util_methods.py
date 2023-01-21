@@ -1,5 +1,5 @@
 import operator
-from typing import Union
+from typing import Union, Optional
 import numpy as np
 import datetime
 import os
@@ -167,35 +167,37 @@ class IncrementalMeanVarianceFromBatch:
     
     Args:
         ddof (int, optional): delta degrees of freedom (DDOF) - especially 0 means biased variance, 1 means unibased variance. Defaults to 1.
+        axis (int | None, optional): axis along which mean and variance are computed. The default is to compute the values of the flattened array.
     """
-    def __init__(self, ddof: int = 1) -> None:
+    def __init__(self, ddof: int = 1, axis: Optional[int] = None) -> None:
         self._ddof = ddof
+        self._axis = axis
         self.reset()
         
     @property
-    def mean(self) -> float:
+    def mean(self) -> Union[float, np.ndarray]:
         return self._mean
     
     @property
-    def variance(self) -> float:
+    def variance(self) -> Union[float, np.ndarray]:
         return self._var
     
     @property
-    def batch_size(self) -> float:
+    def batch_size(self) -> int:
         return self._n
     
     def reset(self):
         self._mean = 0.0
-        self._var = 0
+        self._var =0.0
         self._n = 0
     
     def update(self, batch: np.ndarray):
-        batch_mean = batch.mean()
-        batch_var = batch.var(ddof=self._ddof)
-        batch_size = len(batch)
+        batch_mean = batch.mean(axis=self._axis)
+        batch_var = batch.var(ddof=self._ddof, axis=self._axis)
+        batch_size = batch.size if self._axis is None else batch.shape[self._axis]
         self.update_from_batch_mean_var(batch_mean, batch_var, batch_size)
         
-    def update_from_batch_mean_var(self, batch_mean: float, batch_var: float, batch_size: int):
+    def update_from_batch_mean_var(self, batch_mean: Union[float, np.ndarray], batch_var: Union[float, np.ndarray], batch_size: int):
         # n: batch size
         # M: sum of squares
         # a: old batch
@@ -209,7 +211,7 @@ class IncrementalMeanVarianceFromBatch:
         
         # update mean
         delta = batch_mean - self._mean
-        self._mean += delta * n_b / n
+        self._mean = self._mean + delta * n_b / n
 
         # update variance
         M_a = self._var * (n_a - d)
@@ -219,3 +221,18 @@ class IncrementalMeanVarianceFromBatch:
         
         # update batch size
         self._n = n
+        
+    @property
+    def state_dict(self) -> dict:
+        return {
+            "incremental_mean_variance_from_batch": {
+                "mean": self._mean,
+                "variance": self._var,
+                "batch_size": self._n
+            }
+        }
+        
+    def load_state_dict(self, state_dict: dict):
+        state_dict = state_dict["incremental_mean_variance_from_batch"]
+        for key, value in state_dict.items():
+            setattr(self, f"_{key}", value)
