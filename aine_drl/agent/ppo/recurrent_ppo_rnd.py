@@ -4,7 +4,7 @@ from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import RecurrentActorCriticSharedRNDNetwork
 from aine_drl.policy.policy import Policy
 from .ppo import PPO
-import ppo_trajectory as tj
+import aine_drl.agent.ppo.ppo_trajectory as tj
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
@@ -24,9 +24,9 @@ class RecurrentPPORNDConfig(NamedTuple):
         `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
         `padding_value (float, optional)`: pad sequences to the value for the same `sequence_length`. Defaults to 0.
         `extrinsic_gamma (float, optional)`: discount factor of extrinsic reward. Defaults to 0.99.
-        `intrinsic_gaama (float, optional)`: discount factor of intrinsic reward. Defaults to 0.99.
-        `ext_adv_coef (float, optional)`: multiplier to extrinsic advantage. Defaults to 1.0.
-        `int_adv_coef (float, optional)`: multiplier to intrinsic advantage. Defaults to 1.0.
+        `intrinsic_gamma (float, optional)`: discount factor of intrinsic reward. Defaults to 0.99.
+        `extrinsic_adv_coef (float, optional)`: multiplier to extrinsic advantage. Defaults to 1.0.
+        `intrinsic_adv_coef (float, optional)`: multiplier to intrinsic advantage. Defaults to 1.0.
         `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
         `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
         `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
@@ -43,8 +43,8 @@ class RecurrentPPORNDConfig(NamedTuple):
     padding_value: float = 0.0
     extrinsic_gamma: float = 0.99
     intrinsic_gamma: float = 0.99
-    ext_adv_coef: float = 1.0
-    int_adv_coef: float = 1.0
+    extrinsic_adv_coef: float = 1.0
+    intrinsic_adv_coef: float = 1.0
     lam: float = 0.95
     epsilon_clip: float = 0.2
     value_loss_coef: float = 0.5
@@ -85,10 +85,12 @@ class RecurrentPPORND(Agent):
         self.ext_state_value = None
         self.int_state_value = None
         self.prev_discounted_int_reward = 0.0
-        self.current_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs))
-        self.next_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs))
-        self.prev_terminated = np.zeros((self.num_envs, 1))
+        self.current_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs), dtype=np.float32)
+        self.next_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs), dtype=np.float32)
+        self.prev_terminated = np.zeros((self.num_envs, 1), dtype=np.float32)
         self.int_reward_mean_var = util.IncrementalMeanVarianceFromBatch()
+        self.next_obs_feature_mean_var = util.IncrementalMeanVarianceFromBatch(axis=0)
+        self.current_pre_obs_norm_step = 0
         
         self.actor_average_loss = util.IncrementalAverage()
         self.ext_critic_average_loss = util.IncrementalAverage()
@@ -97,14 +99,19 @@ class RecurrentPPORND(Agent):
         self.average_intrinsic_reward = util.IncrementalAverage()
         
         # for inference mode
-        self.inference_current_hidden_state = np.zeros(network.hidden_state_shape(1))
-        self.inference_next_hidden_state = np.zeros(network.hidden_state_shape(1))
-        self.inference_prev_terminated = np.zeros((1, 1))
+        self.inference_current_hidden_state = np.zeros(network.hidden_state_shape(1), dtype=np.float32)
+        self.inference_next_hidden_state = np.zeros(network.hidden_state_shape(1), dtype=np.float32)
+        self.inference_prev_terminated = np.zeros((1, 1), dtype=np.float32)
         
     def update(self, experience: Experience):
         super().update(experience)
         
         self.prev_terminated = experience.terminated
+        
+        if (self.config.pre_obs_norm_step is not None) and (self.current_pre_obs_norm_step < self.config.pre_obs_norm_step):
+            self.current_pre_obs_norm_step += 1
+            self.next_obs_feature_mean_var.update(experience.next_obs)
+            return
         
         # add one experience
         exp_dict = experience._asdict()
@@ -172,9 +179,15 @@ class RecurrentPPORND(Agent):
             exp_batch.n_steps
         )
         
-        # TODO: observation normalization
-        normalized_next_obs = next_obs
         num_sequences = len(obs)
+        
+        # update next observation normalization parameters
+        masked_next_obs = next_obs[mask]
+        self.next_obs_feature_mean_var.update(masked_next_obs.cpu().numpy())
+        
+        # normalize next observation
+        normalized_next_obs = next_obs.clone()
+        normalized_next_obs[mask] = self._normalize_next_obs(masked_next_obs)
         
         for _ in range(self.config.epoch):
             sample_sequences = torch.randperm(num_sequences)
@@ -348,8 +361,7 @@ class RecurrentPPORND(Agent):
         int_state_value = torch.cat([exp_batch.int_state_value, final_int_next_state_value])
         
         # compute intrinsic reward
-        # TODO: observation normalization
-        normalized_next_obs = exp_batch.next_obs
+        normalized_next_obs = self._normalize_next_obs(exp_batch.next_obs)
         int_reward = self._compute_intrinsic_reward(normalized_next_obs)
         
         # (num_envs * t, 1) -> (num_envs, t, 1) -> (num_envs, t)
@@ -386,7 +398,7 @@ class RecurrentPPORND(Agent):
             self.config.intrinsic_gamma,
             self.config.lam
         )
-        advantage = self.config.ext_adv_coef * ext_advantage + self.config.int_adv_coef * int_advantage
+        advantage = self.config.extrinsic_adv_coef * ext_advantage + self.config.intrinsic_adv_coef * int_advantage
         
         # compute v_target
         ext_target_state_value = ext_advantage + ext_state_value[:, :-1]
@@ -401,22 +413,27 @@ class RecurrentPPORND(Agent):
     
     def _compute_intrinsic_reward(self, next_obs: torch.Tensor) -> torch.Tensor:
         """
-        Compute intrinsic reward.
-
-        Args:
-            next_obs (torch.Tensor): next observation batch whose shape is `(batch_size, *obs_shape)`
-
-        Returns:
-            torch.Tensor: intrinsic reward whose shape is `(batch_size, 1)`
+        Compute intrinsic reward whose shape is `(batch_size, 1)`.
         """
         with torch.no_grad():
             predicted_feature, target_feature = self.network.rnd_net.forward(next_obs)
             intrinsic_reward = 0.5 * ((target_feature - predicted_feature)**2).sum(dim=1, keepdim=True)
             return intrinsic_reward
+        
+    def _normalize_next_obs(self, next_obs: torch.Tensor) -> torch.Tensor:
+        """
+        Normalize next observation. If `pre_obs_norm_step` setting in the configuration is `None`, this method doesn't normalize it.
+        """
+        if self.config.pre_obs_norm_step is None:
+            return next_obs
+        obs_feature_mean = torch.from_numpy(self.next_obs_feature_mean_var.mean)
+        obs_feature_std = torch.from_numpy(np.sqrt(self.next_obs_feature_mean_var.variance))
+        normalized_next_obs = (next_obs - obs_feature_mean) / obs_feature_std
+        return normalized_next_obs.clip(self.config.obs_norm_clip_range[0], self.config.obs_norm_clip_range[1])
 
     @property
     def log_keys(self) -> Tuple[str, ...]:
-        return super().log_keys + ("Network/Actor Loss", "Network/Extrinsic Critic Loss", "Network/Intrinsic Critic Loss", "Network/RND Loss")
+        return super().log_keys + ("Network/Actor Loss", "Network/Extrinsic Critic Loss", "Network/Intrinsic Critic Loss", "Network/RND Loss", "RND/Intrinsic Reward")
     
     @property
     def log_data(self) -> Dict[str, tuple]:
@@ -430,4 +447,7 @@ class RecurrentPPORND(Agent):
             self.ext_critic_average_loss.reset()
             self.int_critic_average_loss.reset()
             self.rnd_average_loss.reset()
+        if self.average_intrinsic_reward.count > 0:
+            ld["RND/Intrinsic Reward"] = (self.average_intrinsic_reward.average, self.clock.global_time_step)
+            self.average_intrinsic_reward.reset()
         return ld
