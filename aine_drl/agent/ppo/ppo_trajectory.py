@@ -133,7 +133,9 @@ class RecurrentPPORNDExperienceBatchTensor(NamedTuple):
 
 class RecurrentPPORNDTrajectory:
     def __init__(self, training_freq: int) -> None:
-        self._buffer = StaticRecursiveBuffer(RecurrentPPORNDExperience._fields, training_freq)
+        fields = list(RecurrentPPORNDExperience._fields)
+        fields.remove("next_obs")
+        self._buffer = StaticRecursiveBuffer(tuple(fields), training_freq)
         
     @property
     def can_train(self) -> bool:
@@ -154,6 +156,8 @@ class RecurrentPPORNDTrajectory:
         for key, buffer in exp_buffers.items():
             if key == "action":
                 exp_batch[key] = Action.to_batch(buffer).to_action_tensor(device=device)
+            elif key == "hidden_state":
+                exp_batch[key] = torch.from_numpy(np.concatenate(buffer, axis=1)).to(device=device)
             else:
                 exp_batch[key] = torch.from_numpy(np.concatenate(buffer, axis=0)).to(device=device)
         obs_buffer = exp_buffers["obs"]
