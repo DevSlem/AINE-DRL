@@ -440,10 +440,6 @@ class RNDNetwork(nn.Module):
             target_feature = self.target(next_obs)
         return predicted_feature, target_feature
     
-    # override
-    def parameters(self, recurse: bool = True) -> Iterator[nn.parameter.Parameter]:
-        return self.predictor.parameters(recurse)
-    
 class RecurrentActorCriticSharedRNDNetwork(RecurrentNetwork):
     """
     It constitutes of `RecurrentActorCriticSharedTwoValueNetwork` and `RNDNetwork`. 
