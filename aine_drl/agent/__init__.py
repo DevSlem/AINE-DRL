@@ -17,6 +17,7 @@ def find_agent_key(agent_config: dict) -> str:
         "A2C",
         "PPO",
         "RecurrentPPO",
+        "RecurrentPPORND",
         "DoubleDQN",
         "SAC"
     )
@@ -76,6 +77,9 @@ def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: i
             elif agent_key == "RecurrentPPO":
                 config = RecurrentPPOConfig(**config)
                 return RecurrentPPO(config, network, policy, num_envs)  # type: ignore
+            elif agent_key == "RecurrentPPORND":
+                config = RecurrentPPORNDConfig(**config)
+                return RecurrentPPORND(config, network, policy, num_envs) # type: ignore
             elif agent_key == "DoubleDQN":
                 config = DoubleDQNConfig(**config)
                 return DoubleDQN(config, network, policy, num_envs)  # type: ignore
