@@ -157,14 +157,14 @@ class RecurrentPPO(Agent):
                     discrete_action[sample_sequence].flatten(0, 1),
                     continuous_action[sample_sequence].flatten(0, 1)
                 )
-                new_action_log_prob = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, a.num_branches)
+                new_action_log_prob = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, 1)
                 actor_loss = PPO.compute_actor_loss(
                     advantage[sample_sequence][m],
                     old_action_log_prob[sample_sequence][m],
                     new_action_log_prob[m], # maybe cause problem
                     self.config.epsilon_clip
                 )
-                entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, a.num_branches)[m].mean()
+                entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, 1)[m].mean()
                 
                 # compute critic loss
                 v_pred = v_pred.reshape(self.config.num_sequences_per_step, -1, 1)
