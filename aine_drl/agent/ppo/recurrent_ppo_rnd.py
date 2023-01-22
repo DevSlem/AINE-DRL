@@ -209,7 +209,7 @@ class RecurrentPPORND(Agent):
                 actor_loss = PPO.compute_actor_loss(
                     advantage[sample_sequence][m],
                     old_action_log_prob[sample_sequence][m],
-                    new_action_log_prob[m], # maybe cause problem
+                    new_action_log_prob[m],
                     self.config.epsilon_clip
                 )
                 entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, a.num_branches)[m].mean()
@@ -249,7 +249,7 @@ class RecurrentPPORND(Agent):
                            ext_target_state_value: torch.Tensor,
                            int_target_state_value: torch.Tensor,
                            hidden_state: torch.Tensor,
-                           n_steps: int):
+                           n_steps: int) -> Tuple[torch.Tensor, ...]:
         # 1. stack sequence_length experiences
         # 2. when episode is terminated or remained experiences < sequence_length, zero padding
         # 3. feed forward
@@ -348,11 +348,11 @@ class RecurrentPPORND(Agent):
             Tuple[Tensor, Tensor, Tensor]: advantage, extrinisc target state value, intrinsic target state value
         """
         with torch.no_grad():
-            final_next_obs = exp_batch.next_obs[-self.num_envs:]
-            final_hidden_state = self.next_hidden_state
+            final_next_obs = exp_batch.next_obs[-self.num_envs:].unsqueeze(dim=1)
+            final_hidden_state = torch.from_numpy(self.next_hidden_state).to(device=self.device)
             _, final_ext_next_state_value, final_int_next_state_value, _ = self.network.actor_critic_net.forward(
-                final_next_obs.unsqueeze(dim=1), 
-                torch.from_numpy(final_hidden_state).to(device=self.device)
+                final_next_obs,
+                final_hidden_state
             )
         
         # concate n-step state values and one next state value of final transition
@@ -400,7 +400,7 @@ class RecurrentPPORND(Agent):
         )
         advantage = self.config.extrinsic_adv_coef * ext_advantage + self.config.intrinsic_adv_coef * int_advantage
         
-        # compute v_target
+        # compute target state values
         ext_target_state_value = ext_advantage + ext_state_value[:, :-1]
         int_target_state_value = int_advantage + int_state_value[:, :-1]
         

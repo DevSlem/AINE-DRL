@@ -188,7 +188,7 @@ class IncrementalMeanVarianceFromBatch:
     
     def reset(self):
         self._mean = 0.0
-        self._var =0.0
+        self._var = 0.0
         self._n = 0
     
     def update(self, batch: np.ndarray):
