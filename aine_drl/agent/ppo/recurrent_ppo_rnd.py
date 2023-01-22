@@ -84,12 +84,12 @@ class RecurrentPPORND(Agent):
         self.current_action_log_prob = None
         self.ext_state_value = None
         self.int_state_value = None
-        self.prev_discounted_int_reward = 0.0
+        self.prev_discounted_int_return = 0.0
         self.current_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs), dtype=np.float32)
         self.next_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs), dtype=np.float32)
         self.prev_terminated = np.zeros((self.num_envs, 1), dtype=np.float32)
-        self.int_reward_mean_var = util.IncrementalMeanVarianceFromBatch()
-        self.next_obs_feature_mean_var = util.IncrementalMeanVarianceFromBatch(axis=0)
+        self.int_reward_mean_var = util.IncrementalMeanVarianceFromBatch(axis=1) # compute intrinic reward normalization parameters of each env along time steps
+        self.next_obs_feature_mean_var = util.IncrementalMeanVarianceFromBatch(axis=0) # compute normalization parameters of each feature of next observation along batches
         self.current_pre_obs_norm_step = 0
         
         self.actor_average_loss = util.IncrementalAverage()
@@ -113,8 +113,13 @@ class RecurrentPPORND(Agent):
             self.next_obs_feature_mean_var.update(experience.next_obs)
             return
         
+        # compute intrinsic reward
+        normalized_next_obs = self._normalize_next_obs(torch.from_numpy(experience.next_obs).to(device=self.device))
+        int_reward = self._compute_intrinsic_reward(normalized_next_obs).cpu().numpy()
+        
         # add one experience
         exp_dict = experience._asdict()
+        exp_dict["int_reward"] = int_reward
         exp_dict["action_log_prob"] = self.current_action_log_prob
         exp_dict["ext_state_value"] = self.ext_state_value
         exp_dict["int_state_value"] = self.int_state_value
@@ -205,14 +210,14 @@ class RecurrentPPORND(Agent):
                     discrete_action[sample_sequence].flatten(0, 1),
                     continuous_action[sample_sequence].flatten(0, 1)
                 )
-                new_action_log_prob = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, a.num_branches)
+                new_action_log_prob = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, 1)
                 actor_loss = PPO.compute_actor_loss(
                     advantage[sample_sequence][m],
                     old_action_log_prob[sample_sequence][m],
                     new_action_log_prob[m],
                     self.config.epsilon_clip
                 )
-                entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, a.num_branches)[m].mean()
+                entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, 1)[m].mean()
                 
                 # compute critic loss
                 ext_state_value = ext_state_value.reshape(self.config.num_sequences_per_step, -1, 1)
@@ -359,28 +364,28 @@ class RecurrentPPORND(Agent):
         # shape is (num_envs * n+1, 1)
         ext_state_value = torch.cat([exp_batch.ext_state_value, final_ext_next_state_value])
         int_state_value = torch.cat([exp_batch.int_state_value, final_int_next_state_value])
-        
-        # compute intrinsic reward
-        normalized_next_obs = self._normalize_next_obs(exp_batch.next_obs)
-        int_reward = self._compute_intrinsic_reward(normalized_next_obs)
-        
+                
         # (num_envs * t, 1) -> (num_envs, t, 1) -> (num_envs, t)
         b2e = lambda x: drl_util.batch2perenv(x, self.num_envs).squeeze_(-1)
         ext_state_value = b2e(ext_state_value)
         int_state_value = b2e(int_state_value)
         reward = b2e(exp_batch.reward)
         terminated = b2e(exp_batch.terminated)
-        int_reward = b2e(int_reward)
+        int_reward = b2e(exp_batch.int_reward)
         
-        # compute discounted intrinsic reward
-        discounted_int_reward = torch.empty_like(int_reward)
+        # # compute discounted intrinsic return
+        discounted_int_return = torch.empty_like(int_reward)
         for t in range(exp_batch.n_steps):
-            self.prev_discounted_int_reward = int_reward[:, t] + self.config.intrinsic_gamma * self.prev_discounted_int_reward
-            discounted_int_reward[:, t] = self.prev_discounted_int_reward
+            self.prev_discounted_int_return = int_reward[:, t] + self.config.intrinsic_gamma * self.prev_discounted_int_return
+            discounted_int_return[:, t] = self.prev_discounted_int_return
+        
+        # update intrinic reward normalization parameters
+        self.int_reward_mean_var.update(discounted_int_return.cpu().numpy())
         
         # normalize intinrisc reward
-        self.int_reward_mean_var.update(drl_util.perenv2batch(discounted_int_reward).detach().cpu().numpy())
-        int_reward /= math.sqrt(self.int_reward_mean_var.variance)
+        int_reward /= np.sqrt(self.int_reward_mean_var.variance)[..., np.newaxis]
+        # self.int_reward_mean_var.update(drl_util.perenv2batch(discounted_int_reward).detach().cpu().numpy())
+        # int_reward /= math.sqrt(self.int_reward_mean_var.variance)
         self.average_intrinsic_reward.update(int_reward.mean().item())
         
         # compute advantage using GAE
@@ -426,8 +431,8 @@ class RecurrentPPORND(Agent):
         """
         if self.config.pre_obs_norm_step is None:
             return next_obs
-        obs_feature_mean = torch.from_numpy(self.next_obs_feature_mean_var.mean)
-        obs_feature_std = torch.from_numpy(np.sqrt(self.next_obs_feature_mean_var.variance))
+        obs_feature_mean = torch.from_numpy(self.next_obs_feature_mean_var.mean).to(dtype=torch.float32)
+        obs_feature_std = torch.from_numpy(np.sqrt(self.next_obs_feature_mean_var.variance)).to(dtype=torch.float32)
         normalized_next_obs = (next_obs - obs_feature_mean) / obs_feature_std
         return normalized_next_obs.clip(self.config.obs_norm_clip_range[0], self.config.obs_norm_clip_range[1])
 

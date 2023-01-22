@@ -114,6 +114,7 @@ class RecurrentPPORNDExperience(NamedTuple):
     next_obs: np.ndarray
     reward: np.ndarray
     terminated: np.ndarray
+    int_reward: np.ndarray
     action_log_prob: np.ndarray
     ext_state_value: np.ndarray
     int_state_value: np.ndarray
@@ -125,6 +126,7 @@ class RecurrentPPORNDExperienceBatchTensor(NamedTuple):
     next_obs: torch.Tensor
     reward: torch.Tensor
     terminated: torch.Tensor
+    int_reward: torch.Tensor
     action_log_prob: torch.Tensor
     ext_state_value: torch.Tensor
     int_state_value: torch.Tensor
