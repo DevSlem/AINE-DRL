@@ -292,11 +292,11 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
                 encoding = self.encoding_layer(flattend)
                 
                 # lstm layer
-                unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
+                unpacked_hidden_state = aine_drl.RecurrentNetwork.unpack_lstm_hidden_state(hidden_state)
                 # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
                 encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
                 encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
-                next_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+                next_hidden_state = aine_drl.RecurrentNetwork.pack_lstm_hidden_state(unpacked_hidden_state)
                 
                 # actor-critic layer
                 # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
@@ -370,11 +370,11 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
                 encoding = self.encoding_layer(flattend)
                 
                 # lstm layer
-                unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
+                unpacked_hidden_state = aine_drl.RecurrentNetwork.unpack_lstm_hidden_state(hidden_state)
                 # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
                 encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
                 encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
-                next_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+                next_hidden_state = aine_drl.RecurrentNetwork.pack_lstm_hidden_state(unpacked_hidden_state)
                 
                 # actor-critic layer
                 # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
