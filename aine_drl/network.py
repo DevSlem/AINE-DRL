@@ -389,7 +389,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
 
 class RNDNetwork(nn.Module):
     """
-    Random Network Distillation (RND) Network. 
+    Random Network Distillation (RND) network. 
     It constitutes of predictor and target networks. 
     The target network is determinsitic, which means it will be never updated.
     """
@@ -440,9 +440,59 @@ class RNDNetwork(nn.Module):
             target_feature = self.target(next_obs)
         return predicted_feature, target_feature
     
+class HistroyRNDNetwork(nn.Module):
+    """
+    Random Network Distillation (RND) network with the action-observation history. 
+    
+    When POMDP, the actor-critic networks condition on the history instead of the true state. 
+    This can be achived by using the reucrrent network and the network can learn the hidden state h. 
+    You can use the hidden state to RND, but this is optional, so it's okay to use only the next observation. 
+    Since RND doesn't use the recurrent layers, 
+    you should use the hidden state by concatenating with the next observation.
+    
+    It constitutes of the predictor and target networks. 
+    Both of them must have the same architectures.
+    The target network is determinsitic, which means it will be never updated. 
+    """
+    
+    def forward(self, next_obs: torch.Tensor, next_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Compute both predicted feature and target feature. 
+        You can use the hidden state by concatenating the next observation or the feature extracted from it with the hidden state. 
+
+        Args:
+            next_obs (Tensor): next observation batch
+            next_hidden_state (Tensor): next hidden state batch with flattened features
+
+        Returns:
+            predicted feature (Tensor): predicted feature whose gradient flows
+            target feature (Tensor): target feature whose gradient doesn't flow
+            
+        ## Input/Output Details
+        
+        The value of `out_features` depends on you.
+        
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |next observation batch|`(batch_size, *obs_shape)`|
+        |next hidden state batch|`(batch_size, D x num_layers x H)`|
+        
+        Output:
+        
+        |Input|Shape|
+        |:---|:---|
+        |predicted feature|`(batch_size, out_features)`|
+        |target feature|`(batch_size, out_features)`|
+        """
+        raise NotImplementedError
+    
 class RecurrentActorCriticSharedRNDNetwork(RecurrentNetwork):
     """
-    It constitutes of `RecurrentActorCriticSharedTwoValueNetwork` and `RNDNetwork`. 
+    It constitutes of `RecurrentActorCriticSharedTwoValueNetwork` and `HistroyRNDNetwork`. 
     See details in each docs. 
     You don't need to implement `forward()` method.
     """
@@ -454,7 +504,7 @@ class RecurrentActorCriticSharedRNDNetwork(RecurrentNetwork):
     
     @property
     @abstractmethod
-    def rnd_net(self) -> RNDNetwork:
+    def rnd_net(self) -> HistroyRNDNetwork:
         raise NotImplementedError
     
 class SACNetwork(Network):

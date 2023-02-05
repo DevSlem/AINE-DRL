@@ -32,8 +32,9 @@ class RecurrentPPORNDConfig(NamedTuple):
         `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
         `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
         `exp_proportion_for_predictor (float, optional)`: proportion of experience used for training predictor to keep the effective batch size. Defaults to 0.25.
-        `pre_obs_norm_step (int | None, optional)`: number of initial steps for initializing observation normalization. Defaults to no normalization.
+        `pre_normalization_step (int | None, optional)`: number of initial steps for initializing both observation and hidden state normalization. Defaults to no normalization.
         `obs_norm_clip_range (Tuple[float, float])`: observation normalization clipping range (min, max). Defaults to (-5.0, 5.0).
+        `hidden_state_norm_clip_range (Tuple[float, float])`: hidden state normalization clipping range (min, max). Defaults to (-5.0, 5.0).
         `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
     """
     training_freq: int
@@ -50,8 +51,9 @@ class RecurrentPPORNDConfig(NamedTuple):
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
     exp_proportion_for_predictor: float = 0.25
-    pre_obs_norm_step: Optional[int] = None
+    pre_normalization_step: Optional[int] = None
     obs_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
+    hidden_state_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
     grad_clip_max_norm: Optional[float] = None
     
 
@@ -90,6 +92,7 @@ class RecurrentPPORND(Agent):
         self.prev_terminated = np.zeros((self.num_envs, 1), dtype=np.float32)
         self.int_reward_mean_var = util.IncrementalMeanVarianceFromBatch(axis=1) # compute intrinic reward normalization parameters of each env along time steps
         self.next_obs_feature_mean_var = util.IncrementalMeanVarianceFromBatch(axis=0) # compute normalization parameters of each feature of next observation along batches
+        self.next_hidden_state_feature_mean_var = util.IncrementalMeanVarianceFromBatch(axis=0) # compute normalization parameters of each feature of next hidden state along batches
         self.current_pre_obs_norm_step = 0
         
         self.actor_average_loss = util.IncrementalAverage()
@@ -108,14 +111,20 @@ class RecurrentPPORND(Agent):
         
         self.prev_terminated = experience.terminated
         
-        if (self.config.pre_obs_norm_step is not None) and (self.current_pre_obs_norm_step < self.config.pre_obs_norm_step):
+        # (D x num_layers, num_envs, H) -> (num_envs, D x num_layers, H)
+        next_hidden_state = (self.next_hidden_state * (1.0 - self.prev_terminated)).swapaxes(0, 1)
+        
+        # pre-normalization
+        if (self.config.pre_normalization_step is not None) and (self.current_pre_obs_norm_step < self.config.pre_normalization_step):
             self.current_pre_obs_norm_step += 1
             self.next_obs_feature_mean_var.update(experience.next_obs)
+            self.next_hidden_state_feature_mean_var.update(next_hidden_state)
             return
         
         # compute intrinsic reward
         normalized_next_obs = self._normalize_next_obs(torch.from_numpy(experience.next_obs).to(device=self.device))
-        int_reward = self._compute_intrinsic_reward(normalized_next_obs).cpu().numpy()
+        normalized_next_hidden_state = self._normalize_next_hidden_state(torch.from_numpy(next_hidden_state).to(device=self.device))
+        int_reward = self._compute_intrinsic_reward(normalized_next_obs, normalized_next_hidden_state).cpu().numpy()
         
         # add one experience
         exp_dict = experience._asdict()
@@ -169,9 +178,25 @@ class RecurrentPPORND(Agent):
     def _train(self):
         exp_batch = self.trajectory.sample(self.device)
         
+        # get next hidden state
+        final_next_hidden_state = torch.from_numpy(self.next_hidden_state * (1.0 - self.prev_terminated)).to(device=self.device)
+        next_hidden_state = torch.concat([exp_batch.hidden_state[:, self.num_envs:], final_next_hidden_state], dim=1)
+        
+        # compute advantage and target state value
         advantage, ext_target_state_value, int_target_state_value = self._compute_adavantage_v_target(exp_batch)
         
-        obs, next_obs, discrete_action, continuous_action, old_action_log_prob, advantage, ext_target_state_value, int_target_state_value, mask, sequence_start_hidden_state = self._to_batch_sequences(
+        # convert batch to sequences
+        (obs, 
+         next_obs, 
+         discrete_action, 
+         continuous_action, 
+         old_action_log_prob, 
+         advantage, 
+         ext_target_state_value, 
+         int_target_state_value, 
+         next_hidden_state,
+         mask, 
+         sequence_start_hidden_state) = self._to_sequences(
             exp_batch.obs,
             exp_batch.next_obs,
             exp_batch.action,
@@ -181,18 +206,23 @@ class RecurrentPPORND(Agent):
             ext_target_state_value,
             int_target_state_value,
             exp_batch.hidden_state,
+            next_hidden_state,
             exp_batch.n_steps
         )
         
         num_sequences = len(obs)
         
-        # update next observation normalization parameters
+        # update next observation and next hidden state normalization parameters
         masked_next_obs = next_obs[mask]
+        masked_next_hidden_state = next_hidden_state[mask]
         self.next_obs_feature_mean_var.update(masked_next_obs.cpu().numpy())
+        self.next_hidden_state_feature_mean_var.update(masked_next_hidden_state.cpu().numpy())
         
-        # normalize next observation
+        # normalize next observation and next hidden state
         normalized_next_obs = next_obs.clone()
+        normalized_next_hidden_state = next_hidden_state.clone()
         normalized_next_obs[mask] = self._normalize_next_obs(masked_next_obs)
+        normalized_next_hidden_state[mask] = self._normalize_next_hidden_state(masked_next_hidden_state)
         
         for _ in range(self.config.epoch):
             sample_sequences = torch.randperm(num_sequences)
@@ -202,7 +232,10 @@ class RecurrentPPORND(Agent):
                 
                 # feed forward
                 pdparam, ext_state_value, int_state_value, _ = self.network.actor_critic_net.forward(obs[sample_sequence], sequence_start_hidden_state[:, sample_sequence])
-                predicted_feature, target_feature = self.network.rnd_net.forward(normalized_next_obs[sample_sequence][m])
+                predicted_feature, target_feature = self.network.rnd_net.forward(
+                    normalized_next_obs[sample_sequence][m],
+                    normalized_next_hidden_state[sample_sequence][m].flatten(1, 2)
+                )
                 
                 # compute actor loss
                 dist = self.policy.get_policy_distribution(pdparam)
@@ -244,7 +277,7 @@ class RecurrentPPORND(Agent):
                 self.int_critic_average_loss.update(int_critic_loss.item())
                 self.rnd_average_loss.update(rnd_loss.item())
                 
-    def _to_batch_sequences(self, 
+    def _to_sequences(self, 
                            obs: torch.Tensor,
                            next_obs: torch.Tensor,
                            action: ActionTensor,
@@ -254,6 +287,7 @@ class RecurrentPPORND(Agent):
                            ext_target_state_value: torch.Tensor,
                            int_target_state_value: torch.Tensor,
                            hidden_state: torch.Tensor,
+                           next_hidden_state: torch.Tensor,
                            n_steps: int) -> Tuple[torch.Tensor, ...]:
         # 1. stack sequence_length experiences
         # 2. when episode is terminated or remained experiences < sequence_length, zero padding
@@ -277,9 +311,11 @@ class RecurrentPPORND(Agent):
         advantage = b2e(advantage)
         ext_target_state_value = b2e(ext_target_state_value)
         int_target_state_value = b2e(int_target_state_value)
-        # (max_num_layers, batch_size, *out_features) -> (batch_size, max_num_layers, *out_features)
+        # (D x num_layers, batch_size, H) -> (batch_size, D x num_layers, H)
         hidden_state = hidden_state.swapaxes(0, 1)
+        next_hidden_state = next_hidden_state.swapaxes(0, 1)
         hidden_state = b2e(hidden_state)
+        next_hidden_state = b2e(next_hidden_state)
         
         sequence_start_hidden_state = []
         stacked_obs = []
@@ -290,6 +326,7 @@ class RecurrentPPORND(Agent):
         stacked_advantage = []
         stacked_ext_target_state_value = []
         stacked_int_target_state_value = []
+        stacked_next_hidden_state = []
         stacked_mask = []
         
         seq_len = self.config.sequence_length
@@ -304,7 +341,8 @@ class RecurrentPPORND(Agent):
                 
                 # if terminated in the middle of sequence
                 # it will be zero padded
-                if t < len(terminated_idxes) and terminated_idxes[t] < seq_end:
+                sequence_interrupted = t < len(terminated_idxes) and terminated_idxes[t] < seq_end
+                if sequence_interrupted:
                     seq_end = terminated_idxes[t].item() + 1
                     t += 1
                     
@@ -319,13 +357,18 @@ class RecurrentPPORND(Agent):
                 stacked_advantage.append(advantage[env_id, idx])
                 stacked_ext_target_state_value.append(ext_target_state_value[env_id, idx])
                 stacked_int_target_state_value.append(int_target_state_value[env_id, idx])
+                next_hidden_state_sequence = next_hidden_state[env_id, idx]
+                # when terminated, next_hidden_state is zero
+                if sequence_interrupted:
+                    next_hidden_state_sequence[-1] = torch.zeros_like(next_hidden_state_sequence[-1])
+                stacked_next_hidden_state.append(next_hidden_state_sequence)
                 stacked_mask.append(mask[env_id, idx])
                 
                 seq_start = seq_end
 
-        # (max_num_layers, *out_features) x num_sequences -> (num_sequences, max_num_layers, *out_features)
+        # (D x num_layers, *out_features) x num_sequences -> (num_sequences, D x num_layers, *out_features)
         sequence_start_hidden_state = torch.stack(sequence_start_hidden_state)
-        # (num_sequences, max_num_layers, *out_features) -> (max_num_layers, num_sequences, *out_features)
+        # (num_sequences, D x num_layers, *out_features) -> (D x num_layers, num_sequences, *out_features)
         sequence_start_hidden_state.swapaxes_(0, 1)
         
         pad = lambda x: pad_sequence(x, batch_first=True, padding_value=self.config.padding_value)
@@ -338,11 +381,22 @@ class RecurrentPPORND(Agent):
         stacked_advantage = pad(stacked_advantage)
         stacked_ext_target_state_value = pad(stacked_ext_target_state_value)
         stacked_int_target_state_value = pad(stacked_int_target_state_value)
+        stacked_next_hidden_state = pad(stacked_next_hidden_state)
         stacked_mask = pad(stacked_mask)
         eps = torch.finfo(torch.float32).eps * 2.0
         stacked_mask = (stacked_mask < self.config.padding_value - eps) | (stacked_mask > self.config.padding_value + eps)
         
-        return stacked_obs, stacked_next_obs, stacked_discrete_action, stacked_continuous_action, stacked_action_log_prob, stacked_advantage, stacked_ext_target_state_value, stacked_int_target_state_value, stacked_mask, sequence_start_hidden_state
+        return (stacked_obs, 
+                stacked_next_obs, 
+                stacked_discrete_action, 
+                stacked_continuous_action, 
+                stacked_action_log_prob, 
+                stacked_advantage, 
+                stacked_ext_target_state_value, 
+                stacked_int_target_state_value, 
+                stacked_next_hidden_state,
+                stacked_mask, 
+                sequence_start_hidden_state)
 
     def _compute_adavantage_v_target(self, exp_batch: tj.RecurrentPPORNDExperienceBatchTensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -383,7 +437,7 @@ class RecurrentPPORND(Agent):
         self.int_reward_mean_var.update(discounted_int_return.cpu().numpy())
         
         # normalize intinrisc reward
-        int_reward /= np.sqrt(self.int_reward_mean_var.variance)[..., np.newaxis]
+        int_reward /= torch.from_numpy(np.sqrt(self.int_reward_mean_var.variance)[..., np.newaxis]).to(device=self.device)
         # self.int_reward_mean_var.update(drl_util.perenv2batch(discounted_int_reward).detach().cpu().numpy())
         # int_reward /= math.sqrt(self.int_reward_mean_var.variance)
         self.average_intrinsic_reward.update(int_reward.mean().item())
@@ -416,26 +470,44 @@ class RecurrentPPORND(Agent):
         
         return advantage, ext_target_state_value, int_target_state_value
     
-    def _compute_intrinsic_reward(self, next_obs: torch.Tensor) -> torch.Tensor:
+    def _compute_intrinsic_reward(self, next_obs: torch.Tensor, next_hidden_state: torch.Tensor) -> torch.Tensor:
         """
-        Compute intrinsic reward whose shape is `(batch_size, 1)`.
+        Compute intrinsic reward.
+        
+        Args:
+            next_obs (Tensor): `(batch_size, *obs_shape)`
+            next_hidden_state (Tensor): `(batch_size, D x num_layers, H)`
+            
+        Returns:
+            intrinsic_reward (Tensor): `(batch_size, 1)`
         """
         with torch.no_grad():
-            predicted_feature, target_feature = self.network.rnd_net.forward(next_obs)
+            predicted_feature, target_feature = self.network.rnd_net.forward(next_obs, next_hidden_state.flatten(1, 2))
             intrinsic_reward = 0.5 * ((target_feature - predicted_feature)**2).sum(dim=1, keepdim=True)
             return intrinsic_reward
         
     def _normalize_next_obs(self, next_obs: torch.Tensor) -> torch.Tensor:
         """
-        Normalize next observation. If `pre_obs_norm_step` setting in the configuration is `None`, this method doesn't normalize it.
+        Normalize next observation. If `pre_normalization_step` setting in the configuration is `None`, this method doesn't normalize it.
         """
-        if self.config.pre_obs_norm_step is None:
+        if self.config.pre_normalization_step is None:
             return next_obs
-        obs_feature_mean = torch.from_numpy(self.next_obs_feature_mean_var.mean).to(dtype=torch.float32)
-        obs_feature_std = torch.from_numpy(np.sqrt(self.next_obs_feature_mean_var.variance)).to(dtype=torch.float32)
+        obs_feature_mean = torch.from_numpy(self.next_obs_feature_mean_var.mean).to(dtype=torch.float32, device=next_obs.device)
+        obs_feature_std = torch.from_numpy(np.sqrt(self.next_obs_feature_mean_var.variance)).to(dtype=torch.float32, device=next_obs.device)
         normalized_next_obs = (next_obs - obs_feature_mean) / obs_feature_std
         return normalized_next_obs.clip(self.config.obs_norm_clip_range[0], self.config.obs_norm_clip_range[1])
 
+    def _normalize_next_hidden_state(self, next_hidden_state: torch.Tensor) -> torch.Tensor:
+        """
+        Normalize next hidden state. If `pre_normalization_step` setting in the configuration is `None`, this method doesn't normalize it.
+        """
+        if self.config.pre_normalization_step is None:
+            return next_hidden_state
+        hidden_state_feature_mean = torch.from_numpy(self.next_hidden_state_feature_mean_var.mean).to(dtype=torch.float32, device=next_hidden_state.device)
+        hidden_state_feature_std = torch.from_numpy(np.sqrt(self.next_hidden_state_feature_mean_var.variance)).to(dtype=torch.float32, device=next_hidden_state.device)
+        normalized_next_hidden_state = (next_hidden_state - hidden_state_feature_mean) / hidden_state_feature_std
+        return normalized_next_hidden_state.clip(self.config.hidden_state_norm_clip_range[0], self.config.hidden_state_norm_clip_range[1])
+    
     @property
     def log_keys(self) -> Tuple[str, ...]:
         return super().log_keys + ("Network/Actor Loss", "Network/Extrinsic Critic Loss", "Network/Intrinsic Critic Loss", "Network/RND Loss", "RND/Intrinsic Reward")
