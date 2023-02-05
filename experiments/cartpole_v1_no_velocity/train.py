@@ -121,9 +121,10 @@ class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNe
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
         self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
         
-    # override
-    def hidden_state_shape(self, batch_size: int) -> Tuple[int, ...]:
-        return (1, batch_size, self.hidden_feature * 2)
+    # override    
+    @property
+    def hidden_state_shape(self) -> Tuple[int, int]:
+        return (1, self.hidden_feature * 2)
     
 class CartPoleNoVelActorCriticNet(aine_drl.ActorCriticSharedNetwork):
     # Naive PPO uses ActorCriticSharedNetwork.

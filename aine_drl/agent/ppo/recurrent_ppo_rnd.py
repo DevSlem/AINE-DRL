@@ -87,8 +87,9 @@ class RecurrentPPORND(Agent):
         self.ext_state_value = None
         self.int_state_value = None
         self.prev_discounted_int_return = 0.0
-        self.current_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs), dtype=np.float32)
-        self.next_hidden_state = np.zeros(network.hidden_state_shape(self.num_envs), dtype=np.float32)
+        hidden_state_shape = (network.hidden_state_shape[0], self.num_envs, network.hidden_state_shape[1])
+        self.current_hidden_state = np.zeros(hidden_state_shape, dtype=np.float32)
+        self.next_hidden_state = np.zeros(hidden_state_shape, dtype=np.float32)
         self.prev_terminated = np.zeros((self.num_envs, 1), dtype=np.float32)
         self.int_reward_mean_var = util.IncrementalMeanVarianceFromBatch(axis=1) # compute intrinic reward normalization parameters of each env along time steps
         self.next_obs_feature_mean_var = util.IncrementalMeanVarianceFromBatch(axis=0) # compute normalization parameters of each feature of next observation along batches
@@ -102,8 +103,9 @@ class RecurrentPPORND(Agent):
         self.average_intrinsic_reward = util.IncrementalAverage()
         
         # for inference mode
-        self.inference_current_hidden_state = np.zeros(network.hidden_state_shape(1), dtype=np.float32)
-        self.inference_next_hidden_state = np.zeros(network.hidden_state_shape(1), dtype=np.float32)
+        inference_hidden_state_shape = (network.hidden_state_shape[0], 1, network.hidden_state_shape[1])
+        self.inference_current_hidden_state = np.zeros(inference_hidden_state_shape, dtype=np.float32)
+        self.inference_next_hidden_state = np.zeros(inference_hidden_state_shape, dtype=np.float32)
         self.inference_prev_terminated = np.zeros((1, 1), dtype=np.float32)
         
     def update(self, experience: Experience):

@@ -66,16 +66,18 @@ class RecurrentPPO(Agent):
         
         self.current_action_log_prob = None
         self.v_pred = None
-        self.current_hidden_state = torch.zeros(network.hidden_state_shape(self.num_envs))
-        self.next_hidden_state = torch.zeros(network.hidden_state_shape(self.num_envs))
+        hidden_state_shape = (network.hidden_state_shape[0], self.num_envs, network.hidden_state_shape[1])
+        self.current_hidden_state = torch.zeros(hidden_state_shape)
+        self.next_hidden_state = torch.zeros(hidden_state_shape)
         self.prev_terminated = torch.zeros(self.num_envs, 1)
         
         self.actor_average_loss = util.IncrementalAverage()
         self.critic_average_loss = util.IncrementalAverage()
         
         # for inference mode
-        self.inference_current_hidden_state = torch.zeros(network.hidden_state_shape(1))
-        self.inference_next_hidden_state = torch.zeros(network.hidden_state_shape(1))
+        inference_hidden_state_shape = (network.hidden_state_shape[0], 1, network.hidden_state_shape[1])
+        self.inference_current_hidden_state = torch.zeros(inference_hidden_state_shape)
+        self.inference_next_hidden_state = torch.zeros(inference_hidden_state_shape)
         self.inference_prev_terminated = torch.zeros(1, 1)
         
     def update(self, experience: Experience):

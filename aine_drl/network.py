@@ -246,12 +246,16 @@ class RecurrentNetwork(Network):
         lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
         return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
     
+    @property
     @abstractmethod
-    def hidden_state_shape(self, batch_size: int) -> Tuple[int, ...]:
+    def hidden_state_shape(self) -> Tuple[int, int]:
         """
-        Returns recurrent hidden state shape. 
-        When you use LSTM, its shape is `(D x num_layers, batch_size, H_out x 2)`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
-        When you use GRU, its shape is `(D x num_layers, batch_size, H_out)`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html. 
+        Returns the shape of the rucurrent hidden state `(D x num_layers, H)`. \\
+        `num_layers` is the number of recurrent layers. \\
+        `D` = 2 if bidirectional otherwise 1. \\
+        The value of `H` depends on the type of the recurrent network.
+        When you use LSTM, `H` = `H_out x 2`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
         """
         raise NotImplementedError
     
