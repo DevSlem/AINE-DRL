@@ -68,6 +68,8 @@ def perenv2batch(per_env: torch.Tensor) -> torch.Tensor:
     
 class TruncatedSequenceGenerator:
     """
+    ## Summary
+    
     Truncated sequence generator from batch.
 
     Args:
@@ -75,6 +77,28 @@ class TruncatedSequenceGenerator:
         num_envs (int): number of environments
         n_steps (int): number of time steps
         padding_value (float, optional): padding value. Defaults to 0.
+        
+    ## Example
+    
+    ::
+    
+        full_seq_len, num_envs, n_steps = 4, 2, 7
+        
+        seq_generator = TruncatedSequenceGenerator(full_seq_len, num_envs, n_steps)
+        
+        hidden_state = torch.randn((num_envs, n_steps, 3, 8)) # (num_envs, n_steps, D x num_layers, H)
+        obs = torch.randn((num_envs, n_steps, 3)) # (num_envs, n_steps, obs_features)
+        terminated = torch.zeros((num_envs, n_steps))
+        terminated[0, 2], terminated[0, 4] = 1, 1
+        
+        seq_generator.add(hidden_state, seq_len=1)
+        seq_generator.add(obs)
+        
+        mask, seq_init_hidden_state, obs_seq = seq_generator.generate(terminated)
+        seq_init_hidden_state.squeeze_(dim=1).swapaxes_(0, 1) # (D x num_layers, num_seq, H)
+        
+        >>> mask.shape, seq_init_hidden_state.shape, obs_seq.shape
+        (torch.Size([5, 4]), torch.Size([3, 5, 8]), torch.Size([5, 4, 3]))
     """
     
     class __SeqInfo(NamedTuple):
