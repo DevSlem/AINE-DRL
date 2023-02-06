@@ -351,21 +351,27 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
         
     @abstractmethod
     def forward(self, 
-                obs: torch.Tensor, 
+                obs_seq: torch.Tensor, 
                 hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
-        Feed forward method to estimate policy distribution parameter (pdparam), extrinsic state value, intrinsic state value using the recurrent layer.\\
+        Feed forward method to compute policy distribution parameter (pdparam), extinrisc state value, intrinsic state value using the recurrent layer.
+        
         When the action type is discrete, pdparam is generally logits or soft-max distribution. \\
         When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
         
+        It's recommended to set recurrent layer to `batch_first=True`.
+        
         Args:
-            obs (Tensor): observation sequences
-            hidden_state (Tensor): recurrent hidden state at the first time step of the sequences
+            obs_seq (Tensor): observation sequences
+            hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
-            Tuple[PolicyDistributionParameter, Tensor, Tensor, Tensor]: policy distribution parameter, extrinsic state value, intrinsic state value, next recurrent hidden state
+            pdparam_seq (PolicyDistributionParameter): policy distribution parameter sequences
+            ext_state_value_seq (Tensor): extrinsic state value sequences
+            int_state_value_seq (Tensor): intrinsic state value sequences
+            next_hidden_state (Tensor): next hidden state
         
         ## Input/Output Details
         
@@ -375,17 +381,17 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
         
         |Input|Shape|
         |:---|:---|
-        |observation sequences|`(sequence_batch_size, sequence_length, *obs_shape)`|
-        |hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
+        |obs_seq|`(num_seq, seq_len, *obs_shape)`|
+        |hidden state|`(D x num_layers, num_seq, H)`|
         
         Output:
         
         |Output|Shape|
         |:---|:---|
-        |policy distribution parameter|details in `PolicyDistributionParameter`|
-        |extrinsic state value|`(batch_size, 1)`|
-        |intrinsic state value|`(batch-size, 1)`|
-        |next hidden state|`(max_num_layers, sequence_batch_size, out_features)`|
+        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistributionParameter` docs|
+        |ext_state_value_seq|`(num_seq, seq_len, 1)`|
+        |int_state_value_seq|`(num_seq, seq_len, 1)`|
+        |next_hidden_state|`(D x num_layers, num_seq, H)`|
         
         It's recommended to set the recurrent layer to `batch_first=True`. \\
         Hidden state is typically concatnated tensor of LSTM tuple (h, c) or GRU hidden state tensor.
