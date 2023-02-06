@@ -8,10 +8,8 @@ import aine_drl.agent.ppo.ppo_trajectory as tj
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
-from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 import numpy as np
-import math
 
 class RecurrentPPORNDConfig(NamedTuple):
     """
@@ -149,30 +147,31 @@ class RecurrentPPORND(Agent):
             self.current_hidden_state = self.next_hidden_state * (1.0 - self.prev_terminated)
             # when interacting with environment, sequence_length must be 1
             # feed forward
-            pdparam, ext_state_value, int_state_value, next_hidden_state = self.network.actor_critic_net.forward(
-                obs.unsqueeze(1), 
+            pdparam_seq, ext_state_value_seq, int_state_value_seq, next_hidden_state = self.network.actor_critic_net.forward(
+                obs.unsqueeze(dim=1), 
                 torch.from_numpy(self.current_hidden_state).to(device=self.device)
             )
             
             # action sampling
+            pdparam = pdparam_seq.sequence_to_flattened()
             dist = self.policy.get_policy_distribution(pdparam)
             action = dist.sample()
             
             # store data
             self.current_action_log_prob = dist.log_prob(action).cpu().numpy()
-            self.ext_state_value = ext_state_value.cpu().numpy()
-            self.int_state_value = int_state_value.cpu().numpy()
+            self.ext_state_value = ext_state_value_seq.squeeze_(dim=1).cpu().numpy()
+            self.int_state_value = int_state_value_seq.squeeze_(dim=1).cpu().numpy()
             self.next_hidden_state = next_hidden_state.cpu().numpy()
             
             return action
     
     def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
         self.inference_current_hidden_state = self.inference_next_hidden_state * (1.0 - self.inference_prev_terminated)
-        pdparam, _, _, next_hidden_state = self.network.actor_critic_net.forward(
+        pdparam_seq, _, _, next_hidden_state = self.network.actor_critic_net.forward(
             obs.unsqueeze(1), 
             torch.from_numpy(self.inference_current_hidden_state).to(device=self.device)
         )
-        dist = self.policy.get_policy_distribution(pdparam)
+        dist = self.policy.get_policy_distribution(pdparam_seq.sequence_to_flattened())
         action = dist.sample()
         self.inference_next_hidden_state = next_hidden_state.cpu().numpy()
         return action
@@ -187,78 +186,91 @@ class RecurrentPPORND(Agent):
         # compute advantage and target state value
         advantage, ext_target_state_value, int_target_state_value = self._compute_adavantage_v_target(exp_batch)
         
-        # convert batch to sequences
-        (obs, 
-         next_obs, 
-         discrete_action, 
-         continuous_action, 
-         old_action_log_prob, 
-         advantage, 
-         ext_target_state_value, 
-         int_target_state_value, 
-         next_hidden_state,
-         mask, 
-         sequence_start_hidden_state) = self._to_sequences(
-            exp_batch.obs,
-            exp_batch.next_obs,
-            exp_batch.action,
-            exp_batch.terminated,
-            exp_batch.action_log_prob,
-            advantage,
-            ext_target_state_value,
-            int_target_state_value,
-            exp_batch.hidden_state,
-            next_hidden_state,
-            exp_batch.n_steps
-        )
+        # convert batch to truncated sequence
+        seq_generator = drl_util.TruncatedSequenceGenerator(self.config.sequence_length, self.num_envs, exp_batch.n_steps, self.config.padding_value)
         
-        num_sequences = len(obs)
+        def add_to_seq_gen(batch, start_idx = 0, seq_len = 0):
+            seq_generator.add(drl_util.batch2perenv(batch, self.num_envs), start_idx=start_idx, seq_len=seq_len)
+            
+        add_to_seq_gen(exp_batch.hidden_state.swapaxes(0, 1), seq_len=1)
+        add_to_seq_gen(next_hidden_state.swapaxes(0, 1))
+        add_to_seq_gen(exp_batch.obs)
+        add_to_seq_gen(exp_batch.next_obs)
+        if exp_batch.action.num_discrete_branches > 0:
+            add_to_seq_gen(exp_batch.action.discrete_action)
+        else:
+            seq_generator.add(torch.empty((self.num_envs, exp_batch.n_steps, 0)))
+        if exp_batch.action.num_continuous_branches > 0:
+            add_to_seq_gen(exp_batch.action.continuous_action)
+        else:
+            seq_generator.add(torch.empty((self.num_envs, exp_batch.n_steps, 0)))
+        add_to_seq_gen(exp_batch.action_log_prob)
+        add_to_seq_gen(advantage)
+        add_to_seq_gen(ext_target_state_value)
+        add_to_seq_gen(int_target_state_value)
+        
+        sequences = seq_generator.generate(drl_util.batch2perenv(exp_batch.terminated, self.num_envs).unsqueeze_(-1))
+        (mask, seq_init_hidden_state, next_hidden_state_seq, obs_seq, next_obs_seq, discrete_action_seq, continuous_action_seq, 
+         old_action_log_prob_seq, advantage_seq, ext_target_state_value_seq, int_target_state_value_seq) = sequences
+        
+        num_seq = len(mask)
+        # (num_seq, 1, D x num_layers, H) -> (D x num_layers, num_seq, H)
+        seq_init_hidden_state = seq_init_hidden_state.squeeze_(dim=1).swapaxes_(0, 1)
         
         # update next observation and next hidden state normalization parameters
-        masked_next_obs = next_obs[mask]
-        masked_next_hidden_state = next_hidden_state[mask]
+        # when masked by mask, (num_seq, seq_len, *shape) -> (masked_batch_size, *shape)
+        masked_next_obs = next_obs_seq[mask]
+        masked_next_hidden_state = next_hidden_state_seq[mask]
         self.next_obs_feature_mean_var.update(masked_next_obs.cpu().numpy())
         self.next_hidden_state_feature_mean_var.update(masked_next_hidden_state.cpu().numpy())
         
         # normalize next observation and next hidden state
-        normalized_next_obs = next_obs.clone()
-        normalized_next_hidden_state = next_hidden_state.clone()
-        normalized_next_obs[mask] = self._normalize_next_obs(masked_next_obs)
-        normalized_next_hidden_state[mask] = self._normalize_next_hidden_state(masked_next_hidden_state)
+        normalized_next_obs_seq = next_obs_seq
+        normalized_next_hidden_state_seq = next_hidden_state_seq
+        normalized_next_obs_seq[mask] = self._normalize_next_obs(masked_next_obs)
+        normalized_next_hidden_state_seq[mask] = self._normalize_next_hidden_state(masked_next_hidden_state)
         
         for _ in range(self.config.epoch):
-            sample_sequences = torch.randperm(num_sequences)
-            for i in range(num_sequences // self.config.num_sequences_per_step):
-                sample_sequence = sample_sequences[self.config.num_sequences_per_step * i : self.config.num_sequences_per_step * (i + 1)]
-                m = mask[sample_sequence]
+            sample_sequences = torch.randperm(num_seq)
+            for i in range(num_seq // self.config.num_sequences_per_step):
+                # when sliced by sample_seq, (num_seq,) -> (num_seq_per_step,)
+                sample_seq = sample_sequences[self.config.num_sequences_per_step * i : self.config.num_sequences_per_step * (i + 1)]
+                # when masked by m, (num_seq_per_step, seq_len,) -> (masked_batch_size,)
+                m = mask[sample_seq]
                 
                 # feed forward
-                pdparam, ext_state_value, int_state_value, _ = self.network.actor_critic_net.forward(obs[sample_sequence], sequence_start_hidden_state[:, sample_sequence])
+                # in this case num_seq = num_seq_per_step
+                pdparam_seq, ext_state_value_seq, int_state_value_seq, _ = self.network.actor_critic_net.forward(
+                    obs_seq[sample_seq], 
+                    seq_init_hidden_state[:, sample_seq]
+                )
                 predicted_feature, target_feature = self.network.rnd_net.forward(
-                    normalized_next_obs[sample_sequence][m],
-                    normalized_next_hidden_state[sample_sequence][m].flatten(1, 2)
+                    normalized_next_obs_seq[sample_seq][m],
+                    normalized_next_hidden_state_seq[sample_seq][m].flatten(1, 2)
                 )
                 
                 # compute actor loss
+                # (num_seq_per_step, seq_len, *pdparam_shape) -> (num_seq_per_step * seq_len, *pdparam_shape)
+                pdparam = pdparam_seq.sequence_to_flattened()
                 dist = self.policy.get_policy_distribution(pdparam)
+                # (num_seq_per_step, seq_len, num_actions) -> (num_seq_per_step * seq_len, num_actions)
                 a = ActionTensor(
-                    discrete_action[sample_sequence].flatten(0, 1),
-                    continuous_action[sample_sequence].flatten(0, 1)
+                    discrete_action_seq[sample_seq].flatten(0, 1),
+                    continuous_action_seq[sample_seq].flatten(0, 1)
                 )
-                new_action_log_prob = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, 1)
+                # (num_seq_per_step * seq_len, 1) -> (num_seq_per_step, seq_len, 1)
+                new_action_log_prob_seq = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, 1)
                 actor_loss = PPO.compute_actor_loss(
-                    advantage[sample_sequence][m],
-                    old_action_log_prob[sample_sequence][m],
-                    new_action_log_prob[m],
+                    advantage_seq[sample_seq][m],
+                    old_action_log_prob_seq[sample_seq][m],
+                    new_action_log_prob_seq[m],
                     self.config.epsilon_clip
                 )
                 entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, 1)[m].mean()
                 
                 # compute critic loss
-                ext_state_value = ext_state_value.reshape(self.config.num_sequences_per_step, -1, 1)
-                int_state_value = int_state_value.reshape(self.config.num_sequences_per_step, -1, 1)
-                ext_critic_loss = PPO.compute_critic_loss(ext_state_value[m], ext_target_state_value[sample_sequence][m])
-                int_critic_loss = PPO.compute_critic_loss(int_state_value[m], int_target_state_value[sample_sequence][m])
+                ext_critic_loss = PPO.compute_critic_loss(ext_state_value_seq[m], ext_target_state_value_seq[sample_seq][m])
+                int_critic_loss = PPO.compute_critic_loss(int_state_value_seq[m], int_target_state_value_seq[sample_seq][m])
                 critic_loss = ext_critic_loss + int_critic_loss
                 
                 # compute RND loss
@@ -278,158 +290,44 @@ class RecurrentPPORND(Agent):
                 self.ext_critic_average_loss.update(ext_critic_loss.item())
                 self.int_critic_average_loss.update(int_critic_loss.item())
                 self.rnd_average_loss.update(rnd_loss.item())
-                
-    def _to_sequences(self, 
-                           obs: torch.Tensor,
-                           next_obs: torch.Tensor,
-                           action: ActionTensor,
-                           terminated: torch.Tensor,
-                           action_log_prob: torch.Tensor,
-                           advantage: torch.Tensor,
-                           ext_target_state_value: torch.Tensor,
-                           int_target_state_value: torch.Tensor,
-                           hidden_state: torch.Tensor,
-                           next_hidden_state: torch.Tensor,
-                           n_steps: int) -> Tuple[torch.Tensor, ...]:
-        # 1. stack sequence_length experiences
-        # 2. when episode is terminated or remained experiences < sequence_length, zero padding
-        # 3. feed forward
-        
-        # batch_size = 128
-        # sequence_length = 8
-        # if not teraminted
-        # stack experiences
-        # if sequence_length is reached or terminated:
-        # stop stacking and go to next sequence
-        mask = torch.ones((self.num_envs, n_steps))
-        
-        b2e = lambda x: drl_util.batch2perenv(x, self.num_envs)
-        obs = b2e(obs)
-        next_obs = b2e(next_obs)
-        discrete_action = b2e(action.discrete_action) if action.num_discrete_branches > 0 else torch.empty((self.num_envs, n_steps, 0))
-        continuous_action = b2e(action.continuous_action) if action.num_continuous_branches > 0 else torch.empty((self.num_envs, n_steps, 0))
-        terminated = b2e(terminated)
-        action_log_prob = b2e(action_log_prob)
-        advantage = b2e(advantage)
-        ext_target_state_value = b2e(ext_target_state_value)
-        int_target_state_value = b2e(int_target_state_value)
-        # (D x num_layers, batch_size, H) -> (batch_size, D x num_layers, H)
-        hidden_state = hidden_state.swapaxes(0, 1)
-        next_hidden_state = next_hidden_state.swapaxes(0, 1)
-        hidden_state = b2e(hidden_state)
-        next_hidden_state = b2e(next_hidden_state)
-        
-        sequence_start_hidden_state = []
-        stacked_obs = []
-        stacked_next_obs = []
-        stacked_discrete_action = []
-        stacked_continuous_action = []
-        stacked_action_log_prob = []
-        stacked_advantage = []
-        stacked_ext_target_state_value = []
-        stacked_int_target_state_value = []
-        stacked_next_hidden_state = []
-        stacked_mask = []
-        
-        seq_len = self.config.sequence_length
-        
-        for env_id in range(self.num_envs):
-            seq_start = 0
-            t = 0
-            terminated_idxes = torch.where(terminated[env_id] > 0.5)[0]
-            
-            while seq_start < n_steps:
-                seq_end = min(seq_start + seq_len, n_steps)
-                
-                # if terminated in the middle of sequence
-                # it will be zero padded
-                sequence_interrupted = t < len(terminated_idxes) and terminated_idxes[t] < seq_end
-                if sequence_interrupted:
-                    seq_end = terminated_idxes[t].item() + 1
-                    t += 1
-                    
-                sequence_start_hidden_state.append(hidden_state[env_id, seq_start])
-                
-                idx = torch.arange(seq_start, seq_end)
-                stacked_obs.append(obs[env_id, idx])
-                stacked_next_obs.append(next_obs[env_id, idx])
-                stacked_discrete_action.append(discrete_action[env_id, idx])
-                stacked_continuous_action.append(continuous_action[env_id, idx])
-                stacked_action_log_prob.append(action_log_prob[env_id, idx])
-                stacked_advantage.append(advantage[env_id, idx])
-                stacked_ext_target_state_value.append(ext_target_state_value[env_id, idx])
-                stacked_int_target_state_value.append(int_target_state_value[env_id, idx])
-                next_hidden_state_sequence = next_hidden_state[env_id, idx]
-                # when terminated, next_hidden_state is zero
-                if sequence_interrupted:
-                    next_hidden_state_sequence[-1] = torch.zeros_like(next_hidden_state_sequence[-1])
-                stacked_next_hidden_state.append(next_hidden_state_sequence)
-                stacked_mask.append(mask[env_id, idx])
-                
-                seq_start = seq_end
-
-        # (D x num_layers, *out_features) x num_sequences -> (num_sequences, D x num_layers, *out_features)
-        sequence_start_hidden_state = torch.stack(sequence_start_hidden_state)
-        # (num_sequences, D x num_layers, *out_features) -> (D x num_layers, num_sequences, *out_features)
-        sequence_start_hidden_state.swapaxes_(0, 1)
-        
-        pad = lambda x: pad_sequence(x, batch_first=True, padding_value=self.config.padding_value)
-        
-        stacked_obs = pad(stacked_obs)
-        stacked_next_obs = pad(stacked_next_obs)
-        stacked_discrete_action = pad(stacked_discrete_action)
-        stacked_continuous_action = pad(stacked_continuous_action)
-        stacked_action_log_prob = pad(stacked_action_log_prob)
-        stacked_advantage = pad(stacked_advantage)
-        stacked_ext_target_state_value = pad(stacked_ext_target_state_value)
-        stacked_int_target_state_value = pad(stacked_int_target_state_value)
-        stacked_next_hidden_state = pad(stacked_next_hidden_state)
-        stacked_mask = pad(stacked_mask)
-        eps = torch.finfo(torch.float32).eps * 2.0
-        stacked_mask = (stacked_mask < self.config.padding_value - eps) | (stacked_mask > self.config.padding_value + eps)
-        
-        return (stacked_obs, 
-                stacked_next_obs, 
-                stacked_discrete_action, 
-                stacked_continuous_action, 
-                stacked_action_log_prob, 
-                stacked_advantage, 
-                stacked_ext_target_state_value, 
-                stacked_int_target_state_value, 
-                stacked_next_hidden_state,
-                stacked_mask, 
-                sequence_start_hidden_state)
 
     def _compute_adavantage_v_target(self, exp_batch: tj.RecurrentPPORNDExperienceBatchTensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Compute advantage, target state values. `batch_size` is `num_evns` x `n_steps`. 
-        The shape of each returned tensor is `(batch_size, 1)`.
+        Compute advantage, extrinisc target state value, intrinsic target state value.
         
         Returns:
-            Tuple[Tensor, Tensor, Tensor]: advantage, extrinisc target state value, intrinsic target state value
+            advantage (Tensor): `(num_envs x n_steps, 1)`
+            extrinisc target state value (Tensor): `(num_envs x n_steps, 1)`
+            intrinsic target state value (Tensor): `(num_envs x n_steps, 1)`
         """
+        # (num_envs, *obs_shape)
+        final_next_obs = exp_batch.next_obs[-self.num_envs:]
+        final_next_hidden_state = torch.from_numpy(self.next_hidden_state).to(device=self.device)
+        
+        # feed forward without gradient calculation
         with torch.no_grad():
-            final_next_obs = exp_batch.next_obs[-self.num_envs:].unsqueeze(dim=1)
-            final_hidden_state = torch.from_numpy(self.next_hidden_state).to(device=self.device)
-            _, final_ext_next_state_value, final_int_next_state_value, _ = self.network.actor_critic_net.forward(
-                final_next_obs,
-                final_hidden_state
+            # (num_envs, 1, *obs_shape) because sequence length is 1
+            _, final_ext_next_state_value_seq, final_int_next_state_value_seq, _ = self.network.actor_critic_net.forward(
+                final_next_obs.unsqueeze(dim=1), 
+                final_next_hidden_state
             )
         
-        # concate n-step state values and one next state value of final transition
-        # shape is (num_envs * n+1, 1)
-        ext_state_value = torch.cat([exp_batch.ext_state_value, final_ext_next_state_value])
-        int_state_value = torch.cat([exp_batch.int_state_value, final_int_next_state_value])
+        # (num_envs, 1, 1) -> (num_envs, 1)
+        final_ext_next_state_value = final_ext_next_state_value_seq.squeeze_(dim=1)
+        final_int_next_state_value = final_int_next_state_value_seq.squeeze_(dim=1)
+        # (num_envs x (n_steps + 1), 1)
+        total_ext_state_value = torch.cat([exp_batch.ext_state_value, final_ext_next_state_value])
+        total_int_state_value = torch.cat([exp_batch.int_state_value, final_int_next_state_value])
                 
-        # (num_envs * t, 1) -> (num_envs, t, 1) -> (num_envs, t)
-        b2e = lambda x: drl_util.batch2perenv(x, self.num_envs).squeeze_(-1)
-        ext_state_value = b2e(ext_state_value)
-        int_state_value = b2e(int_state_value)
-        reward = b2e(exp_batch.reward)
-        terminated = b2e(exp_batch.terminated)
-        int_reward = b2e(exp_batch.int_reward)
+        # (num_envs x T, 1) -> (num_envs, T, 1) -> (num_envs, T)
+        b2e = lambda x: drl_util.batch2perenv(x, self.num_envs).squeeze_(-1) 
+        total_ext_state_value = b2e(total_ext_state_value) # T = n_steps + 1
+        total_int_state_value = b2e(total_int_state_value) # T = n_steps + 1
+        reward = b2e(exp_batch.reward) # T = n_steps
+        terminated = b2e(exp_batch.terminated) # T = n_steps
+        int_reward = b2e(exp_batch.int_reward) # T = n_steps
         
-        # # compute discounted intrinsic return
+        # compute discounted intrinsic return
         discounted_int_return = torch.empty_like(int_reward)
         for t in range(exp_batch.n_steps):
             self.prev_discounted_int_return = int_reward[:, t] + self.config.intrinsic_gamma * self.prev_discounted_int_return
@@ -440,20 +338,18 @@ class RecurrentPPORND(Agent):
         
         # normalize intinrisc reward
         int_reward /= torch.from_numpy(np.sqrt(self.int_reward_mean_var.variance)[..., np.newaxis]).to(device=self.device)
-        # self.int_reward_mean_var.update(drl_util.perenv2batch(discounted_int_reward).detach().cpu().numpy())
-        # int_reward /= math.sqrt(self.int_reward_mean_var.variance)
         self.average_intrinsic_reward.update(int_reward.mean().item())
         
-        # compute advantage using GAE
+        # compute advantage (num_envs, n_steps) using GAE
         ext_advantage = drl_util.compute_gae(
-            ext_state_value,
+            total_ext_state_value,
             reward,
             terminated,
             self.config.extrinsic_gamma,
             self.config.lam
         )
         int_advantage = drl_util.compute_gae(
-            int_state_value,
+            total_int_state_value,
             int_reward,
             torch.zeros_like(terminated), # non-episodic
             self.config.intrinsic_gamma,
@@ -461,14 +357,15 @@ class RecurrentPPORND(Agent):
         )
         advantage = self.config.extrinsic_adv_coef * ext_advantage + self.config.intrinsic_adv_coef * int_advantage
         
-        # compute target state values
-        ext_target_state_value = ext_advantage + ext_state_value[:, :-1]
-        int_target_state_value = int_advantage + int_state_value[:, :-1]
+        # compute target state values (num_envs, n_steps)
+        ext_target_state_value = ext_advantage + total_ext_state_value[:, :-1]
+        int_target_state_value = int_advantage + total_int_state_value[:, :-1]
         
-        # (num_envs, t) -> (num_envs, t, 1) -> (num_envs * t, 1)
-        advantage = drl_util.perenv2batch(advantage.unsqueeze_(-1))
-        ext_target_state_value = drl_util.perenv2batch(ext_target_state_value.unsqueeze_(-1))
-        int_target_state_value = drl_util.perenv2batch(int_target_state_value.unsqueeze_(-1))
+        # (num_envs, n_steps) -> (num_envs x n_steps, 1)
+        e2b = lambda x: drl_util.perenv2batch(x.unsqueeze_(-1))
+        advantage = e2b(advantage)
+        ext_target_state_value = e2b(ext_target_state_value)
+        int_target_state_value = e2b(int_target_state_value)
         
         return advantage, ext_target_state_value, int_target_state_value
     
