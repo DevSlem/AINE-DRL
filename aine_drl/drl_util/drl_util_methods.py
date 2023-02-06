@@ -5,25 +5,25 @@ from torch.nn.utils.rnn import pad_sequence
 
 def batch2perenv(batch: torch.Tensor, num_envs: int) -> torch.Tensor:
     """
-    `(num_envs * n_step, *shape)` -> `(num_envs, n_step, *shape)`
+    `(num_envs x n_steps, *shape)` -> `(num_envs, n_steps, *shape)`
     
     The input `batch` must be like the following example `Before`:
     
-    `num_envs` = 2, `n_step` = 3
+    `num_envs` = 2, `n_steps` = 3
     
     Before::
     
-        [env1_step1, 
+        [env1_step0, 
+         env2_step0, 
+         env1_step1, 
          env2_step1, 
          env1_step2, 
-         env2_step2, 
-         env1_step3, 
-         env2_step3]
+         env2_step2]
          
     After::
     
-        [[env1_step1, env1_step2, env1_step3],
-         [env2_step1, env2_step2, env2_step3]]
+        [[env1_step0, env1_step1, env1_step2],
+         [env2_step0, env2_step1, env2_step2]]
     
     """
     shape = batch.shape
@@ -37,25 +37,25 @@ def batch2perenv(batch: torch.Tensor, num_envs: int) -> torch.Tensor:
 
 def perenv2batch(per_env: torch.Tensor) -> torch.Tensor:
     """
-    `(num_envs, n, *shape)` -> `(num_envs * n, *shape)`
+    `(num_envs, n_steps, *shape)` -> `(num_envs x n_steps, *shape)`
     
     The input `per_env` must be like the following example `Before`:
     
-    `num_envs` = 2, `n_step` = 3
+    `num_envs` = 2, `n_steps` = 3
          
     Before::
     
-        [[env1_step1, env1_step2, env1_step3],
-         [env2_step1, env2_step2, env2_step3]]
+        [[env1_step0, env1_step1, env1_step2],
+         [env2_step0, env2_step1, env2_step2]]
          
     After::
     
-        [env1_step1, 
+        [env1_step0, 
+         env2_step0, 
+         env1_step1, 
          env2_step1, 
          env1_step2, 
-         env2_step2, 
-         env1_step3, 
-         env2_step3]
+         env2_step2]
     """
     shape = per_env.shape
     # scalar data (num_envs, n,)
