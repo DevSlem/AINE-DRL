@@ -237,12 +237,12 @@ class RecurrentNetwork(Network):
     """
     @staticmethod
     def pack_lstm_hidden_state(lstm_hidden_state: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        """`(D x num_layers, batch_size, H_out) x 2` -> `(D x num_layers, batch_size, H_out x 2)`"""
+        """`(D x num_layers, num_seq, H_out) x 2` -> `(D x num_layers, num_seq, H_out x 2)`"""
         return torch.cat(lstm_hidden_state, dim=2)
     
     @staticmethod
     def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """`(D x num_layers, batch_size, H_out x 2)` -> `(D x num_layers, batch_size, H_out) x 2`"""
+        """`(D x num_layers, num_seq, H_out x 2)` -> `(D x num_layers, num_seq, H_out) x 2`"""
         lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
         return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
     
@@ -264,51 +264,79 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
         
     @abstractmethod
     def forward(self, 
-                obs: torch.Tensor, 
+                obs_seq: torch.Tensor, 
                 hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
-        Compute policy distribution parameters whose shape is `(batch_size, ...)`, 
-        state value whose shape is `(batch_size, 1)` and next recurrent hidden state. \\
-        `batch_size` is flattened sequence batch whose shape is `sequence_batch_size` x `sequence_length`. \\
-        It's recommended to set recurrent layer to `batch_first=True`. \\
-        When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
-        When the action type is continuous, it's generally mean and standard deviation of gaussian distribution. \\
-        Recurrent hidden state is typically concatnated tensor of LSTM tuple (h, c) or GRU hidden state tensor.
+        Feed forward method to compute policy distribution parameter (pdparam), state value, using the recurrent layer
+        
+        When the action type is discrete, pdparam is generally logits or soft-max distribution. \\
+        When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
+        
+        It's recommended to set recurrent layer to `batch_first=True`.
 
         Args:
-            obs (Tensor): observation of state whose shape is `(sequence_batch_size, sequence_length, *obs_shape)`
-            hidden-state (Tensor): whose shape is `(max_num_layers, sequence_batch_size, out_features)`
+            obs_seq (Tensor): observation sequences
+            hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
-            Tuple[PolicyDistributionParameter, Tensor, Tensor]: policy distribution parameter, state value, recurrent hidden state
+            pdparam_seq (PolicyDistributionParameter): policy distribution parameter sequences
+            state_value_seq (Tensor): state value sequences
+            next_hidden_state (Tensor): next hidden state
+            
+        ## Input/Output Details
+        
+        `num_layers` is the number of recurrent layers. \\
+        `D` = 2 if bidirectional otherwise 1. \\
+        The value of `H` depends on the type of the recurrent network.
+        When you use LSTM, `H` = `H_out x 2`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
+        
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |obs_seq|`(num_seq, seq_len, *obs_shape)`|
+        |hidden state|`(D x num_layers, num_seq, H)`|
+        
+        Output:
+        
+        |Output|Shape|
+        |:---|:---|
+        |pdparam_seq|details in `PolicyDistributionParameter` docs|
+        |state_value_seq|`(num_seq, seq_len, 1)`|
+        |next_hidden_state|`(D x num_layers, num_seq, H)`|
             
         ## Examples
         
         `forward()` method example when using LSTM::
         
-            def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
-                # encoding layer
-                # (batch_size, seq_len, *obs_shape) -> (batch_size * seq_len, *obs_shape)
-                seq_len = obs.shape[1]
-                flattend = obs.flatten(0, 1)
-                encoding = self.encoding_layer(flattend)
+            def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+                # feed forward to the encoding layer
+                # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
+                seq_len = obs_seq.shape[1]
+                obs_batch = obs_seq.flatten(0, 1)
+                encoded_batch = self.encoding_layer(obs_batch)
                 
-                # lstm layer
+                # LSTM layer
                 unpacked_hidden_state = aine_drl.RecurrentNetwork.unpack_lstm_hidden_state(hidden_state)
-                # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
-                encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
-                encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
-                next_hidden_state = aine_drl.RecurrentNetwork.pack_lstm_hidden_state(unpacked_hidden_state)
+                # (num_seq * seq_len, lstm_in_features) -> (num_seq, seq_len, lstm_in_features)
+                encoded_seq = encoded_batch.reshape(-1, seq_len, self.lstm_in_features)
+                encoded_seq, unpacked_next_hidden_state = self.lstm_layer(encoded_seq, unpacked_hidden_state)
+                next_hidden_state = aine_drl.RecurrentNetwork.pack_lstm_hidden_state(unpacked_next_hidden_state)
                 
                 # actor-critic layer
-                # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
-                encoding = encoding.flatten(0, 1)
-                pdparam = self.actor_layer(encoding)
-                v_pred = self.critic_layer(encoding)
+                # (num_seq, seq_len, D x H_out) -> (num_seq * seq_len, D x H_out)
+                encoded_batch = encoded_seq.flatten(0, 1)
+                pdparam_batch = self.actor_layer(encoded_batch)
+                state_value_batch = self.critic_layer(encoded_batch)
                 
-                return pdparam, v_pred, next_hidden_state
+                # (num_seq * seq_len, *shape) -> (num_seq, seq_len, *shape)
+                pdparam_seq = pdparam_batch.flattened_batch_to_sequence(seq_len)
+                state_value_seq = state_value_batch.reshape(-1, seq_len, 1)
+                
+                return pdparam_seq, state_value_seq, next_hidden_state
         """
         raise NotImplementedError
     
