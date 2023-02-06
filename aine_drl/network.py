@@ -304,7 +304,7 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|details in `PolicyDistributionParameter` docs|
+        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistributionParameter` docs|
         |state_value_seq|`(num_seq, seq_len, 1)`|
         |next_hidden_state|`(D x num_layers, num_seq, H)`|
             
@@ -333,7 +333,7 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
                 state_value_batch = self.critic_layer(encoded_batch)
                 
                 # (num_seq * seq_len, *shape) -> (num_seq, seq_len, *shape)
-                pdparam_seq = pdparam_batch.flattened_batch_to_sequence(seq_len)
+                pdparam_seq = pdparam_batch.flattened_to_sequence(seq_len)
                 state_value_seq = state_value_batch.reshape(-1, seq_len, 1)
                 
                 return pdparam_seq, state_value_seq, next_hidden_state
