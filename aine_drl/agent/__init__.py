@@ -4,11 +4,28 @@ from .dqn import *
 from .reinforce import *
 from .a2c import *
 from .ppo import *
+from .sac import *
 
 # agent utility
 
 from ..network import Network
 from ..policy import Policy
+
+def find_agent_key(agent_config: dict) -> str:
+    agent_keys = (
+        "REINFORCE",
+        "A2C",
+        "PPO",
+        "RecurrentPPO",
+        "RecurrentPPORND",
+        "DoubleDQN",
+        "SAC"
+    )
+    
+    for agent_key in agent_keys:
+        if agent_key in agent_config.keys():
+            return agent_key
+    return ""
 
 def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: int) -> Agent:
     """
@@ -60,9 +77,15 @@ def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: i
             elif agent_key == "RecurrentPPO":
                 config = RecurrentPPOConfig(**config)
                 return RecurrentPPO(config, network, policy, num_envs)  # type: ignore
+            elif agent_key == "RecurrentPPORND":
+                config = RecurrentPPORNDConfig(**config)
+                return RecurrentPPORND(config, network, policy, num_envs) # type: ignore
             elif agent_key == "DoubleDQN":
                 config = DoubleDQNConfig(**config)
                 return DoubleDQN(config, network, policy, num_envs)  # type: ignore
+            elif agent_key == "SAC":
+                config = SACConfig(**config)
+                return SAC(config, network, policy, num_envs) # type: ignore
         
         raise ValueError("There's no agent configuration.")
     except Exception as e:

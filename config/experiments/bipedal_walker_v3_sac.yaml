@@ -1,4 +1,4 @@
-BipedalWalker-v3_PPO:
+BipedalWalker-v3_SAC:
   num_envs: 32
   Gym:
     env:
@@ -9,14 +9,11 @@ BipedalWalker-v3_PPO:
       inference_freq: 500000
       inference_render: true
       seed: 0
-  PPO:
+  SAC:
     training_freq: 16
-    epoch: 10
-    mini_batch_size: 64
+    batch_size: 512
+    capacity: 10000
+    epoch: 20
     gamma: 0.99
-    lam: 0.95
-    advantage_normalization: true
-    epsilon_clip: 0.2
-    value_loss_coef: 0.5
-    entropy_coef: 0.001
+    polyak_ratio: 0.005
     grad_clip_max_norm: 5.0

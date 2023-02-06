@@ -45,6 +45,7 @@ class CartPoleNoVelVectorEnv(gym.vector.VectorEnv):
         self.obs_mask = np.array([1, 0, 1, 0], dtype=np.bool8)
         low = self.gym_env.single_observation_space.low[self.obs_mask]
         high = self.gym_env.single_observation_space.high[self.obs_mask]
+        self.final_obs_key = "final_observation"
         
         super().__init__(num_envs, gym.spaces.Box(low, high), self.gym_env.single_action_space, True)
         
@@ -57,6 +58,12 @@ class CartPoleNoVelVectorEnv(gym.vector.VectorEnv):
         
     def step(self, actions):
         full_obs, reward, terminated, truncated, info = self.gym_env.step(actions)
+        if self.final_obs_key in info.keys():
+            is_final = info[f"_{self.final_obs_key}"]
+            final_obs = info[self.final_obs_key][is_final]
+            for i, item in enumerate(final_obs):
+                final_obs[i] = item[self.obs_mask]
+            info[self.final_obs_key][is_final] = final_obs
         return self.masked_obs(full_obs), reward, terminated, truncated, info        
 
 class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNetwork):
@@ -65,7 +72,7 @@ class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNe
     def __init__(self, obs_shape, num_discrete_actions) -> None:
         super().__init__()
         
-        self.lstm_in_feature = 128
+        self.lstm_in_features = 128
         self.hidden_feature = 64
         self._obs_shape = obs_shape
         
@@ -73,12 +80,12 @@ class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNe
         self.encoding_layer = nn.Sequential(
             nn.Linear(obs_shape, 64),
             nn.ReLU(),
-            nn.Linear(64, self.lstm_in_feature),
+            nn.Linear(64, self.lstm_in_features),
             nn.ReLU()
         )
         
         # recurrent layer using LSTM
-        self.lstm_layer = nn.LSTM(self.lstm_in_feature, self.hidden_feature, batch_first=True)
+        self.lstm_layer = nn.LSTM(self.lstm_in_features, self.hidden_feature, batch_first=True)
         
         # actor-critic layer
         self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, num_discrete_actions)
@@ -87,36 +94,63 @@ class CartPoleNoVelRecurrentActorCriticNet(aine_drl.RecurrentActorCriticSharedNe
         # optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=3e-4)
     
-    # override
-    def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
-        # encoding layer
-        # (batch_size, seq_len, *obs_shape) -> (batch_size * seq_len, *obs_shape)
-        seq_len = obs.shape[1]
-        flattend = obs.flatten(0, 1)
-        encoding = self.encoding_layer(flattend)
+    def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+        # feed forward to the encoding layer
+        # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
+        seq_len = obs_seq.shape[1]
+        obs_batch = obs_seq.flatten(0, 1)
+        encoded_batch = self.encoding_layer(obs_batch)
         
-        # lstm layer
-        unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
-        # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
-        encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
-        encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
-        next_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+        # LSTM layer
+        unpacked_hidden_state = aine_drl.RecurrentNetwork.unpack_lstm_hidden_state(hidden_state)
+        # (num_seq * seq_len, lstm_in_features) -> (num_seq, seq_len, lstm_in_features)
+        encoded_seq = encoded_batch.reshape(-1, seq_len, self.lstm_in_features)
+        encoded_seq, unpacked_next_hidden_state = self.lstm_layer(encoded_seq, unpacked_hidden_state)
+        next_hidden_state = aine_drl.RecurrentNetwork.pack_lstm_hidden_state(unpacked_next_hidden_state)
         
         # actor-critic layer
-        # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
-        encoding = encoding.flatten(0, 1)
-        pdparam = self.actor_layer(encoding)
-        v_pred = self.critic_layer(encoding)
+        # (num_seq, seq_len, D x H_out) -> (num_seq * seq_len, D x H_out)
+        encoded_batch = encoded_seq.flatten(0, 1)
+        pdparam_batch = self.actor_layer(encoded_batch)
+        state_value_batch = self.critic_layer(encoded_batch)
         
-        return pdparam, v_pred, next_hidden_state
+        # (num_seq * seq_len, *shape) -> (num_seq, seq_len, *shape)
+        pdparam_seq = pdparam_batch.flattened_to_sequence(seq_len)
+        state_value_seq = state_value_batch.reshape(-1, seq_len, 1)
+        
+        return pdparam_seq, state_value_seq, next_hidden_state
+    
+    # override
+    # def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+    #     # encoding layer
+    #     # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
+    #     seq_len = obs.shape[1]
+    #     flattend = obs.flatten(0, 1)
+    #     encoding = self.encoding_layer(flattend)
+        
+    #     # lstm layer
+    #     unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
+    #     # (batch_size * seq_len, *lstm_in_feature) -> (batch_size, seq_len, *lstm_in_feature)
+    #     encoding = encoding.reshape(-1, seq_len, self.lstm_in_feature)
+    #     encoding, unpacked_hidden_state = self.lstm_layer(encoding, unpacked_hidden_state)
+    #     next_hidden_state = self.pack_lstm_hidden_state(unpacked_hidden_state)
+        
+    #     # actor-critic layer
+    #     # (batch_size, seq_len, *hidden_feature) -> (batch_size * seq_len, *hidden_feature)
+    #     encoding = encoding.flatten(0, 1)
+    #     pdparam = self.actor_layer(encoding)
+    #     v_pred = self.critic_layer(encoding)
+        
+    #     return pdparam, v_pred, next_hidden_state
     
     # override
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
         self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
         
-    # override
-    def hidden_state_shape(self, batch_size: int) -> torch.Size:
-        return torch.Size((1, batch_size, self.hidden_feature * 2))
+    # override    
+    @property
+    def hidden_state_shape(self) -> Tuple[int, int]:
+        return (1, self.hidden_feature * 2)
     
 class CartPoleNoVelActorCriticNet(aine_drl.ActorCriticSharedNetwork):
     # Naive PPO uses ActorCriticSharedNetwork.

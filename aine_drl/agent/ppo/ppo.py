@@ -190,8 +190,8 @@ class PPO(Agent):
 
         Args:
             advantage (Tensor): whose shape is `(batch_size, 1)`
-            old_action_log_prob (Tensor): log(pi_theta_old) whose gradient never flows and shape is `(batch_size, num_branches)`
-            new_action_log_prob (Tensor): log(pi_theta_new) whose gradient flows and shape is `(batch_size, num_branches)`
+            old_action_log_prob (Tensor): log(pi_theta_old) whose gradient never flows and shape is `(batch_size, 1)`
+            new_action_log_prob (Tensor): log(pi_theta_new) whose gradient flows and shape is `(batch_size, 1)`
             epsilon_clip (float, optional): clipped range is [1 - epsilon, 1 + epsilon]. Defaults to 0.2.
 
         Returns:

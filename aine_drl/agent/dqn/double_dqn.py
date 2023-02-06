@@ -1,9 +1,9 @@
 from typing import NamedTuple, Optional, Tuple, Dict
 from aine_drl.agent import Agent
-from aine_drl.experience import ActionTensor, Experience
+from aine_drl.experience import ActionTensor, Experience, ExperienceBatchTensor
 from aine_drl.network import QValueNetwork
-from aine_drl.agent.dqn.dqn_trajectory import DoubleDQNExperienceBatch, DoubleDQNTrajectory
 from aine_drl.policy.policy import ActionType, Policy
+from aine_drl.trajectory.experience_replay import ExperienceReplay
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
@@ -58,11 +58,12 @@ class DoubleDQN(Agent):
         self.config = config
         self.network = network
         self.target_network = copy.deepcopy(network)
-        self.trajectory = DoubleDQNTrajectory(
+        self.trajectory = ExperienceReplay(
             config.training_freq, 
             config.batch_size, 
             config.capacity, 
-            num_envs
+            num_envs,
+            online=True
         )
         
         if self.config.replace_freq is not None:
@@ -95,7 +96,7 @@ class DoubleDQN(Agent):
         
         self.trajectory.add(experience)
         
-        if self.trajectory.can_train:
+        if self.trajectory.can_sample:
             self.train()
     
     def train(self):
@@ -114,7 +115,7 @@ class DoubleDQN(Agent):
             # update log data
             self.average_td_loss.update(td_loss.item())
     
-    def compute_td_loss(self, exp_batch: DoubleDQNExperienceBatch) -> torch.Tensor:
+    def compute_td_loss(self, exp_batch: ExperienceBatchTensor) -> torch.Tensor:
         # Q values for all actions are from the Q network
         q_values = self.network.forward(exp_batch.obs).discrete_pdparams
         with torch.no_grad():
@@ -145,11 +146,11 @@ class DoubleDQN(Agent):
         return td_loss
             
     def _replace_net(self):
-        if util.check_freq(self.clock.training_step, self.config.replace_freq):
+        if util.check_freq(self.clock.training_step, self.config.replace_freq): # type: ignore
             drl_util.copy_network(self.network, self.target_network)
     
     def _polyak_update(self):
-        drl_util.polyak_update(self.network, self.target_network, self.config.polyak_ratio)
+        drl_util.polyak_update(self.network, self.target_network, self.config.polyak_ratio) # type: ignore
 
     @property
     def log_keys(self) -> Tuple[str, ...]:

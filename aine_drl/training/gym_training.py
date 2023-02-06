@@ -202,6 +202,62 @@ class GymTraining:
             self._inference(agent, num_episodes, agent_save_file_dir)
         except KeyboardInterrupt:
             logger.print(f"Inference interrupted.")
+            
+    def close(self):
+        self.gym_env.close()
+        if self.inference_gym_env is not None:
+            self.inference_gym_env.close()
+            
+    @property
+    def observation_space(self) -> gym_space.Space:
+        return self.gym_env.single_observation_space if self.is_vector_env else self.gym_env.observation_space  # type: ignore
+    
+    @property
+    def action_space(self) -> gym_space.Space:
+        return self.gym_env.single_action_space if self.is_vector_env else self.gym_env.action_space  # type: ignore
+        
+    def _train(self, agent: Agent, total_global_time_steps: int):
+        logger.print(f"\'{self.training_env_id}\' training start!")        
+        gym_env = self.gym_env
+        obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)
+        if not self.is_vector_env:
+            # (num_envs, *obs_shape) = (1, *obs_shape)
+            obs = obs[np.newaxis, ...]
+        
+        for _ in range(agent.clock.global_time_step, total_global_time_steps, self.num_envs):
+            # take action and observe
+            action = agent.select_action(obs)
+            next_obs, reward, terminated, truncated, info = self.gym_env.step(self.gym_action_communicator.to_gym_action(action))
+            terminated = terminated | truncated
+            
+            # if vector env is terminated, next_obs isn't real final observation of the terminated episode
+            # since the envs are automatically reset at the end of each episode
+            real_next_obs = next_obs.copy()
+            if self.is_vector_env and "final_observation" in info.keys():
+                real_next_obs[terminated] = np.stack(info["final_observation"][terminated], axis=0)
+            
+            # update the agent
+            exp = self._make_experience(obs, action, real_next_obs, reward, terminated, self.is_vector_env)
+            agent.update(exp)
+            
+            # update current observation
+            if not self.is_vector_env and terminated:
+                obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
+            else:
+                obs = next_obs
+                
+            # summuary check
+            if agent.clock.check_global_time_step_freq(self.config.summary_freq):
+                self._summary(agent)
+                
+            if agent.clock.check_global_time_step_freq(self.config.agent_save_freq):  # type: ignore
+                self._save_agent(agent)
+                
+            # inference check
+            if self.config.inference_freq is not None and agent.clock.check_global_time_step_freq(self.config.inference_freq):
+                self._inference(agent)
+        
+        logger.print("Training has been completed.")
         
     def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
         assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
@@ -235,56 +291,6 @@ class GymTraining:
             logger.print(f"inference mode - episode: {episode}, cumulative reward: {cumulative_reward}")
             
         agent.behavior_type = BehaviorType.TRAIN
-        
-    def close(self):
-        self.gym_env.close()
-        if self.inference_gym_env is not None:
-            self.inference_gym_env.close()
-            
-    @property
-    def observation_space(self) -> gym_space.Space:
-        return self.gym_env.single_observation_space if self.is_vector_env else self.gym_env.observation_space  # type: ignore
-    
-    @property
-    def action_space(self) -> gym_space.Space:
-        return self.gym_env.single_action_space if self.is_vector_env else self.gym_env.action_space  # type: ignore
-        
-    def _train(self, agent: Agent, total_global_time_steps: int):
-        logger.print(f"\'{self.training_env_id}\' training start!")
-        gym_env = self.gym_env
-        obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)
-        if not self.is_vector_env:
-            # (num_envs, *obs_shape) = (1, *obs_shape)
-            obs = obs[np.newaxis, ...]
-        
-        for _ in range(agent.clock.global_time_step, total_global_time_steps, self.num_envs):
-            # take action and observe
-            action = agent.select_action(obs)
-            next_obs, reward, terminated, truncated, _ = self.gym_env.step(self.gym_action_communicator.to_gym_action(action))
-            terminated = terminated | truncated
-            
-            # update the agent
-            exp = self._make_experience(obs, action, next_obs, reward, terminated, self.is_vector_env)
-            agent.update(exp)
-            
-            # update current observation
-            if not self.is_vector_env and terminated:
-                obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
-            else:
-                obs = exp.next_obs
-                
-            # summuary check
-            if agent.clock.check_global_time_step_freq(self.config.summary_freq):
-                self._summary(agent)
-                
-            if agent.clock.check_global_time_step_freq(self.config.agent_save_freq):  # type: ignore
-                self._save_agent(agent)
-                
-            # inference check
-            if self.config.inference_freq is not None and agent.clock.check_global_time_step_freq(self.config.inference_freq):
-                self._inference(agent)
-        
-        logger.print("Training has been completed.")
             
     def _save_agent(self, agent: Agent):
         try:

@@ -2,19 +2,23 @@ from abc import ABC, abstractmethod
 from typing import NamedTuple, List, Optional
 from aine_drl.experience import ActionTensor
 import torch
-from torch.distributions import Categorical, Normal
+from torch.distributions import Categorical, MultivariateNormal
 
 class PolicyDistributionParameter(NamedTuple):
     """
     Standard policy distribution parameter (`pdparam`) data type.
-    Note that these pdparams must be valid to the policy you currently use. \\
-    `batch_size` is `num_envs` x `n_steps`. \\
+    Note that these pdparams must be valid to the policy you currently use.
+    
     When the action type is discrete, it is generally either logits or soft-max distribution. \\
     When the action type is continuous, it is generally mean and standard deviation of gaussian distribution.
+    
+    `*batch_shape` depends on the input of the algorithm you are using. \\
+    If it's simple batch, `*batch_shape` = `(batch_size,)`. \\
+    If it's sequence batch, `*batch_shape` = `(num_seq, seq_len)`.
 
     Args:
-        discrete_pdparams (List[Tensor]): `(batch_size, *discrete_pdparam_shape)` x `num_discrete_branches`
-        continuous_pdparams (List[Tensor]): `(batch_size, *continuous_pdparam_shape)` x `num_continuous_branches`
+        discrete_pdparams (List[Tensor]): `(*batch_shape, *discrete_pdparam_shape)` x `num_discrete_branches`
+        continuous_pdparams (List[Tensor]): `(*batch_shape, *continuous_pdparam_shape)` x `num_continuous_branches`
     """
     discrete_pdparams: List[torch.Tensor]
     continuous_pdparams: List[torch.Tensor]
@@ -34,6 +38,32 @@ class PolicyDistributionParameter(NamedTuple):
         """Number of total branches."""
         return self.num_discrete_branches + self.num_continuous_branches
     
+    def flattened_to_sequence(self, seq_len: int) -> "PolicyDistributionParameter":
+        discrete_pdparam_sequences = []
+        continuous_pdparam_sequences = []
+        
+        for pdparam_batch in self.discrete_pdparams:
+            discrete_pdparam_shape = pdparam_batch.shape[1:]
+            discrete_pdparam_sequences.append(pdparam_batch.reshape(-1, seq_len, *discrete_pdparam_shape))
+            
+        for pdparam_batch in self.continuous_pdparams:
+            continuous_pdparam_shape = pdparam_batch.shape[1:]
+            continuous_pdparam_sequences.append(pdparam_batch.reshape(-1, seq_len, *continuous_pdparam_shape))
+            
+        return PolicyDistributionParameter(discrete_pdparam_sequences, continuous_pdparam_sequences)
+    
+    def sequence_to_flattened(self) -> "PolicyDistributionParameter":
+        discrete_pdaparam_batches = []
+        continuous_pdaparam_batches = []
+        
+        for pdparam_seq in self.discrete_pdparams:
+            discrete_pdaparam_batches.append(pdparam_seq.flatten(0, 1))
+        
+        for pdparam_seq in self.continuous_pdparams:
+            continuous_pdaparam_batches.append(pdparam_seq.flatten(0, 1))
+            
+        return PolicyDistributionParameter(discrete_pdaparam_batches, continuous_pdaparam_batches)
+    
     @staticmethod
     def new(discrete_pdparams: Optional[List[torch.Tensor]] = None,
                continuous_pdparams: Optional[List[torch.Tensor]] = None) -> "PolicyDistributionParameter":
@@ -46,7 +76,12 @@ class PolicyDistributionParameter(NamedTuple):
 
 
 class PolicyDistribution(ABC):
-    """Policy distribution abstract class. It provides the policy utility like action selection."""
+    """
+    Policy distribution abstract class. 
+    It provides the policy utility like action selection. 
+    Each action branch is generally independent, 
+    so its components of the log probability or the entropy are summed. 
+    """
     
     @abstractmethod
     def sample(self) -> ActionTensor:
@@ -56,14 +91,17 @@ class PolicyDistribution(ABC):
     @abstractmethod
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         """
-        Returns the log of the porability density function evaluated at the `action`. 
-        The returned log probability shape is `(batch_size, num_branches)`.
+        Returns the log of the porability mass/density function accroding to the `action`. 
+        The returned log probability shape is `(batch_size, 1)`. 
         """
         raise NotImplementedError
     
     @abstractmethod
     def entropy(self) -> torch.Tensor:
-        """Returns entropy of distribution. The returned entropy shape is `(batch_size, num_branches)`."""
+        """
+        Returns entropy of distribution. 
+        The returned entropy shape is `(batch_size, 1)`.
+        """
         raise NotImplementedError
     
 
@@ -89,43 +127,54 @@ class CategoricalDistribution(PolicyDistribution):
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         action_log_prob = []
         for i, dist in enumerate(self.distributions):
-            # TODO: Error 발생
             action_log_prob.append(dist.log_prob(action.discrete_action[:, i]))
-        return torch.stack(action_log_prob, dim=1)
+        return torch.stack(action_log_prob, dim=1).sum(dim=1, keepdim=True)
     
     def entropy(self) -> torch.Tensor:
         entropies = []
         for dist in self.distributions:
             entropies.append(dist.entropy())
-        return torch.stack(entropies, dim=1)
+        return torch.stack(entropies, dim=1).sum(dim=1, keepdim=True)
     
 
 class GaussianDistribution(PolicyDistribution):
     """Gaussian policy distribution for the continuous action type."""
-    def __init__(self, pdparam: PolicyDistributionParameter) -> None:
+    
+    LOG_STD_MIN: float = -20
+    LOG_STD_MAX: float = 2
+    
+    def __init__(self, pdparam: PolicyDistributionParameter, is_log_std: bool = True) -> None:
         assert pdparam.num_continuous_branches > 0
-        self.distributions = []
+        
+        mean_params = []
+        std_params = []
+        
         for param in pdparam.continuous_pdparams:
-            self.distributions.append(Normal(loc=param[:, 0], scale=param[:, 1]))
+            mean_params.append(param[:, 0])
+            std_params.append(param[:, 1])
+            
+        mean = torch.stack(mean_params, dim=-1)
+        std_params = torch.stack(std_params, dim=-1)
+        if is_log_std:
+            log_std = torch.clamp(std_params, GaussianDistribution.LOG_STD_MIN, GaussianDistribution.LOG_STD_MAX)
+            var = log_std.exp()**2
+        else:
+            var = std_params**2
+        
+        # (num_envs, n, n)
+        covars = torch.stack([torch.eye(pdparam.num_continuous_branches) for _ in range(len(var))]).to(device=var.device)
+        covars = var.unsqueeze(dim=-1) * covars
+        
+        self.distributions = MultivariateNormal(mean, covars)
             
     def sample(self) -> ActionTensor:
-        sampled_continuous_action = []
-        for dist in self.distributions:
-            sampled_continuous_action.append(dist.sample())
-        sampled_continuous_action = torch.stack(sampled_continuous_action, dim=1)
-        return ActionTensor.new(continuous_action=sampled_continuous_action)
+        return ActionTensor.new(continuous_action=self.distributions.rsample())
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
-        action_log_prob = []
-        for i, dist in enumerate(self.distributions):
-            action_log_prob.append(dist.log_prob(action.continuous_action[:, i]))
-        return torch.stack(action_log_prob, dim=1)
+        return self.distributions.log_prob(action.continuous_action).unsqueeze(-1)
     
     def entropy(self) -> torch.Tensor:
-        entropies = []
-        for dist in self.distributions:
-            entropies.append(dist.entropy())
-        return torch.stack(entropies, dim=1)
+        return self.distributions.entropy().unsqueeze(-1)
 
 
 class GeneralPolicyDistribution(PolicyDistribution):
@@ -134,9 +183,12 @@ class GeneralPolicyDistribution(PolicyDistribution):
     Policy distribution of the discrete action type is categorical. \\
     Policy distribution of the continuous action type is gaussian.
     """
-    def __init__(self, pdparam: PolicyDistributionParameter, is_logits: bool = True) -> None:
+    def __init__(self, 
+                 pdparam: PolicyDistributionParameter, 
+                 is_logits: bool = True,
+                 is_log_std: bool = True) -> None:
         self.discrete_dist = CategoricalDistribution(pdparam, is_logits)
-        self.continuous_dist = GaussianDistribution(pdparam)
+        self.continuous_dist = GaussianDistribution(pdparam, is_log_std)
         
     def sample(self) -> ActionTensor:
         discrete_action = self.discrete_dist.sample()
@@ -146,12 +198,12 @@ class GeneralPolicyDistribution(PolicyDistribution):
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         discrete_log_prob = self.discrete_dist.log_prob(action)
         continuous_log_prob = self.continuous_dist.log_prob(action)
-        return torch.cat([discrete_log_prob, continuous_log_prob], dim=1)
+        return discrete_log_prob + continuous_log_prob
     
     def entropy(self) -> torch.Tensor:
         discrete_entropy = self.discrete_dist.entropy()
         continuous_entropy = self.continuous_dist.entropy()
-        return torch.cat([discrete_entropy, continuous_entropy], dim=1)
+        return discrete_entropy + continuous_entropy
 
 
 class EpsilonGreedyDistribution(CategoricalDistribution):
@@ -161,7 +213,7 @@ class EpsilonGreedyDistribution(CategoricalDistribution):
     
     def __init__(self, pdparam: PolicyDistributionParameter, epsilon: float) -> None:
         pdparam = EpsilonGreedyDistribution.get_epsilon_greedy_pdparam(pdparam, epsilon)
-        super().__init__(pdparam, False)
+        super().__init__(pdparam, is_logits=False)
     
     @staticmethod
     def get_epsilon_greedy_pdparam(pdparam: PolicyDistributionParameter, epsilon: float) -> PolicyDistributionParameter:
