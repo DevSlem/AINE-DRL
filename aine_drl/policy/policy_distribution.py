@@ -38,7 +38,7 @@ class PolicyDistributionParameter(NamedTuple):
         """Number of total branches."""
         return self.num_discrete_branches + self.num_continuous_branches
     
-    def flattened_batch_to_sequence(self, seq_len: int) -> "PolicyDistributionParameter":
+    def flattened_to_sequence(self, seq_len: int) -> "PolicyDistributionParameter":
         discrete_pdparam_sequences = []
         continuous_pdparam_sequences = []
         
@@ -52,7 +52,7 @@ class PolicyDistributionParameter(NamedTuple):
             
         return PolicyDistributionParameter(discrete_pdparam_sequences, continuous_pdparam_sequences)
     
-    def sequence_to_lattened_batch(self) -> "PolicyDistributionParameter":
+    def sequence_to_flattened(self) -> "PolicyDistributionParameter":
         discrete_pdaparam_batches = []
         continuous_pdaparam_batches = []
         
