@@ -241,8 +241,11 @@ class GymTraining:
             agent.update(exp)
             
             # update current observation
-            if not self.is_vector_env and terminated:
-                obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
+            if not self.is_vector_env:
+                if terminated:
+                    obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
+                else:
+                    obs = next_obs[np.newaxis, ...]
             else:
                 obs = next_obs
                 
