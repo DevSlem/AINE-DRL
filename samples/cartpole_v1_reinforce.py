@@ -8,13 +8,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPolePolicyGradientcNet(aine_drl.REINFORCENetwork):
+class CartPoleREINFORCENet(aine_drl.REINFORCENetwork):
     # REINFORCE uses PolicyGradientNetwork.
     
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
-        
-        device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         # policy layer
         self.policy_net = nn.Sequential(
@@ -23,20 +21,15 @@ class CartPolePolicyGradientcNet(aine_drl.REINFORCENetwork):
             nn.Linear(128, 64),
             nn.ReLU(),
             aine_drl.DiscreteActionLayer(64, discrete_action_count)
-        ).to(device=device)
+        )
         
         # optimizer for this network
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)
         
-        self.set_model_save("policy_net", self.policy_net)
-        
-    # override
-    @property
-    def device(self) -> torch.device:
-        return self.model_device(self.policy_net)
+        self.add_model("policy_net", self.policy_net)
     
     # override
-    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistributionParameter:
+    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistParam:
         return self.policy_net(obs)
     
     # override
@@ -56,7 +49,8 @@ if __name__ == "__main__":
     # create custom network
     obs_shape = gym_training.observation_space.shape[0]
     action_count = gym_training.action_space.n
-    network = CartPolePolicyGradientcNet(obs_shape, action_count)
+    device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    network = CartPoleREINFORCENet(obs_shape, action_count).to(device)
     
     # create policy for discrete action type
     policy = aine_drl.CategoricalPolicy()

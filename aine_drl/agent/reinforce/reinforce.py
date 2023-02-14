@@ -88,7 +88,7 @@ class REINFORCE(Agent):
         self.policy_average_loss.update(policy_loss.item())
 
         
-    def compute_return(self, exp_batch: REINFORCEExperienceBatch) -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_return(self, exp_batch: REINFORCEExperienceBatch) -> torch.Tensor:
         """
         Compute return.
 
