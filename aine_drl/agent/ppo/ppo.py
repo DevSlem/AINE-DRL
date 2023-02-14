@@ -103,7 +103,7 @@ class PPO(Agent):
             
     def train(self):
         exp_batch = self.trajectory.sample(self.device)
-        batch_size = exp_batch.action.batch_size
+        batch_size = len(exp_batch.obs)
         
         old_action_log_prob = exp_batch.action_log_prob
         advantage, v_target = self.compute_adavantage_v_target(exp_batch)
@@ -118,7 +118,7 @@ class PPO(Agent):
                 
                 # compute actor loss
                 dist = self.policy.get_policy_distribution(pdparam)
-                new_action_log_prob = dist.log_prob(exp_batch.action.slice(sample_idx))
+                new_action_log_prob = dist.log_prob(exp_batch.action[sample_idx])
                 adv = drl_util.normalize(advantage[sample_idx]) if self.config.advantage_normalization else advantage[sample_idx]
                 actor_loss = PPO.compute_actor_loss(
                     adv,

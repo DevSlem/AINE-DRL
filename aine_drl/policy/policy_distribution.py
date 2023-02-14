@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import NamedTuple, List, Optional, Tuple
+from typing import NamedTuple, List, Optional, Tuple, Callable
 from aine_drl.experience import ActionTensor
 import torch
 from torch.distributions import Categorical, Normal
@@ -105,6 +105,16 @@ class PolicyDistParam:
     def num_branches(self) -> int:
         """Number of total branches."""
         return self.num_discrete_branches + self.num_continuous_branches
+    
+    def transform(self, func: Callable[[torch.Tensor], torch.Tensor]) -> "PolicyDistParam":
+        """
+        Transform each distribution parameter by the given function.
+        """
+        return PolicyDistParam(
+            tuple(func(pdparam) for pdparam in self.discrete_pdparams),
+            tuple(func(pdparam) for pdparam in self.continuous_pdparams)
+        )
+        
     
 @dataclass(frozen=True)
 class PolicyDistParamBatch:
@@ -216,7 +226,7 @@ class CategoricalDistribution(PolicyDistribution):
     def sample(self) -> ActionTensor:
         sampled_discrete_action = [dist.sample() for dist in self.distributions]
         sampled_discrete_action = torch.stack(sampled_discrete_action, dim=-1)
-        return ActionTensor.new(discrete_action=sampled_discrete_action)
+        return ActionTensor(discrete_action=sampled_discrete_action)
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         action_log_prob = []
@@ -268,7 +278,7 @@ class GaussianDistribution(PolicyDistribution):
         
             
     def sample(self) -> ActionTensor:
-        return ActionTensor.new(continuous_action=self.distribution.rsample())
+        return ActionTensor(continuous_action=self.distribution.rsample())
     
     def log_prob(self, action: ActionTensor) -> torch.Tensor:
         return self.distribution.log_prob(action.continuous_action)
