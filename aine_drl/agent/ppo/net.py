@@ -50,23 +50,24 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
     """
     Recurrent Proximal Policy Optimization (PPO) shared network.
     
+    Since it uses the recurrent network, 
+    you must consider the hidden state which can acheive the action-observation history.
+    
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
     Therefore, single loss that is the sum of the actor and critic losses will be input.
     
-    Since it uses the recurrent network, you must consider the hidden state which can acheive the action-observation history.
     
     Generic type `T` is `Tensor`.
     """
         
     @abstractmethod
-    def forward(self, 
-                obs_seq: torch.Tensor, 
-                hidden_state: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
+    def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
-        Feed forward method to compute policy distribution parameter (pdparam) and state value using the recurrent network.
+        Feed forward method to compute policy distribution parameter (pdparam) 
+        and state value using the recurrent network.
         
         It's recommended to set your recurrent network to `batch_first=True`.
 
@@ -136,5 +137,112 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
                 state_value_seq = state_value_batch.reshape(-1, seq_len, 1)
                 
                 return pdparam_seq, state_value_seq, next_seq_hidden_state
+        """
+        raise NotImplementedError
+    
+class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
+    """
+    Recurrent Proximal Policy Optimization (PPO) shared network with Random Network Distillation (RND).
+    
+    Since it uses the recurrent network, you must consider the hidden state which can acheive the action-observation history.
+    
+    Note that since PPO uses the Actor-Critic architecure and the parameter sharing, 
+    the encoding layer must be shared between Actor and Critic. 
+    Therefore, single loss that is the sum of the actor and critic losses will be input. 
+    Be careful not to share parameters between PPO and RND networks.
+    
+    RND uses extrinsic and intrinsic reward streams. 
+    Each stream can be different episodic or non-episodic, and can have different discount factors. 
+    RND constitutes of the predictor and target networks. 
+    Both of them must have the same architectures but their initial parameters should not be the same.
+    The target network is determinsitic, which means it will be never updated. 
+    
+    Generic type `T` is `Tensor`.
+    """
+        
+    @abstractmethod
+    def forward_actor_critic(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Feed forward method to compute policy distribution parameter (pdparam), 
+        extinrisc state value and intrinsic state value using the recurrent network.
+                
+        It's recommended to set your recurrent network to `batch_first=True`.
+        
+        Args:
+            obs_seq (Tensor): observation sequences
+            hidden_state (Tensor): hidden states at the beginning of each sequence
+
+        Returns:
+            pdparam_seq (PolicyDistParam): policy distribution parameter sequences
+            ext_state_value_seq (Tensor): extrinsic state value sequences
+            int_state_value_seq (Tensor): intrinsic state value sequences
+            next_seq_hidden_state (Tensor): hidden state which will be used for the next sequence
+        
+        ## Input/Output Details
+                
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |obs_seq|`(num_seq, seq_len, *obs_shape)`|
+        |hidden_state|`(D x num_layers, num_seq, H)`|
+        
+        Output:
+        
+        |Output|Shape|
+        |:---|:---|
+        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistParam` docs|
+        |ext_state_value_seq|`(num_seq, seq_len, 1)`|
+        |int_state_value_seq|`(num_seq, seq_len, 1)`|
+        |next_seq_hidden_state|`(D x num_layers, num_seq, H)`|
+        
+        Refer to the following explanation:
+        
+        * `num_seq`: the number of independent sequences
+        * `seq_len`: the length of each sequence
+        * `num_layers`: the number of recurrent layers
+        * `D`: 2 if bidirectional otherwise 1
+        * `H`: the value depends on the type of the recurrent network
+        
+        When you use LSTM, `H` = `H_out x 2`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def forward_rnd(self, next_obs: torch.Tensor, next_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Feed forward method tp to compute both predicted feature and target feature. 
+        You can use the hidden state by concatenating the next observation or the feature extracted from it with the hidden state. 
+
+        Args:
+            next_obs (Tensor): next observation batch
+            next_hidden_state (Tensor): next hidden state batch with flattened features
+
+        Returns:
+            predicted_feature (Tensor): predicted feature whose gradient flows
+            target_feature (Tensor): target feature whose gradient doesn't flow
+            
+        ## Input/Output Details
+        
+        The value of `out_features` depends on you.
+        
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |next_obs|`(batch_size, *obs_shape)`|
+        |next_hidden_state|`(batch_size, D x num_layers x H)`|
+        
+        Output:
+        
+        |Input|Shape|
+        |:---|:---|
+        |predicted_feature|`(batch_size, out_features)`|
+        |target_feature|`(batch_size, out_features)`|
         """
         raise NotImplementedError

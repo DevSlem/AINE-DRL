@@ -1,5 +1,5 @@
-from .config import PPOConfig, RecurrentPPOConfig
-from .net import PPOSharedNetwork, RecurrentPPOSharedNetwork
+from .config import PPOConfig, RecurrentPPOConfig, RecurrentPPORNDConfig
+from .net import PPOSharedNetwork, RecurrentPPOSharedNetwork, RecurrentPPORNDNetwork
 from .ppo import PPO
 from .recurrent_ppo import RecurrentPPO
-from .recurrent_ppo_rnd import RecurrentPPORNDConfig, RecurrentPPORND
+from .recurrent_ppo_rnd import RecurrentPPORND

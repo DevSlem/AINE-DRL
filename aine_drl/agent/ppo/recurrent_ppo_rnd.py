@@ -1,8 +1,10 @@
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
-from aine_drl.network import RecurrentActorCriticSharedRNDNetwork
+from aine_drl.network import NetworkTypeError
 from aine_drl.policy.policy import Policy
+from .config import RecurrentPPORNDConfig
+from .net import RecurrentPPORNDNetwork
 from .ppo import PPO
 import aine_drl.agent.ppo.ppo_trajectory as tj
 import aine_drl.drl_util as drl_util
@@ -10,50 +12,6 @@ import aine_drl.util as util
 import torch
 import torch.nn.functional as F
 import numpy as np
-
-class RecurrentPPORNDConfig(NamedTuple):
-    """
-    Recurrent PPO with RND configurations.
-
-    Args:
-        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
-        `epoch (int)`: number of using total experiences to update parameters at each training frequency
-        `sequence_length (int)`: sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
-        `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
-        `padding_value (float, optional)`: pad sequences to the value for the same `sequence_length`. Defaults to 0.
-        `extrinsic_gamma (float, optional)`: discount factor of extrinsic reward. Defaults to 0.99.
-        `intrinsic_gamma (float, optional)`: discount factor of intrinsic reward. Defaults to 0.99.
-        `extrinsic_adv_coef (float, optional)`: multiplier to extrinsic advantage. Defaults to 1.0.
-        `intrinsic_adv_coef (float, optional)`: multiplier to intrinsic advantage. Defaults to 1.0.
-        `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
-        `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
-        `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
-        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
-        `exp_proportion_for_predictor (float, optional)`: proportion of experience used for training predictor to keep the effective batch size. Defaults to 0.25.
-        `pre_normalization_step (int | None, optional)`: number of initial steps for initializing both observation and hidden state normalization. Defaults to no normalization.
-        `obs_norm_clip_range (Tuple[float, float])`: observation normalization clipping range (min, max). Defaults to (-5.0, 5.0).
-        `hidden_state_norm_clip_range (Tuple[float, float])`: hidden state normalization clipping range (min, max). Defaults to (-5.0, 5.0).
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
-    """
-    training_freq: int
-    epoch: int
-    sequence_length: int
-    num_sequences_per_step: int
-    padding_value: float = 0.0
-    extrinsic_gamma: float = 0.99
-    intrinsic_gamma: float = 0.99
-    extrinsic_adv_coef: float = 1.0
-    intrinsic_adv_coef: float = 1.0
-    lam: float = 0.95
-    epsilon_clip: float = 0.2
-    value_loss_coef: float = 0.5
-    entropy_coef: float = 0.001
-    exp_proportion_for_predictor: float = 0.25
-    pre_normalization_step: Optional[int] = None
-    obs_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
-    hidden_state_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
-    grad_clip_max_norm: Optional[float] = None
-    
 
 class RecurrentPPORND(Agent):
     """
@@ -69,11 +27,11 @@ class RecurrentPPORND(Agent):
     """
     def __init__(self, 
                  config: RecurrentPPORNDConfig,
-                 network: RecurrentActorCriticSharedRNDNetwork,
+                 network: RecurrentPPORNDNetwork,
                  policy: Policy,
                  num_envs: int) -> None:        
-        if not isinstance(network, RecurrentActorCriticSharedRNDNetwork):
-            raise TypeError("The network type must be RecurrentActorCriticSharedNetwork.")
+        if not isinstance(network, RecurrentPPORNDNetwork):
+            raise NetworkTypeError(RecurrentPPORNDNetwork)
         
         super().__init__(network, policy, num_envs)
         
@@ -145,36 +103,37 @@ class RecurrentPPORND(Agent):
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         with torch.no_grad():
             self.current_hidden_state = self.next_hidden_state * (1.0 - self.prev_terminated)
-            # when interacting with environment, sequence_length must be 1
+            
             # feed forward
-            pdparam_seq, ext_state_value_seq, int_state_value_seq, next_hidden_state = self.network.actor_critic_net.forward(
+            # when interacting with environment, sequence_length must be 1
+            # *batch_shape = (num_seq, seq_len) = (num_envs, 1)
+            pdparam_seq, ext_state_value_seq, int_state_value_seq, next_hidden_state = self.network.forward_actor_critic(
                 obs.unsqueeze(dim=1), 
                 torch.from_numpy(self.current_hidden_state).to(device=self.device)
             )
             
             # action sampling
-            pdparam = pdparam_seq.sequence_to_flattened()
-            dist = self.policy.get_policy_distribution(pdparam)
+            dist = self.policy.get_policy_distribution(pdparam_seq)
             action = dist.sample()
             
             # store data
-            self.current_action_log_prob = dist.log_prob(action).cpu().numpy()
+            self.current_action_log_prob = dist.joint_log_prob(action).squeeze_(dim=1).cpu().numpy()
             self.ext_state_value = ext_state_value_seq.squeeze_(dim=1).cpu().numpy()
             self.int_state_value = int_state_value_seq.squeeze_(dim=1).cpu().numpy()
             self.next_hidden_state = next_hidden_state.cpu().numpy()
             
-            return action
+            return action.transform(lambda a: a.squeeze_(dim=1))
     
     def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
         self.inference_current_hidden_state = self.inference_next_hidden_state * (1.0 - self.inference_prev_terminated)
-        pdparam_seq, _, _, next_hidden_state = self.network.actor_critic_net.forward(
-            obs.unsqueeze(1), 
+        pdparam_seq, _, _, next_hidden_state = self.network.forward_actor_critic(
+            obs.unsqueeze(dim=1), 
             torch.from_numpy(self.inference_current_hidden_state).to(device=self.device)
         )
-        dist = self.policy.get_policy_distribution(pdparam_seq.sequence_to_flattened())
+        dist = self.policy.get_policy_distribution(pdparam_seq)
         action = dist.sample()
         self.inference_next_hidden_state = next_hidden_state.cpu().numpy()
-        return action
+        return action.transform(lambda a: a.squeeze_(dim=1))
             
     def _train(self):
         exp_batch = self.trajectory.sample(self.device)
@@ -240,33 +199,29 @@ class RecurrentPPORND(Agent):
                 
                 # feed forward
                 # in this case num_seq = num_seq_per_step
-                pdparam_seq, ext_state_value_seq, int_state_value_seq, _ = self.network.actor_critic_net.forward(
+                pdparam_seq, ext_state_value_seq, int_state_value_seq, _ = self.network.forward_actor_critic(
                     obs_seq[sample_seq], 
                     seq_init_hidden_state[:, sample_seq]
                 )
-                predicted_feature, target_feature = self.network.rnd_net.forward(
+                predicted_feature, target_feature = self.network.forward_rnd(
                     normalized_next_obs_seq[sample_seq][m],
                     normalized_next_hidden_state_seq[sample_seq][m].flatten(1, 2)
                 )
                 
                 # compute actor loss
-                # (num_seq_per_step, seq_len, *pdparam_shape) -> (num_seq_per_step * seq_len, *pdparam_shape)
-                pdparam = pdparam_seq.sequence_to_flattened()
-                dist = self.policy.get_policy_distribution(pdparam)
-                # (num_seq_per_step, seq_len, num_actions) -> (num_seq_per_step * seq_len, num_actions)
-                a = ActionTensor(
-                    discrete_action_seq[sample_seq].flatten(0, 1),
-                    continuous_action_seq[sample_seq].flatten(0, 1)
+                dist = self.policy.get_policy_distribution(pdparam_seq)
+                sample_action_seq = ActionTensor(
+                    discrete_action_seq[sample_seq],
+                    continuous_action_seq[sample_seq]
                 )
-                # (num_seq_per_step * seq_len, 1) -> (num_seq_per_step, seq_len, 1)
-                new_action_log_prob_seq = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, 1)
+                new_action_log_prob_seq = dist.joint_log_prob(sample_action_seq)
                 actor_loss = PPO.compute_actor_loss(
                     advantage_seq[sample_seq][m],
                     old_action_log_prob_seq[sample_seq][m],
                     new_action_log_prob_seq[m],
                     self.config.epsilon_clip
                 )
-                entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, 1)[m].mean()
+                entropy = dist.joint_entropy()[m].mean()
                 
                 # compute critic loss
                 ext_critic_loss = PPO.compute_critic_loss(ext_state_value_seq[m], ext_target_state_value_seq[sample_seq][m])
@@ -307,7 +262,7 @@ class RecurrentPPORND(Agent):
         # feed forward without gradient calculation
         with torch.no_grad():
             # (num_envs, 1, *obs_shape) because sequence length is 1
-            _, final_ext_next_state_value_seq, final_int_next_state_value_seq, _ = self.network.actor_critic_net.forward(
+            _, final_ext_next_state_value_seq, final_int_next_state_value_seq, _ = self.network.forward_actor_critic(
                 final_next_obs.unsqueeze(dim=1), 
                 final_next_hidden_state
             )
@@ -381,7 +336,7 @@ class RecurrentPPORND(Agent):
             intrinsic_reward (Tensor): `(batch_size, 1)`
         """
         with torch.no_grad():
-            predicted_feature, target_feature = self.network.rnd_net.forward(next_obs, next_hidden_state.flatten(1, 2))
+            predicted_feature, target_feature = self.network.forward_rnd(next_obs, next_hidden_state.flatten(1, 2))
             intrinsic_reward = 0.5 * ((target_feature - predicted_feature)**2).sum(dim=1, keepdim=True)
             return intrinsic_reward
         
