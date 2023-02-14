@@ -60,8 +60,8 @@ class REINFORCE(Agent):
         action = dist.sample()
         
         # store data
-        self.current_action_log_prob = dist.log_prob(action).cpu()
-        self.entropy = dist.entropy().cpu()
+        self.current_action_log_prob = dist.joint_log_prob(action).cpu()
+        self.entropy = dist.joint_entropy().cpu()
         
         return action
     
@@ -115,7 +115,7 @@ class REINFORCE(Agent):
 
         Args:
             returns (Tensor): whose shape is `(batch_size, 1)`
-            action_log_prob (Tensor): log(pi) whose shape is `(batch_size, num_branches)`
+            action_log_prob (Tensor): log(pi) whose shape is `(batch_size, 1)`
 
         Returns:
             Tensor: REINFORCE policy loss

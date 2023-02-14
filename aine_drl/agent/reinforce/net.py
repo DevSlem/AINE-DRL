@@ -5,7 +5,8 @@ import torch
 
 class REINFORCENetwork(Network[torch.Tensor]):
     """
-    Simple REINFORCE policy network.
+    Simple REINFORCE policy network. 
+    
     Generic type `T` is `Tensor`.
     """
     

@@ -590,10 +590,10 @@ class SACNetwork(Network):
     def q_net2(self) -> QNetwork:
         raise NotImplementedError
     
-    @property
-    @abstractmethod
-    def actor(self) -> PolicyGradientNetwork:
-        raise NotImplementedError
+    # @property
+    # @abstractmethod
+    # def actor(self) -> PolicyGradientNetwork:
+    #     raise NotImplementedError
     
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
         """It's not called from SAC agent."""
