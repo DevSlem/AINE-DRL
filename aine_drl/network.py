@@ -159,13 +159,20 @@ class Network(ABC, Generic[T]):
         """
         self._models[name] = model
     
-    @property
     def state_dict(self) -> dict:
+        """Returns all model state dict."""
         return {name: model.state_dict() for name, model in self._models.items()}
     
     def load_state_dict(self, state_dict: dict):
+        """Loads all model state dict."""
         for name, model_state_dict in state_dict.items():
             self._models[name].load_state_dict(model_state_dict)
+            
+    def parameters(self) -> List[nn.parameter.Parameter]:
+        """
+        Returns all model parameters.
+        """
+        return self.concat_model_params(*self._models.values())
           
     @staticmethod
     def simple_train_step(loss: torch.Tensor,

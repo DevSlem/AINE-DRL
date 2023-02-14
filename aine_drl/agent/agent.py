@@ -177,7 +177,7 @@ class Agent(ABC):
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
         sd = self.clock.state_dict
-        sd["network"] = self.network.state_dict
+        sd["network"] = self.network.state_dict()
         return sd
     
     def load_state_dict(self, state_dict: dict):
