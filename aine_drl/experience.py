@@ -1,4 +1,4 @@
-from typing import NamedTuple, List, Optional
+from typing import NamedTuple, List, Optional, Callable
 from dataclasses import dataclass
 import numpy as np
 import torch
@@ -143,6 +143,17 @@ class ActionTensor:
             self.continuous_action.detach().cpu().numpy(),
         )
         return action
+    
+    def transform(self, func: Callable[[torch.Tensor], torch.Tensor]) -> "ActionTensor":
+        """
+        Transform the action tensor.
+
+        Args:
+            func (Callable): function that transforms the action tensor.
+        """
+        discrete_action = func(self.discrete_action)
+        continuous_action = func(self.continuous_action)
+        return ActionTensor(discrete_action, continuous_action)
     
     def __getitem__(self, idx) -> "ActionTensor":
         """
