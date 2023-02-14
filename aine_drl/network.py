@@ -1,9 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union, Any, Iterator
+from typing import Optional, Tuple, Union, Any, Generic, TypeVar, Dict
 from aine_drl.policy.policy_distribution import PolicyDistributionParameter
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+T = TypeVar("T")
+
+class NetworkTypeError(TypeError):
+    def __init__(self, true_net_type: type) -> None:
+        message = f"The network must be inherited from \"{true_net_type.__name__}\"."
+        super().__init__(message)
 
 class DiscreteActionLayer(nn.Module):
     """
@@ -70,6 +77,7 @@ class GaussianContinuousActionLayer(nn.Module):
     
     def __init__(self, in_features: int, 
                  num_continuous_actions: int, 
+                 is_log_std: bool = True,
                  bias: bool = True,
                  device: Optional[torch.device] = None,
                  dtype: Optional[Any] = None) -> None:
@@ -83,6 +91,7 @@ class GaussianContinuousActionLayer(nn.Module):
         super().__init__()
         
         self.num_continuous_actions = num_continuous_actions
+        self.is_log_std = is_log_std
         
         self.layer = nn.Linear(
             in_features,
@@ -97,35 +106,72 @@ class GaussianContinuousActionLayer(nn.Module):
         continuous_pdparams = list(torch.split(out, 2, dim=1))
         return PolicyDistributionParameter.new(continuous_pdparams=continuous_pdparams)
     
-class Network(nn.Module, ABC):
+class Network(ABC, Generic[T]):
     """
     AINE-DRL network abstract class.
     """
     
+    def __init__(self) -> None:
+        super().__init__()
+        
+        self._models_to_save: Dict[str, nn.Module] = {}
+    
+    @property
+    @abstractmethod
+    def device(self) -> torch.device:
+        """
+        Returns:
+            torch.device: device of the network
+        """
+        raise NotImplementedError
+    
     @abstractmethod
     def train_step(self, 
-                   loss: torch.Tensor,
+                   loss: T,
                    grad_clip_max_norm: Optional[float],
                    training_step: int):
         """
         Gradient step for training.
 
         Args:
-            loss (Tensor): computed loss
+            loss (T): computed loss, `T` is generic type
             grad_clip_max_norm (float | None): maximum norm for the gradient clipping
             training_step (int): current training step
         """
         raise NotImplementedError
-        
-    def basic_train_step(self,
-                          loss: torch.Tensor,
+          
+    @staticmethod
+    def simple_train_step(loss: torch.Tensor,
                           optimizer: torch.optim.Optimizer,
-                          grad_clip_max_norm: Optional[float]):
+                          grad_clip_max_norm: Optional[float] = None):
         optimizer.zero_grad()
         loss.backward()
         if grad_clip_max_norm is not None:
-            torch.nn.utils.clip_grad_norm_(self.parameters(), grad_clip_max_norm)
+            torch.nn.utils.clip_grad_norm_(optimizer.param_groups[0]["params"], grad_clip_max_norm)
         optimizer.step()
+        
+    @staticmethod
+    def model_device(model: nn.Module) -> torch.device:
+        """Returns the device of the model."""
+        return next(model.parameters()).device
+    
+    def set_model_save(self, name: str, model: nn.Module):
+        """
+        Set model save/load.
+
+        Args:
+            name (str): name of the module
+            module (nn.Module): module to save
+        """
+        self._models_to_save[name] = model
+    
+    @property
+    def state_dict(self) -> dict:
+        return {name: model.state_dict() for name, model in self._models_to_save.items()}
+    
+    def load_state_dict(self, state_dict: dict):
+        for name, model_state_dict in state_dict.items():
+            self._models_to_save[name].load_state_dict(model_state_dict)
 
 class VNetwork(Network):
     """
@@ -164,27 +210,6 @@ class QNetwork(Network):
             
         Returns:
             Tensor: action value whose shape is `(batch_size, 1)`
-        """
-        raise NotImplementedError
-    
-class PolicyGradientNetwork(Network):
-    """
-    Policy gradient network.
-    """
-    
-    @abstractmethod
-    def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
-        """
-        Compute policy distribution parameters whose shape is `(batch_size, ...)`. \\
-        `batch_size` is `num_envs` x `n-step`. \\
-        When the action type is discrete, policy distribution is generally logits or soft-max distribution. \\
-        When the action type is continuous, it's generally mean and standard deviation of gaussian distribution.
-
-        Args:
-            obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
-
-        Returns:
-            PolicyDistributionParameter: policy distribution parameter
         """
         raise NotImplementedError
 

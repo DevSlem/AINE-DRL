@@ -8,31 +8,40 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPolePolicyGradientcNet(aine_drl.PolicyGradientNetwork):
+class CartPolePolicyGradientcNet(aine_drl.REINFORCENetwork):
     # REINFORCE uses PolicyGradientNetwork.
     
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
+        device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
         # policy layer
-        self.policy_layer = nn.Sequential(
+        self.policy_net = nn.Sequential(
             nn.Linear(obs_shape, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
             aine_drl.DiscreteActionLayer(64, discrete_action_count)
-        )
+        ).to(device=device)
         
         # optimizer for this network
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)
+        
+        self.set_model_save("policy_net", self.policy_net)
+        
+    # override
+    @property
+    def device(self) -> torch.device:
+        return self.model_device(self.policy_net)
     
     # override
     def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistributionParameter:
-        return self.policy_layer(obs)
+        return self.policy_net(obs)
     
     # override
     def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
+        self.simple_train_step(loss, self.optimizer, grad_clip_max_norm)
     
 if __name__ == "__main__":
     seed = 0 # if you want to get the same results
@@ -47,8 +56,7 @@ if __name__ == "__main__":
     # create custom network
     obs_shape = gym_training.observation_space.shape[0]
     action_count = gym_training.action_space.n
-    device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPolePolicyGradientcNet(obs_shape, action_count).to(device=device)
+    network = CartPolePolicyGradientcNet(obs_shape, action_count)
     
     # create policy for discrete action type
     policy = aine_drl.CategoricalPolicy()
