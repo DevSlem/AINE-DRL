@@ -280,21 +280,10 @@ class QValueNetwork(Network):
         """
         raise NotImplementedError
 
-class RecurrentNetwork(Network):
+class RecurrentNetwork(Network[T]):
     """
-    Standard recurrent neural network (RNN).
+    Recurrent neural network (RNN) abstract class.
     """
-    @staticmethod
-    def pack_lstm_hidden_state(lstm_hidden_state: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        """`(D x num_layers, num_seq, H_out) x 2` -> `(D x num_layers, num_seq, H_out x 2)`"""
-        return torch.cat(lstm_hidden_state, dim=2)
-    
-    @staticmethod
-    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """`(D x num_layers, num_seq, H_out x 2)` -> `(D x num_layers, num_seq, H_out) x 2`"""
-        lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
-        return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
-    
     @property
     @abstractmethod
     def hidden_state_shape(self) -> Tuple[int, int]:
@@ -307,6 +296,33 @@ class RecurrentNetwork(Network):
         When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
         """
         raise NotImplementedError
+    
+    @staticmethod
+    def unpack_seq_shape(seq: torch.Tensor) -> Tuple[int, int, torch.Size]:
+        """
+        Unpack the sequence shape.
+        
+        Args:
+            seq (Tensor): `(num_seq, seq_len, *feature_shape)`
+        
+        Returns:
+            num_seq (int): the number of sequences
+            seq_len (int): the length of each sequence
+            feature_shape (torch.Size): the shape of each feature (excluding the sequence dimension
+        """
+        seq_shape = seq.shape
+        return seq_shape[0], seq_shape[1], seq_shape[2:]
+    
+    @staticmethod
+    def pack_lstm_hidden_state(lstm_hidden_state: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        """`(D x num_layers, num_seq, H_out) x 2` -> `(D x num_layers, num_seq, H_out x 2)`"""
+        return torch.cat(lstm_hidden_state, dim=2)
+    
+    @staticmethod
+    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """`(D x num_layers, num_seq, H_out x 2)` -> `(D x num_layers, num_seq, H_out) x 2`"""
+        lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
+        return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
     
 class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
     """Recurrent actor critic shared network."""
