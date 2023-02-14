@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union, Any, Generic, TypeVar, Dict
-from aine_drl.policy.policy_distribution import PolicyDistributionParameter
+from typing import List, Optional, Tuple, Union, Any, Generic, TypeVar, Dict
+from aine_drl.policy.policy_distribution import PolicyDistParam
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -56,15 +56,17 @@ class DiscreteActionLayer(nn.Module):
             dtype
         )
     
-    def forward(self, x: torch.Tensor) -> PolicyDistributionParameter:
+    def forward(self, x: torch.Tensor) -> PolicyDistParam:
         out = self.layer(x)
-        discrete_pdparams = list(torch.split(out, self.num_discrete_actions, dim=1))
+        discrete_pdparams = torch.split(out, self.num_discrete_actions, dim=1)
         
         if not self.is_logits:
+            discrete_pdparams = list(discrete_pdparams)
             for i in range(len(discrete_pdparams)):
                 discrete_pdparams[i] = F.softmax(discrete_pdparams[i], dim=1)
+            discrete_pdparams = tuple(discrete_pdparams)
         
-        return PolicyDistributionParameter.new(discrete_pdparams=discrete_pdparams)
+        return PolicyDistParam(discrete_pdparams=discrete_pdparams)
     
 class GaussianContinuousActionLayer(nn.Module):
     """
@@ -101,10 +103,9 @@ class GaussianContinuousActionLayer(nn.Module):
             dtype
         )
         
-    def forward(self, x: torch.Tensor) -> PolicyDistributionParameter:
+    def forward(self, x: torch.Tensor) -> PolicyDistParam:
         out = self.layer(x)
-        continuous_pdparams = list(torch.split(out, 2, dim=1))
-        return PolicyDistributionParameter.new(continuous_pdparams=continuous_pdparams)
+        return PolicyDistParam(continuous_pdparams=torch.split(out, 2, dim=1))
     
 class Network(ABC, Generic[T]):
     """
@@ -112,18 +113,8 @@ class Network(ABC, Generic[T]):
     """
     
     def __init__(self) -> None:
-        super().__init__()
-        
-        self._models_to_save: Dict[str, nn.Module] = {}
-    
-    @property
-    @abstractmethod
-    def device(self) -> torch.device:
-        """
-        Returns:
-            torch.device: device of the network
-        """
-        raise NotImplementedError
+        self._models: Dict[str, nn.Module] = {}
+        self._device = torch.device("cpu")
     
     @abstractmethod
     def train_step(self, 
@@ -139,6 +130,42 @@ class Network(ABC, Generic[T]):
             training_step (int): current training step
         """
         raise NotImplementedError
+    
+    @property
+    def device(self) -> torch.device:
+        """
+        Returns:
+            torch.device: device of the network
+        """
+        return self._device
+    
+    def to(self, device: Optional[torch.device] = None) -> "Network[T]":
+        """
+        Move the network to the device.
+
+        Args:
+            device (torch.device | None): device to move. If `None`, move to CPU. Defaults to `None`.
+        """
+        if device is None:
+            device = torch.device("cpu")
+        self._device = device
+        for model in self._models.values():
+            model.to(device)
+        return self
+        
+    def add_model(self, name: str, model: nn.Module):
+        """
+        Add the model to the network. Note that you must add at least one model.
+        """
+        self._models[name] = model
+    
+    @property
+    def state_dict(self) -> dict:
+        return {name: model.state_dict() for name, model in self._models.items()}
+    
+    def load_state_dict(self, state_dict: dict):
+        for name, model_state_dict in state_dict.items():
+            self._models[name].load_state_dict(model_state_dict)
           
     @staticmethod
     def simple_train_step(loss: torch.Tensor,
@@ -155,23 +182,13 @@ class Network(ABC, Generic[T]):
         """Returns the device of the model."""
         return next(model.parameters()).device
     
-    def set_model_save(self, name: str, model: nn.Module):
-        """
-        Set model save/load.
-
-        Args:
-            name (str): name of the module
-            module (nn.Module): module to save
-        """
-        self._models_to_save[name] = model
-    
-    @property
-    def state_dict(self) -> dict:
-        return {name: model.state_dict() for name, model in self._models_to_save.items()}
-    
-    def load_state_dict(self, state_dict: dict):
-        for name, model_state_dict in state_dict.items():
-            self._models_to_save[name].load_state_dict(model_state_dict)
+    @staticmethod
+    def concat_model_params(*models: nn.Module) -> List[nn.parameter.Parameter]:
+        """Concatenate model parameters."""
+        params = []
+        for model in models:
+            params.extend(list(model.parameters()))
+        return params
 
 class VNetwork(Network):
     """
@@ -219,7 +236,7 @@ class ActorCriticSharedNetwork(Network):
     """
     
     @abstractmethod
-    def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor]:
         """
         Compute policy distribution parameters whose shape is `(batch_size, ...)`, 
         state value whose shape is `(batch_size, 1)`. \\
@@ -231,7 +248,7 @@ class ActorCriticSharedNetwork(Network):
             obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
 
         Returns:
-            Tuple[PolicyDistributionParameter, Tensor]: policy distribution parameter, state value
+            Tuple[PolicyDistParam, Tensor]: policy distribution parameter, state value
         """
         raise NotImplementedError
 
@@ -241,18 +258,18 @@ class QValueNetwork(Network):
     """
     
     @abstractmethod
-    def forward(self, obs: torch.Tensor) -> PolicyDistributionParameter:
+    def forward(self, obs: torch.Tensor) -> PolicyDistParam:
         """
         Compute action value Q.  \\
         Note that it only works to discrete action type. 
-        So, you must set only `PolicyDistributionParameter.discrete_pdparams` which is action values. \\
+        So, you must set only `PolicyDistParam.discrete_pdparams` which is action values. \\
         `batch_size` is `num_envs` x `n-step`.
         
         Args:
             obs (Tensor): observation of state whose shape is `(batch_size, *obs_shape)`
             
         Returns:
-            PolicyDistributionParameter: discrete action value
+            PolicyDistParam: discrete action value
         """
         raise NotImplementedError
 
@@ -290,7 +307,7 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
     @abstractmethod
     def forward(self, 
                 obs_seq: torch.Tensor, 
-                hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+                hidden_state: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -306,7 +323,7 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
             hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
-            pdparam_seq (PolicyDistributionParameter): policy distribution parameter sequences
+            pdparam_seq (PolicyDistParam): policy distribution parameter sequences
             state_value_seq (Tensor): state value sequences
             next_hidden_state (Tensor): next hidden state
             
@@ -329,7 +346,7 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistributionParameter` docs|
+        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistParam` docs|
         |state_value_seq|`(num_seq, seq_len, 1)`|
         |next_hidden_state|`(D x num_layers, num_seq, H)`|
             
@@ -337,7 +354,7 @@ class RecurrentActorCriticSharedNetwork(RecurrentNetwork):
         
         `forward()` method example when using LSTM::
         
-            def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+            def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
                 # feed forward to the encoding layer
                 # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
                 seq_len = obs_seq.shape[1]
@@ -377,7 +394,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
     @abstractmethod
     def forward(self, 
                 obs_seq: torch.Tensor, 
-                hidden_state: torch.Tensor) -> Tuple[PolicyDistributionParameter, torch.Tensor, torch.Tensor, torch.Tensor]:
+                hidden_state: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -393,7 +410,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
             hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
-            pdparam_seq (PolicyDistributionParameter): policy distribution parameter sequences
+            pdparam_seq (PolicyDistParam): policy distribution parameter sequences
             ext_state_value_seq (Tensor): extrinsic state value sequences
             int_state_value_seq (Tensor): intrinsic state value sequences
             next_hidden_state (Tensor): next hidden state
@@ -413,7 +430,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistributionParameter` docs|
+        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistParam` docs|
         |ext_state_value_seq|`(num_seq, seq_len, 1)`|
         |int_state_value_seq|`(num_seq, seq_len, 1)`|
         |next_hidden_state|`(D x num_layers, num_seq, H)`|
@@ -425,7 +442,7 @@ class RecurrentActorCriticSharedTwoValueNetwork(nn.Module):
         
         `forward()` method example when using LSTM::
         
-            def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor, torch.Tensor]:
+            def forward(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
                 # encoding layer
                 # (batch_size, seq_len, *obs_shape) -> (batch_size * seq_len, *obs_shape)
                 seq_len = obs.shape[1]
