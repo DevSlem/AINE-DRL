@@ -1,43 +1,15 @@
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
-from aine_drl.network import RecurrentActorCriticSharedNetwork
+from aine_drl.network import NetworkTypeError
 from aine_drl.policy.policy import Policy
+from .config import RecurrentPPOConfig
+from .net import RecurrentPPOSharedNetwork
 from .ppo import PPO
 from .ppo_trajectory import RecurrentPPOExperienceBatch, RecurrentPPOTrajectory
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
-
-class RecurrentPPOConfig(NamedTuple):
-    """
-    Recurrent PPO configurations.
-
-    Args:
-        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
-        `epoch (int)`: number of using total experiences to update parameters at each training frequency
-        `sequence_length (int)`: sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
-        `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
-        `padding_value (float, optional)`: pad sequences to the value for the same `sequence_length`. Defaults to 0.
-        `gamma (float, optional)`: discount factor. Defaults to 0.99.
-        `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
-        `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
-        `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
-        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
-    """
-    training_freq: int
-    epoch: int
-    sequence_length: int
-    num_sequences_per_step: int
-    padding_value: float = 0.0
-    gamma: float = 0.99
-    lam: float = 0.95
-    epsilon_clip: float = 0.2
-    value_loss_coef: float = 0.5
-    entropy_coef: float = 0.001
-    grad_clip_max_norm: Optional[float] = None
-    
 
 class RecurrentPPO(Agent):
     """
@@ -51,11 +23,11 @@ class RecurrentPPO(Agent):
     """
     def __init__(self, 
                  config: RecurrentPPOConfig,
-                 network: RecurrentActorCriticSharedNetwork,
+                 network: RecurrentPPOSharedNetwork,
                  policy: Policy,
                  num_envs: int) -> None:        
-        if not isinstance(network, RecurrentActorCriticSharedNetwork):
-            raise TypeError("The network type must be RecurrentActorCriticSharedNetwork.")
+        if not isinstance(network, RecurrentPPOSharedNetwork):
+            raise NetworkTypeError(RecurrentPPOSharedNetwork)
         
         super().__init__(network, policy, num_envs)
         
@@ -102,29 +74,36 @@ class RecurrentPPO(Agent):
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         with torch.no_grad():
             self.current_hidden_state = self.next_hidden_state * (1.0 - self.prev_terminated)
-            # when interacting with environment, sequence_length must be 1
+            
             # feed forward
-            pdparam_seq, state_value_seq, next_hidden_state = self.network.forward(obs.unsqueeze(dim=1), self.current_hidden_state.to(device=self.device))
+            # when interacting with environment, sequence_length must be 1
+            # *batch_shape = (num_seq, seq_len) = (num_envs, 1)
+            pdparam_seq, state_value_seq, next_hidden_state = self.network.forward(
+                obs.unsqueeze(dim=1), 
+                self.current_hidden_state.to(device=self.device)
+            )
             
             # action sampling
-            pdparam = pdparam_seq.sequence_to_flattened()
-            dist = self.policy.get_policy_distribution(pdparam)
+            dist = self.policy.get_policy_distribution(pdparam_seq)
             action = dist.sample()
             
             # store data
-            self.current_action_log_prob = dist.log_prob(action).cpu()
+            self.current_action_log_prob = dist.joint_log_prob(action).squeeze_(dim=1).cpu()
             self.v_pred = state_value_seq.squeeze_(dim=1).cpu()
             self.next_hidden_state = next_hidden_state.cpu()
             
-            return action
+            return action.transform(lambda a: a.squeeze_(dim=1))
     
     def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
         self.inference_current_hidden_state = self.inference_next_hidden_state * (1.0 - self.inference_prev_terminated)
-        pdparam, _, hidden_state = self.network.forward(obs.unsqueeze(1), self.inference_current_hidden_state.to(device=self.device))
-        dist = self.policy.get_policy_distribution(pdparam.sequence_to_flattened())
+        pdparam_seq, _, next_hidden_state = self.network.forward(
+            obs.unsqueeze(dim=1), 
+            self.inference_current_hidden_state.to(device=self.device)
+        )
+        dist = self.policy.get_policy_distribution(pdparam_seq)
         action = dist.sample()
-        self.inference_next_hidden_state = hidden_state.cpu()
-        return action
+        self.inference_next_hidden_state = next_hidden_state.cpu()
+        return action.transform(lambda a: a.squeeze_(dim=1))
             
     def _train(self):
         # sample experience batch from the trajectory
@@ -170,26 +149,25 @@ class RecurrentPPO(Agent):
                 
                 # feed forward
                 # in this case num_seq = num_seq_per_step
-                pdparam_seq, state_value_seq, _ = self.network.forward(obs_seq[sample_seq], seq_init_hidden_state[:, sample_seq])
+                pdparam_seq, state_value_seq, _ = self.network.forward(
+                    obs_seq[sample_seq], 
+                    seq_init_hidden_state[:, sample_seq]
+                )
                 
                 # compute actor loss
-                # (num_seq_per_step, seq_len, *pdparam_shape) -> (num_seq_per_step * seq_len, *pdparam_shape)
-                pdparam = pdparam_seq.sequence_to_flattened()
-                dist = self.policy.get_policy_distribution(pdparam)
-                # (num_seq_per_step, seq_len, num_actions) -> (num_seq_per_step * seq_len, num_actions)
-                a = ActionTensor(
-                    discrete_action_seq[sample_seq].flatten(0, 1),
-                    continuous_action_seq[sample_seq].flatten(0, 1)
+                dist = self.policy.get_policy_distribution(pdparam_seq)
+                sample_action_seq = ActionTensor(
+                    discrete_action_seq[sample_seq],
+                    continuous_action_seq[sample_seq]
                 )
-                # (num_seq_per_step * seq_len, 1) -> (num_seq_per_step, seq_len, 1)
-                new_action_log_prob_seq = dist.log_prob(a).reshape(self.config.num_sequences_per_step, -1, 1)
+                new_action_log_prob_seq = dist.joint_log_prob(sample_action_seq)
                 actor_loss = PPO.compute_actor_loss(
                     advantage_seq[sample_seq][m],
                     old_action_log_prob_seq[sample_seq][m],
                     new_action_log_prob_seq[m],
                     self.config.epsilon_clip
                 )
-                entropy = dist.entropy().reshape(self.config.num_sequences_per_step, -1, 1)[m].mean()
+                entropy = dist.joint_entropy()[m].mean()
                 
                 # compute critic loss
                 critic_loss = PPO.compute_critic_loss(state_value_seq[m], target_state_value_seq[sample_seq][m])

@@ -26,3 +26,32 @@ class PPOConfig(NamedTuple):
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
     grad_clip_max_norm: Optional[float] = None
+    
+class RecurrentPPOConfig(NamedTuple):
+    """
+    Recurrent PPO configurations.
+
+    Args:
+        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
+        `epoch (int)`: number of using total experiences to update parameters at each training frequency
+        `sequence_length (int)`: sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
+        `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
+        `padding_value (float, optional)`: pad sequences to the value for the same `sequence_length`. Defaults to 0.
+        `gamma (float, optional)`: discount factor. Defaults to 0.99.
+        `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
+        `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
+        `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
+        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
+        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
+    """
+    training_freq: int
+    epoch: int
+    sequence_length: int
+    num_sequences_per_step: int
+    padding_value: float = 0.0
+    gamma: float = 0.99
+    lam: float = 0.95
+    epsilon_clip: float = 0.2
+    value_loss_coef: float = 0.5
+    entropy_coef: float = 0.001
+    grad_clip_max_norm: Optional[float] = None
