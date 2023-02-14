@@ -1,33 +1,15 @@
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
-from aine_drl.network import ActorCriticSharedNetwork
-from aine_drl.agent.a2c.a2c_trajectory import A2CExperienceBatch, A2CTrajectory
+from aine_drl.network import NetworkTypeError
 from aine_drl.policy.policy import Policy
+from .config import A2CConfig
+from .net import A2CSharedNetwork
+from .a2c_trajectory import A2CExperienceBatch, A2CTrajectory
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
 import torch.nn.functional as F
-
-class A2CConfig(NamedTuple):
-    """
-    A2C configurations.
-
-    Args:
-        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
-        `gamma (float, optional)`: discount factor. Defaults to 0.99.
-        `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance Defaults to 0.95.
-        `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
-        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
-    """
-    training_freq: int
-    gamma: float = 0.99
-    lam: float = 0.95
-    value_loss_coef: float = 0.5
-    entropy_coef: float = 0.001
-    grad_clip_max_norm: Optional[float] = None
-    
 
 class A2C(Agent):
     """
@@ -41,11 +23,11 @@ class A2C(Agent):
     """
     def __init__(self, 
                  config: A2CConfig,
-                 network: ActorCriticSharedNetwork,
+                 network: A2CSharedNetwork,
                  policy: Policy,
                  num_envs: int) -> None:        
-        if not isinstance(network, ActorCriticSharedNetwork):
-            raise TypeError("The network type must be ActorCriticSharedNetwork.")
+        if not isinstance(network, A2CSharedNetwork):
+            raise NetworkTypeError(A2CSharedNetwork)
         
         super().__init__(network, policy, num_envs)
         
@@ -84,9 +66,9 @@ class A2C(Agent):
         action = dist.sample()
         
         # store data
-        self.current_action_log_prob = dist.log_prob(action).cpu()
+        self.current_action_log_prob = dist.joint_log_prob(action).cpu()
         self.v_pred = v_pred.cpu()
-        self.entropy = dist.entropy().cpu()
+        self.entropy = dist.joint_entropy().cpu()
         
         return action
     
@@ -161,7 +143,7 @@ class A2C(Agent):
 
         Args:
             advantage (Tensor): whose shape is `(batch_size, 1)`
-            action_log_prob (Tensor): log(pi) whose shape is `(batch_size, num_branches)`
+            action_log_prob (Tensor): log(pi) whose shape is `(batch_size, 1)`
 
         Returns:
             Tensor: A2C actor loss
