@@ -1,41 +1,15 @@
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
-from aine_drl.network import ActorCriticSharedNetwork
-from aine_drl.agent.ppo.ppo_trajectory import PPOExperienceBatch, PPOTrajectory
+from aine_drl.network import NetworkTypeError
 from aine_drl.policy.policy import Policy
+from .config import PPOConfig
+from .net import PPOSharedNetwork
+from .ppo_trajectory import PPOExperienceBatch, PPOTrajectory
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
 import torch.nn.functional as F
-
-class PPOConfig(NamedTuple):
-    """
-    PPO configurations.
-
-    Args:
-        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
-        `epoch (int)`: number of using total gathered experiences to update parameters at each training frequency
-        `mini_batch_size` (int): mini-batch size determines how many training steps at each epoch. The number of updates at each epoch equals to integer of `num_envs` x `training_freq` / `mini_batch_size`.
-        `gamma (float, optional)`: discount factor. Defaults to 0.99.
-        `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
-        `advantage_normalization (bool, optional)`: normalize advantage estimates across single mini batch. It may reduce variance and lead to stability, but does not seem to effect performance much. Defaults to False.
-        `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
-        `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
-        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
-    """
-    training_freq: int
-    epoch: int
-    mini_batch_size: int
-    gamma: float = 0.99
-    lam: float = 0.95
-    advantage_normalization: bool = False
-    epsilon_clip: float = 0.2
-    value_loss_coef: float = 0.5
-    entropy_coef: float = 0.001
-    grad_clip_max_norm: Optional[float] = None
-    
 
 class PPO(Agent):
     """
@@ -49,11 +23,11 @@ class PPO(Agent):
     """
     def __init__(self, 
                  config: PPOConfig,
-                 network: ActorCriticSharedNetwork,
+                 network: PPOSharedNetwork,
                  policy: Policy,
                  num_envs: int) -> None:        
-        if not isinstance(network, ActorCriticSharedNetwork):
-            raise TypeError("The network type must be ActorCriticSharedNetwork.")
+        if not isinstance(network, PPOSharedNetwork):
+            raise NetworkTypeError(PPOSharedNetwork)
         
         super().__init__(network, policy, num_envs)
         
@@ -91,7 +65,7 @@ class PPO(Agent):
             action = dist.sample()
             
             # store data
-            self.current_action_log_prob = dist.log_prob(action).cpu()
+            self.current_action_log_prob = dist.joint_log_prob(action).cpu()
             self.v_pred = v_pred.cpu()
             
             return action
@@ -118,7 +92,7 @@ class PPO(Agent):
                 
                 # compute actor loss
                 dist = self.policy.get_policy_distribution(pdparam)
-                new_action_log_prob = dist.log_prob(exp_batch.action[sample_idx])
+                new_action_log_prob = dist.joint_log_prob(exp_batch.action[sample_idx])
                 adv = drl_util.normalize(advantage[sample_idx]) if self.config.advantage_normalization else advantage[sample_idx]
                 actor_loss = PPO.compute_actor_loss(
                     adv,
@@ -126,7 +100,7 @@ class PPO(Agent):
                     new_action_log_prob,
                     self.config.epsilon_clip
                 )
-                entropy = dist.entropy().mean()
+                entropy = dist.joint_entropy().mean()
                 
                 # compute critic loss
                 critic_loss = PPO.compute_critic_loss(v_pred, v_target[sample_idx])
