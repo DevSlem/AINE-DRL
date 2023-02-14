@@ -9,9 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPoleQValueNet(aine_drl.DoubleDQNNetwork):
-    # Double DQN uses QValueNetwork.
-    
+class CartPoleDoubleDQNNet(aine_drl.DoubleDQNNetwork):    
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
@@ -24,9 +22,11 @@ class CartPoleQValueNet(aine_drl.DoubleDQNNetwork):
             aine_drl.DiscreteActionLayer(64, discrete_action_count)
         )
                 
-        self.optimizer = optim.Adam(self.q_value_net.parameters(), lr=0.001)
-
+        # add models
         self.add_model("q_value_net", self.q_value_net)
+        
+        # optimizer for this network
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
         
     # override
     def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistParam:
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     obs_shape = gym_training.observation_space.shape[0]
     action_count = gym_training.action_space.n
     device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPoleQValueNet(obs_shape, action_count).to(device)
+    network = CartPoleDoubleDQNNet(obs_shape, action_count).to(device)
     
     # create policy for discrete action type
     policy = aine_drl.EpsilonGreedyPolicy(LinearDecay(0.2, 0.01, 0, int(gym_training.config.summary_freq * 0.8)))

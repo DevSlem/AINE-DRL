@@ -8,9 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPoleREINFORCENet(aine_drl.REINFORCENetwork):
-    # REINFORCE uses PolicyGradientNetwork.
-    
+class CartPoleREINFORCENet(aine_drl.REINFORCENetwork):    
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
@@ -23,10 +21,11 @@ class CartPoleREINFORCENet(aine_drl.REINFORCENetwork):
             aine_drl.DiscreteActionLayer(64, discrete_action_count)
         )
         
-        # optimizer for this network
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)
-        
+        # add models
         self.add_model("policy_net", self.policy_net)
+        
+        # optimizer for this network
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
     
     # override
     def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistParam:

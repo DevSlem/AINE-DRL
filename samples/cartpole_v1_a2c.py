@@ -10,9 +10,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPoleA2CNet(aine_drl.A2CSharedNetwork):
-    # A2C uses ActorCriticSharedNetwork.
-    
+class CartPoleA2CNet(aine_drl.A2CSharedNetwork):    
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
@@ -30,15 +28,13 @@ class CartPoleA2CNet(aine_drl.A2CSharedNetwork):
         self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, discrete_action_count)
         self.critic_layer = nn.Linear(self.hidden_feature, 1)
         
-        # optimizer for this network
-        self.optimizer = optim.Adam(
-            self.concat_model_params(self.encoding_layer, self.actor_layer, self.critic_layer), 
-            lr=0.001
-        )
-        
+        # add models
         self.add_model("encoding_layer", self.encoding_layer)
         self.add_model("actor_layer", self.actor_layer)
         self.add_model("critic_layer", self.critic_layer)
+        
+        # optimizer for this network
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
     
     # override
     def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
