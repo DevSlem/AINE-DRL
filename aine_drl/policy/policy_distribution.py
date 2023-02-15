@@ -209,7 +209,7 @@ class GaussianDistribution(PolicyDistribution):
     LOG_STD_MIN: float = -20
     LOG_STD_MAX: float = 2
     
-    def __init__(self, pdparam: PolicyDistParam, is_log_std: bool = True) -> None:
+    def __init__(self, pdparam: PolicyDistParam, is_log_std: bool = False) -> None:
         assert pdparam.num_continuous_branches > 0
         
         mean_params = []
@@ -222,10 +222,11 @@ class GaussianDistribution(PolicyDistribution):
         mean = torch.stack(mean_params, dim=-1)
         std_params = torch.stack(std_params, dim=-1)
         if is_log_std:
+            raise NotImplementedError
             log_std = torch.clamp(std_params, GaussianDistribution.LOG_STD_MIN, GaussianDistribution.LOG_STD_MAX)
             std = log_std.exp()
         else:
-            std = std_params.abs()
+            std = std_params.abs() + 1e-8
         
         # (num_envs, n, n)
         # covars = torch.stack([torch.eye(pdparam.num_continuous_branches) for _ in range(len(var))]).to(device=var.device)

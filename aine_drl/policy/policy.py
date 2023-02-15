@@ -54,7 +54,7 @@ class GaussianPolicy(Policy):
     Gaussian policy for the continuous action type.
     """
     
-    def __init__(self, is_log_std: bool = True) -> None:
+    def __init__(self, is_log_std: bool = False) -> None:
         super().__init__()
         
         self.is_log_std = is_log_std
