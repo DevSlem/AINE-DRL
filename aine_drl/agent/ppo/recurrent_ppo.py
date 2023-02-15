@@ -174,7 +174,7 @@ class RecurrentPPO(Agent):
                 
                 # train step
                 loss = actor_loss + self.config.value_loss_coef * critic_loss - self.config.entropy_coef * entropy
-                self.network.train_step(loss, self.config.grad_clip_max_norm, self.clock.training_step)
+                self.network.train_step(loss, self.clock.training_step)
                 self.clock.tick_training_step()
                 
                 # log data

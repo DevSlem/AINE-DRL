@@ -14,7 +14,6 @@ class PPOConfig(NamedTuple):
         `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
         `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
         `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
     """
     training_freq: int
     epoch: int
@@ -25,7 +24,6 @@ class PPOConfig(NamedTuple):
     epsilon_clip: float = 0.2
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
-    grad_clip_max_norm: Optional[float] = None
     
 class RecurrentPPOConfig(NamedTuple):
     """
@@ -42,7 +40,6 @@ class RecurrentPPOConfig(NamedTuple):
         `epsilon_clip (float, optional)`: clipping the probability ratio (pi_theta / pi_theta_old) to [1-eps, 1+eps]. Defaults to 0.2.
         `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
         `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
     """
     training_freq: int
     epoch: int
@@ -54,7 +51,6 @@ class RecurrentPPOConfig(NamedTuple):
     epsilon_clip: float = 0.2
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
-    grad_clip_max_norm: Optional[float] = None
 
 class RecurrentPPORNDConfig(NamedTuple):
     """
@@ -78,7 +74,6 @@ class RecurrentPPORNDConfig(NamedTuple):
         `pre_normalization_step (int | None, optional)`: number of initial steps for initializing both observation and hidden state normalization. Defaults to no normalization.
         `obs_norm_clip_range (Tuple[float, float])`: observation normalization clipping range (min, max). Defaults to (-5.0, 5.0).
         `hidden_state_norm_clip_range (Tuple[float, float])`: hidden state normalization clipping range (min, max). Defaults to (-5.0, 5.0).
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
     """
     training_freq: int
     epoch: int
@@ -97,4 +92,3 @@ class RecurrentPPORNDConfig(NamedTuple):
     pre_normalization_step: Optional[int] = None
     obs_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
     hidden_state_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
-    grad_clip_max_norm: Optional[float] = None

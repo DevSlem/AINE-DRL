@@ -26,14 +26,17 @@ class CartPoleREINFORCENet(aine_drl.REINFORCENetwork):
         
         # optimizer for this network
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        
+        self.ts = aine_drl.TrainStep(self.optimizer)
+        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # override
     def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistParam:
         return self.policy_net(obs)
     
     # override
-    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.simple_train_step(loss, self.optimizer, grad_clip_max_norm)
+    def train_step(self, loss: torch.Tensor, training_step: int):
+        self.ts.train_step(loss)
     
 if __name__ == "__main__":
     seed = 0 # if you want to get the same results

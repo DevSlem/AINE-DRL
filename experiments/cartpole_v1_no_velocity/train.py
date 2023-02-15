@@ -97,6 +97,9 @@ class CartPoleNoVelRecurrentPPONet(aine_drl.RecurrentPPOSharedNetwork):
         
         # optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=3e-4)
+        
+        self.ts = aine_drl.TrainStep(self.optimizer)
+        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # override
     def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
@@ -126,8 +129,8 @@ class CartPoleNoVelRecurrentPPONet(aine_drl.RecurrentPPOSharedNetwork):
         return pdparam_seq, state_value_seq, next_seq_hidden_state
     
     # override
-    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.simple_train_step(loss, self.optimizer, grad_clip_max_norm)
+    def train_step(self, loss: torch.Tensor, training_step: int):
+        self.ts.train_step(loss)
         
     # override    
     @property
@@ -161,6 +164,9 @@ class CartPoleNoVelNaivePPONet(aine_drl.PPOSharedNetwork):
         
         # optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=3e-4)
+        
+        self.ts = aine_drl.TrainStep(self.optimizer)
+        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # overrride
     def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
@@ -170,8 +176,8 @@ class CartPoleNoVelNaivePPONet(aine_drl.PPOSharedNetwork):
         return pdparam, state_value
     
     # override
-    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.simple_train_step(loss, self.optimizer, grad_clip_max_norm)
+    def train_step(self, loss: torch.Tensor, training_step: int):
+        self.ts.train_step(loss)
 
 
 def run_recurrent_ppo(inference: bool = False):

@@ -54,8 +54,7 @@ def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: i
           'lam': 0.95,
           'epsilon_clip': 0.2,
           'value_loss_coef': 0.5,
-          'entropy_coef': 0.001,
-          'grad_clip_max_norm': 5.0}}}
+          'entropy_coef': 0.001}}
     """
     
     try:

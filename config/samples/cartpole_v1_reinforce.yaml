@@ -14,4 +14,3 @@ CartPole-v1_REINFORCE:
   REINFORCE:
     gamma: 0.99
     entropy_coef: 0.001
-    grad_clip_max_norm: 5.0

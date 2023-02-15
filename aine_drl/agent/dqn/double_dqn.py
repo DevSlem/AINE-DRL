@@ -87,7 +87,7 @@ class DoubleDQN(Agent):
             td_loss = self.compute_td_loss(exp_batch)
             
             # train step
-            self.network.train_step(td_loss, self.config.grad_clip_max_norm, self.clock.training_step)
+            self.network.train_step(td_loss, self.clock.training_step)
             self.clock.tick_training_step()
             
             # update log data

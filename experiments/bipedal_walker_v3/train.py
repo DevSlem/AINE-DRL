@@ -34,6 +34,9 @@ class BipedalWalkerPPONet(aine_drl.PPOSharedNetwork):
         self.add_model("critic_layer", self.critic_layer)
         
         self.optimizer = optim.Adam(self.parameters(), lr=LEARNING_RATE)
+        
+        self.ts = aine_drl.TrainStep(self.optimizer)
+        self.ts.enable_grad_clip(self.parameters(), 5.0)
     
     def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
         encoding = self.encoding_layer(obs)
@@ -41,8 +44,8 @@ class BipedalWalkerPPONet(aine_drl.PPOSharedNetwork):
         state_value = self.critic_layer(encoding)
         return pdparam, state_value
     
-    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.simple_train_step(loss, self.optimizer, grad_clip_max_norm, self.parameters())
+    def train_step(self, loss: torch.Tensor, training_step: int):
+        self.ts.train_step(loss)
 
 def get_bipedal_env_info(gym_training: GymTraining):
     return gym_training.observation_space.shape[0], gym_training.action_space.shape[0]

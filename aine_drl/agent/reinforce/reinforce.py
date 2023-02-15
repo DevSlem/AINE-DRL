@@ -81,7 +81,7 @@ class REINFORCE(Agent):
         
         # train step
         loss = policy_loss - self.config.entropy_coef * entropy
-        self.network.train_step(loss, self.config.grad_clip_max_norm, self.clock.training_step)
+        self.network.train_step(loss, self.clock.training_step)
         self.clock.tick_training_step()
         
         # log data
