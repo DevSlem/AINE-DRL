@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union, Any, Generic, TypeVar, Dict, Iterator
+from typing import Optional, Tuple, Union, Any, Generic, TypeVar, Dict, Iterator
 from aine_drl.policy.policy_distribution import PolicyDistParam
 import torch
 import torch.nn as nn
+from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 
 T = TypeVar("T")
@@ -119,14 +120,12 @@ class Network(ABC, Generic[T]):
     @abstractmethod
     def train_step(self, 
                    loss: T,
-                   grad_clip_max_norm: Optional[float],
                    training_step: int):
         """
         Gradient step for training.
 
         Args:
             loss (T): computed loss, `T` is generic type
-            grad_clip_max_norm (float | None): maximum norm for the gradient clipping
             training_step (int): current training step
         """
         raise NotImplementedError
@@ -168,24 +167,11 @@ class Network(ABC, Generic[T]):
         for name, model_state_dict in state_dict.items():
             self._models[name].load_state_dict(model_state_dict)
             
-    def parameters(self) -> List[nn.parameter.Parameter]:
+    def parameters(self) -> Iterator[Parameter]:
         """
         Returns all model parameters.
         """
         return self.concat_model_params(*self._models.values())
-          
-    @staticmethod
-    def simple_train_step(loss: torch.Tensor,
-                          optimizer: torch.optim.Optimizer,
-                          grad_clip_max_norm: Optional[float] = None,
-                          parameters: Optional[Iterator[nn.parameter.Parameter]] = None):
-        optimizer.zero_grad()
-        loss.backward()
-        if (grad_clip_max_norm is not None) and parameters is not None:
-            torch.nn.utils.clip_grad_norm_(parameters, grad_clip_max_norm)
-        else:
-            raise ValueError("Both grad_clip_max_norm and parameters must be specified.")
-        optimizer.step()
         
     @staticmethod
     def model_device(model: nn.Module) -> torch.device:
@@ -193,12 +179,12 @@ class Network(ABC, Generic[T]):
         return next(model.parameters()).device
     
     @staticmethod
-    def concat_model_params(*models: nn.Module) -> List[nn.parameter.Parameter]:
+    def concat_model_params(*models: nn.Module) -> Iterator[Parameter]:
         """Concatenate model parameters."""
         params = []
         for model in models:
             params.extend(list(model.parameters()))
-        return params
+        return iter(params)
 
 class RecurrentNetwork(Network[T]):
     """
