@@ -1,10 +1,12 @@
 import operator
-from typing import Tuple, Union, Optional
+from typing import Union, Iterator
 import numpy as np
 import datetime
 import os
 import torch
 import torch.nn as nn
+from torch.nn.parameter import Parameter
+from torch.nn.utils.clip_grad import clip_grad_norm_
 import torch.nn.utils as torch_util
 import torch.backends.cudnn as cudnn
 import random
@@ -159,3 +161,35 @@ class IncrementalAverage:
     @property
     def count(self) -> int:
         return self.n
+
+class TrainStep:
+    def __init__(self,
+                 optimizer: torch.optim.Optimizer):
+        self.optimizer = optimizer
+        
+        self.parameters = None
+        self.grad_clip_max_norm = 0.0
+    
+    def enable_grad_clip(self, parameters: Iterator[Parameter], grad_clip_max_norm: float):
+        """
+        Enable gradient clipping.
+
+        Args:
+            parameters (Iterator[Parameter]): an iterable of Tensors or a single Tensor that will have gradients normalized
+            grad_clip_max_norm (float): max norm of the gradients
+        """
+        self.parameters = parameters
+        self.grad_clip_max_norm = grad_clip_max_norm
+        
+    def train_step(self, loss: torch.Tensor):
+        """
+        Gradient step method.
+
+        Args:
+            loss (torch.Tensor): single loss value
+        """
+        self.optimizer.zero_grad()
+        loss.backward()
+        if self.parameters is not None:
+            clip_grad_norm_(self.parameters, self.grad_clip_max_norm)
+        self.optimizer.step()
