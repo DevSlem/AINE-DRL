@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, Any, Generic, TypeVar, Dict, Iterator
+from typing import Union, Any, Generic, TypeVar, Iterator
 from aine_drl.policy.policy_distribution import PolicyDistParam
 import torch
 import torch.nn as nn
@@ -114,7 +114,7 @@ class Network(ABC, Generic[T]):
     """
     
     def __init__(self) -> None:
-        self._models: Dict[str, nn.Module] = {}
+        self._models: dict[str, nn.Module] = {}
         self._device = torch.device("cpu")
     
     @abstractmethod

@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any
 
 class StaticRecursiveBuffer:
     """
@@ -28,18 +28,18 @@ class StaticRecursiveBuffer:
         return self._keys
         
     @property
-    def latest_item(self) -> Dict[str, Any]:
+    def latest_item(self) -> dict[str, Any]:
         return {key: buffer[self._latest_idx] for key, buffer in self._buffer.items()}
     
     @property
-    def buffer_dict(self) -> Dict[str, list[Any]]:
+    def buffer_dict(self) -> dict[str, list[Any]]:
         return {key: buffer[:self._count] for key, buffer in self._buffer.items()}
         
     def reset(self):
         self._count = 0
         self._latest_idx = -1
         
-        self._buffer: Dict[str, list[Any]] = {key: [None] * self._capacity for key in self._keys}
+        self._buffer: dict[str, list[Any]] = {key: [None] * self._capacity for key in self._keys}
             
     def add(self, key_value_pair: dict):
         self._latest_idx = (self._latest_idx + 1) % self._capacity

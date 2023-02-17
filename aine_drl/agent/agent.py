@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Dict
 from aine_drl.experience import Action, ActionTensor, Experience
 from aine_drl.network import Network
 from aine_drl.policy.policy import Policy
@@ -154,12 +153,12 @@ class Agent(ABC):
         return lk
         
     @property
-    def log_data(self) -> Dict[str, tuple]:
+    def log_data(self) -> dict[str, tuple]:
         """
         Returns log data and reset it.
 
         Returns:
-            Dict[str, tuple]: key: (value, time)
+            dict[str, tuple]: key: (value, time)
         """
         ld = {}
         if self.cumulative_average_reward.count > 0:

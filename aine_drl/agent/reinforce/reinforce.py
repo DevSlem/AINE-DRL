@@ -1,4 +1,3 @@
-from typing import Dict
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.policy.policy import Policy
@@ -131,7 +130,7 @@ class REINFORCE(Agent):
         return super().log_keys + ("Network/Policy Loss",)
     
     @property
-    def log_data(self) -> Dict[str, tuple]:
+    def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self.policy_average_loss.count > 0:
             ld["Network/Policy Loss"] = (self.policy_average_loss.average, self.clock.training_step)
