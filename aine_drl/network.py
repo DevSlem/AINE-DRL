@@ -184,7 +184,7 @@ class Network(ABC, Generic[T]):
         params = []
         for model in models:
             params.extend(list(model.parameters()))
-        return iter(params)
+        return params  # type: ignore
 
 class RecurrentNetwork(Network[T]):
     """

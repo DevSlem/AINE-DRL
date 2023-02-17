@@ -36,7 +36,7 @@ class BipedalWalkerPPONet(aine_drl.PPOSharedNetwork):
         self.optimizer = optim.Adam(self.parameters(), lr=LEARNING_RATE)
         
         self.ts = aine_drl.TrainStep(self.optimizer)
-        self.ts.enable_grad_clip(self.parameters(), 5.0)
+        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
         encoding = self.encoding_layer(obs)
