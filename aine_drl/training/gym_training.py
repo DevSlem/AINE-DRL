@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, NamedTuple
+from typing import List, Union, NamedTuple
 import gym.spaces as gym_space
 import gym
 import gym.vector
@@ -26,8 +26,8 @@ class GymTrainingConfig(NamedTuple):
     """
     total_global_time_steps: int
     summary_freq: int
-    agent_save_freq: Optional[int] = None
-    inference_freq: Optional[int] = None
+    agent_save_freq: int | None = None
+    inference_freq: int | None = None
     inference_render: bool = False
     generate_new_training_result: bool = False
     seed: Union[int, List[int], None] = None
@@ -46,7 +46,7 @@ class GymTraining:
                  training_env_id: str,
                  training_config: GymTrainingConfig,
                  gym_env: Union[Env, VectorEnv],
-                 gym_action_communicator: Optional[gac.GymActionCommunicator] = None) -> None:
+                 gym_action_communicator: gac.GymActionCommunicator | None = None) -> None:
         
         assert training_config.total_global_time_steps >= 1
         assert training_config.summary_freq >= 1
@@ -85,9 +85,9 @@ class GymTraining:
     @staticmethod
     def make(training_env_id: str,
              gym_config: dict,
-             num_envs: Optional[int] = None,
+             num_envs: int | None = None,
              gym_env: Union[Env, VectorEnv, None] = None,
-             gym_action_communicator: Optional[gac.GymActionCommunicator] = None) -> "GymTraining":
+             gym_action_communicator: gac.GymActionCommunicator | None = None) -> "GymTraining":
         """
         ## Summary
         
@@ -146,7 +146,7 @@ class GymTraining:
         return gym_training
         
         
-    def train(self, agent: Agent, total_global_time_steps: Optional[int] = None):
+    def train(self, agent: Agent, total_global_time_steps: int | None = None):
         """
         Run training.
 
@@ -183,7 +183,7 @@ class GymTraining:
         self.inference_gym_env = gym_env
         self.inference_gym_action_communicator = gym_action_communicator
             
-    def inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
+    def inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: str | None = None):
         """
         Inference the environment.
 
@@ -256,7 +256,7 @@ class GymTraining:
         
         logger.print("Training has been completed.")
         
-    def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
+    def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: str | None = None):
         assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
         
         if not self._logger_started:
@@ -296,7 +296,7 @@ class GymTraining:
         return obs
     
     def _reset_inference_env(self) -> np.ndarray:
-        seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
+        seed: int | None = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
         obs, _ = self.inference_gym_env.reset(seed=seed) # type: ignore
         return obs[np.newaxis, ...].astype(self.dtype)
         
@@ -307,7 +307,7 @@ class GymTraining:
         except FileNotFoundError:
             pass
             
-    def _try_load_agent(self, agent: Agent, agent_save_file_dir: Optional[str] = None):
+    def _try_load_agent(self, agent: Agent, agent_save_file_dir: str | None = None):
         if agent_save_file_dir is not None:
             try:
                 ckpt = torch.load(agent_save_file_dir)

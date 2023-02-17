@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Tuple
 
 class PPOConfig(NamedTuple):
     """
@@ -89,6 +89,6 @@ class RecurrentPPORNDConfig(NamedTuple):
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
     exp_proportion_for_predictor: float = 0.25
-    pre_normalization_step: Optional[int] = None
+    pre_normalization_step: int | None = None
     obs_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
     hidden_state_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)

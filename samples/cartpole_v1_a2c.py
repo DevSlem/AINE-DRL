@@ -1,7 +1,7 @@
 import sys
 sys.path.append(".")
 
-from typing import Optional, Tuple
+from typing import Tuple
 
 import aine_drl
 import aine_drl.util as util

@@ -1,4 +1,4 @@
-from typing import NamedTuple, List, Optional, Callable
+from typing import NamedTuple, List, Callable
 from dataclasses import dataclass
 import numpy as np
 import torch
@@ -17,8 +17,8 @@ class Action:
     continuous_action: np.ndarray
     
     def __init__(self,
-                 discrete_action: Optional[np.ndarray] = None,
-                 continuous_action: Optional[np.ndarray] = None) -> None:
+                 discrete_action: np.ndarray | None = None,
+                 continuous_action: np.ndarray | None = None) -> None:
         if discrete_action is None and continuous_action is None:
             raise ValueError("You must input at least one valid argument, but both of them are None.")
         
@@ -65,7 +65,7 @@ class Action:
         )
         return action
     
-    def to_action_tensor(self, device: Optional[torch.device] = None) -> "ActionTensor":
+    def to_action_tensor(self, device: torch.device | None = None) -> "ActionTensor":
         """Convert `Action` to `ActionTensor`."""
         return ActionTensor(torch.from_numpy(self.discrete_action).to(device=device), torch.from_numpy(self.continuous_action).to(device=device))
     
@@ -87,8 +87,8 @@ class ActionTensor:
     continuous_action: torch.Tensor
     
     def __init__(self,
-                 discrete_action: Optional[torch.Tensor] = None,
-                 continuous_action: Optional[torch.Tensor] = None) -> None:
+                 discrete_action: torch.Tensor | None = None,
+                 continuous_action: torch.Tensor | None = None) -> None:
         if discrete_action is None and continuous_action is None:
             raise ValueError("You must input at least one valid argument, but both of them are None.")
         

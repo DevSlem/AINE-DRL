@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union, Any, Generic, TypeVar, Dict, Iterator
+from typing import Tuple, Union, Any, Generic, TypeVar, Dict, Iterator
 from aine_drl.policy.policy_distribution import PolicyDistParam
 import torch
 import torch.nn as nn
@@ -27,8 +27,8 @@ class DiscreteActionLayer(nn.Module):
                  num_discrete_actions: Union[int, Tuple[int, ...]], 
                  is_logits: bool = True,
                  bias: bool = True,
-                 device: Optional[torch.device] = None,
-                 dtype: Optional[Any] = None) -> None:
+                 device: torch.device | None = None,
+                 dtype: Any | None = None) -> None:
         """
         Linear layer for the discrete action type.
 
@@ -46,7 +46,7 @@ class DiscreteActionLayer(nn.Module):
         self.num_discrete_actions = num_discrete_actions
         
         self.total_num_discrete_actions = 0
-        for num_action in num_discrete_actions:
+        for num_action in num_discrete_actions: # type: ignore
             self.total_num_discrete_actions += num_action
         
         self.layer = nn.Linear(
@@ -82,8 +82,8 @@ class GaussianContinuousActionLayer(nn.Module):
                  num_continuous_actions: int, 
                  is_log_std: bool = True,
                  bias: bool = True,
-                 device: Optional[torch.device] = None,
-                 dtype: Optional[Any] = None) -> None:
+                 device: torch.device | None = None,
+                 dtype: Any | None = None) -> None:
         """
         Linear layer for the continuous action type.
 
@@ -138,7 +138,7 @@ class Network(ABC, Generic[T]):
         """
         return self._device
     
-    def to(self, device: Optional[torch.device] = None) -> "Network[T]":
+    def to(self, device: torch.device | None = None) -> "Network[T]":
         """
         Move the network to the device.
 

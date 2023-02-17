@@ -1,4 +1,3 @@
-from typing import Optional
 from aine_drl.experience import Action, Experience, ExperienceBatchTensor
 import torch
 import numpy as np
@@ -42,7 +41,7 @@ class BatchTrajectory:
         self.terminated[self._recent_idx] = experience.terminated
         self.next_obs_buffer = experience.next_obs
     
-    def sample(self, device: Optional[torch.device] = None) -> ExperienceBatchTensor:
+    def sample(self, device: torch.device | None = None) -> ExperienceBatchTensor:
         self.obs.append(self.next_obs_buffer)
         exp_batch = ExperienceBatchTensor(
             torch.from_numpy(np.concatenate(self.obs[:-1], axis=0)).to(device=device),

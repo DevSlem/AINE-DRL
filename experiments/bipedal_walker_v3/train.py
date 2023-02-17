@@ -2,7 +2,7 @@ import sys
 sys.path.append(".")
 
 import argparse
-from typing import Optional, Tuple
+from typing import Tuple
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -53,7 +53,7 @@ def get_bipedal_env_info(gym_training: GymTraining):
 def auto_device() -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-def run_ppo(inference: Optional[bool] = False):
+def run_ppo(inference: bool | None = False):
     # AINE-DRL configuration manager
     aine_config = aine_drl.AINEConfig("config/experiments/bipedal_walker_v3_ppo.yaml")
     

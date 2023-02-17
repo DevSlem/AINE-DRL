@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import NamedTuple, List, Optional, Tuple, Callable
+from typing import NamedTuple, List, Tuple, Callable
 from aine_drl.experience import ActionTensor
 import torch
 from torch.distributions import Categorical, Normal
@@ -62,8 +62,8 @@ class PolicyDistributionParameter(NamedTuple):
         return PolicyDistributionParameter(discrete_pdaparam_batches, continuous_pdaparam_batches)
     
     @staticmethod
-    def new(discrete_pdparams: Optional[List[torch.Tensor]] = None,
-               continuous_pdparams: Optional[List[torch.Tensor]] = None) -> "PolicyDistributionParameter":
+    def new(discrete_pdparams: List[torch.Tensor] | None = None,
+               continuous_pdparams: List[torch.Tensor] | None = None) -> "PolicyDistributionParameter":
         if discrete_pdparams is None:
             discrete_pdparams = []
         if continuous_pdparams is None:
