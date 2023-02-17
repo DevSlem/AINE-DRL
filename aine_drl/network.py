@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, Any, Generic, TypeVar, Iterator
+from typing import Any, Generic, TypeVar, Iterator
 from aine_drl.policy.policy_distribution import PolicyDistParam
 import torch
 import torch.nn as nn
@@ -24,7 +24,7 @@ class DiscreteActionLayer(nn.Module):
     """
 
     def __init__(self, in_features: int, 
-                 num_discrete_actions: Union[int, tuple[int, ...]], 
+                 num_discrete_actions: int | tuple[int, ...], 
                  is_logits: bool = True,
                  bias: bool = True,
                  device: torch.device | None = None,

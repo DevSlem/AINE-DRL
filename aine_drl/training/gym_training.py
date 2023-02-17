@@ -1,4 +1,4 @@
-from typing import Union, NamedTuple
+from typing import NamedTuple
 import gym.spaces as gym_space
 import gym
 import gym.vector
@@ -13,7 +13,7 @@ import torch
 
 class GymTrainingConfig(NamedTuple):
     """
-    dd
+    Gym training configuration.
 
     Args:
         total_global_time_steps (int): total global time steps to train
@@ -30,7 +30,7 @@ class GymTrainingConfig(NamedTuple):
     inference_freq: int | None = None
     inference_render: bool = False
     generate_new_training_result: bool = False
-    seed: Union[int, list[int], None] = None
+    seed: int | list[int] | None = None
 
 class GymTraining:
     """
@@ -45,7 +45,7 @@ class GymTraining:
     def __init__(self,
                  training_env_id: str,
                  training_config: GymTrainingConfig,
-                 gym_env: Union[Env, VectorEnv],
+                 gym_env: Env | VectorEnv,
                  gym_action_communicator: gac.GymActionCommunicator | None = None) -> None:
         
         assert training_config.total_global_time_steps >= 1
@@ -86,7 +86,7 @@ class GymTraining:
     def make(training_env_id: str,
              gym_config: dict,
              num_envs: int | None = None,
-             gym_env: Union[Env, VectorEnv, None] = None,
+             gym_env: Env | VectorEnv | None = None,
              gym_action_communicator: gac.GymActionCommunicator | None = None) -> "GymTraining":
         """
         ## Summary
