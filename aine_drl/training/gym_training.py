@@ -1,4 +1,4 @@
-from typing import List, Union, NamedTuple
+from typing import Union, NamedTuple
 import gym.spaces as gym_space
 import gym
 import gym.vector
@@ -22,7 +22,7 @@ class GymTrainingConfig(NamedTuple):
         inference_freq (int | None, optional): inference frequency. Defaults to no inference.
         inference_render (bool, optional): whether render the environment when inference mode. Defaults to no rendering.
         generate_new_training_result (bool, optional): whether or not it generates new training result files. Defaults to False.
-        seed (int | List[int] | None, optional): gym environment random seed. Defaults to None.
+        seed (int | list[int] | None, optional): gym environment random seed. Defaults to None.
     """
     total_global_time_steps: int
     summary_freq: int
@@ -30,7 +30,7 @@ class GymTrainingConfig(NamedTuple):
     inference_freq: int | None = None
     inference_render: bool = False
     generate_new_training_result: bool = False
-    seed: Union[int, List[int], None] = None
+    seed: Union[int, list[int], None] = None
 
 class GymTraining:
     """

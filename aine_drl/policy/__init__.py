@@ -1,4 +1,4 @@
-from .policy_distribution import PolicyDistributionParameter
+from .policy_distribution import PolicyDistParam
 from .policy import (
     Policy,
     CategoricalPolicy,

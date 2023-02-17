@@ -1,4 +1,4 @@
-from typing import NamedTuple, List, Callable
+from typing import NamedTuple, Callable
 from dataclasses import dataclass
 import numpy as np
 import torch
@@ -51,7 +51,7 @@ class Action:
         return self.discrete_action.shape[0]
     
     @staticmethod
-    def to_batch(actions: List["Action"]) -> "Action":
+    def to_batch(actions: list["Action"]) -> "Action":
         """Turn action list to single action batch."""
         discrete_action = []
         continuous_action = []
@@ -120,7 +120,7 @@ class ActionTensor:
         return self.discrete_action.shape[:-1]
     
     @staticmethod
-    def to_batch(actions: List["ActionTensor"]) -> "ActionTensor":
+    def to_batch(actions: list["ActionTensor"]) -> "ActionTensor":
         """Turn action list to single action tensor batch."""
         discrete_action = []
         continuous_action = []

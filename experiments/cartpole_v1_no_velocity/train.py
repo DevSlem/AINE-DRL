@@ -2,7 +2,7 @@ import sys
 sys.path.append(".")
 
 import argparse
-from typing import List, Union
+from typing import Union
 import numpy as np
 import torch
 import torch.nn as nn
@@ -52,7 +52,7 @@ class CartPoleNoVelVectorEnv(gym.vector.VectorEnv):
     def masked_obs(self, full_obs):
         return full_obs[:, self.obs_mask]
 
-    def reset(self, *, seed: Union[int, List[int]] | None = None, return_info: bool = False, options: dict | None = None):
+    def reset(self, *, seed: Union[int, list[int]] | None = None, return_info: bool = False, options: dict | None = None):
         full_obs = self.gym_env.reset(seed=seed, return_info=return_info, options=options)
         return self.masked_obs(full_obs)
         
