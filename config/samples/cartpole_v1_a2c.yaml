@@ -15,4 +15,3 @@ CartPole-v1_A2C:
     lam: 0.95
     value_loss_coef: 0.5
     entropy_coef: 0.001
-    grad_clip_max_norm: 5.0

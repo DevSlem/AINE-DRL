@@ -10,13 +10,12 @@ BipedalWalker-v3_PPO:
       inference_render: true
       seed: 0
   PPO:
-    training_freq: 16
+    training_freq: 64
     epoch: 10
     mini_batch_size: 64
     gamma: 0.99
     lam: 0.95
-    advantage_normalization: true
+    advantage_normalization: false
     epsilon_clip: 0.2
     value_loss_coef: 0.5
     entropy_coef: 0.001
-    grad_clip_max_norm: 5.0

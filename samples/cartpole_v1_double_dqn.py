@@ -9,14 +9,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPoleQValueNet(aine_drl.QValueNetwork):
-    # Double DQN uses QValueNetwork.
-    
+class CartPoleDoubleDQNNet(aine_drl.DoubleDQNNetwork):    
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
         # Q value (or action value) layer
-        self.q_value_layer = nn.Sequential(
+        self.q_value_net = nn.Sequential(
             nn.Linear(obs_shape, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
@@ -24,15 +22,22 @@ class CartPoleQValueNet(aine_drl.QValueNetwork):
             aine_drl.DiscreteActionLayer(64, discrete_action_count)
         )
                 
+        # add models
+        self.add_model("q_value_net", self.q_value_net)
+        
+        # optimizer for this network
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        
+        self.ts = aine_drl.TrainStep(self.optimizer)
+        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
+        
+    # override
+    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistParam:
+        return self.q_value_net(obs)
     
     # override
-    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistributionParameter:
-        return self.q_value_layer(obs)
-    
-    # override
-    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
+    def train_step(self, loss: torch.Tensor, training_step: int):
+        self.ts.train_step(loss)
     
 if __name__ == "__main__":
     seed = 0 # if you want to get the same results
@@ -48,7 +53,7 @@ if __name__ == "__main__":
     obs_shape = gym_training.observation_space.shape[0]
     action_count = gym_training.action_space.n
     device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPoleQValueNet(obs_shape, action_count).to(device=device)
+    network = CartPoleDoubleDQNNet(obs_shape, action_count).to(device)
     
     # create policy for discrete action type
     policy = aine_drl.EpsilonGreedyPolicy(LinearDecay(0.2, 0.01, 0, int(gym_training.config.summary_freq * 0.8)))

@@ -5,20 +5,17 @@ from typing import Optional, Tuple
 
 import aine_drl
 import aine_drl.util as util
-from aine_drl.training import GymTraining
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPoleActorCriticNet(aine_drl.ActorCriticSharedNetwork):
-    # A2C uses ActorCriticSharedNetwork.
-    
+class CartPoleA2CNet(aine_drl.A2CSharedNetwork):    
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
         self.hidden_feature = 64
-        
+    
         # encoding layer for shared network
         self.encoding_layer = nn.Sequential(
             nn.Linear(obs_shape, 128),
@@ -31,20 +28,27 @@ class CartPoleActorCriticNet(aine_drl.ActorCriticSharedNetwork):
         self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, discrete_action_count)
         self.critic_layer = nn.Linear(self.hidden_feature, 1)
         
+        # add models
+        self.add_model("encoding_layer", self.encoding_layer)
+        self.add_model("actor_layer", self.actor_layer)
+        self.add_model("critic_layer", self.critic_layer)
+        
         # optimizer for this network
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        
+        self.ts = aine_drl.TrainStep(self.optimizer)
+        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # override
-    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistributionParameter, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
         encoding = self.encoding_layer(obs)
         pdparam = self.actor_layer(encoding)
-        v_pred = self.critic_layer(encoding)
-        
-        return pdparam, v_pred
+        state_value = self.critic_layer(encoding)
+        return pdparam, state_value
     
     # override
-    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
+    def train_step(self, loss: torch.Tensor, training_step: int):
+        self.ts.train_step(loss)
     
 if __name__ == "__main__":
     seed = 0 # if you want to get the same results
@@ -60,7 +64,7 @@ if __name__ == "__main__":
     obs_shape = gym_training.observation_space.shape[0]
     action_count = gym_training.action_space.n
     device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPoleActorCriticNet(obs_shape, action_count).to(device=device)
+    network = CartPoleA2CNet(obs_shape, action_count).to(device=device)
     
     # create policy for discrete action type
     policy = aine_drl.CategoricalPolicy()

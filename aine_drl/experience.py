@@ -1,10 +1,12 @@
-from typing import NamedTuple, List, Optional
+from typing import NamedTuple, List, Optional, Callable
+from dataclasses import dataclass
 import numpy as np
 import torch
 
-class Action(NamedTuple):
+@dataclass(frozen=True)
+class Action:
     """
-    Standard action data type with numpy array. `batch_size` must be `num_envs` x `n_steps`.
+    Action data type with numpy array.
 
     Args:
         discrete_action (ndarray): shape must be `(batch_size, num_discrete_branches)`
@@ -14,15 +16,29 @@ class Action(NamedTuple):
     discrete_action: np.ndarray
     continuous_action: np.ndarray
     
+    def __init__(self,
+                 discrete_action: Optional[np.ndarray] = None,
+                 continuous_action: Optional[np.ndarray] = None) -> None:
+        if discrete_action is None and continuous_action is None:
+            raise ValueError("You must input at least one valid argument, but both of them are None.")
+        
+        if discrete_action is None:
+            discrete_action = np.empty((*continuous_action.shape[:-1], 0))
+        if continuous_action is None:
+            continuous_action = np.empty((*discrete_action.shape[:-1], 0))
+
+        object.__setattr__(self, "discrete_action", discrete_action)
+        object.__setattr__(self, "continuous_action", continuous_action)
+    
     @property
     def num_discrete_branches(self) -> int:
         """Number of discrete action branches."""
-        return self.discrete_action.shape[1]
+        return self.discrete_action.shape[-1]
     
     @property
     def num_continuous_branches(self) -> int:
         """Number of continuous action branches."""
-        return self.continuous_action.shape[1]
+        return self.continuous_action.shape[-1]
     
     @property
     def num_branches(self) -> int:
@@ -53,41 +69,46 @@ class Action(NamedTuple):
         """Convert `Action` to `ActionTensor`."""
         return ActionTensor(torch.from_numpy(self.discrete_action).to(device=device), torch.from_numpy(self.continuous_action).to(device=device))
     
-    @staticmethod
-    def new(discrete_action: Optional[np.ndarray] = None,
-               continuous_action: Optional[np.ndarray] = None) -> "Action":
-        if discrete_action is None and continuous_action is None:
-            raise ValueError("You must input at least one valid argument, but both of them are None.")
-        
-        if discrete_action is None:
-            discrete_action = np.empty(shape=(continuous_action.shape[0], 0))
-        if continuous_action is None:
-            continuous_action = np.empty(shape=(discrete_action.shape[0], 0))
-        
-        return Action(discrete_action, continuous_action)
-    
-
-class ActionTensor(NamedTuple):
+@dataclass(frozen=True)
+class ActionTensor:
     """
-    Standard action data type with tensor. `batch_size` is generally `num_envs` x `n_steps`.
+    Action data type with tensor.
+
+    `*batch_shape` depends on the input of the algorithm you are using. \\
+    If it's simple batch, `*batch_shape` = `(batch_size,)`. \\
+    If it's sequence batch, `*batch_shape` = `(num_seq, seq_len)`.
 
     Args:
-        discrete_action (Tensor): shape must be `(batch_size, num_discrete_branches)`
-        continuous_action (Tensor): shape must be `(batch_size, num_continuous_branches)`
+        discrete_action (Tensor): shape must be `(*batch_shape, num_discrete_branches)`
+        continuous_action (Tensor): shape must be `(*batch_shape, num_continuous_branches)`
     """
     
     discrete_action: torch.Tensor
     continuous_action: torch.Tensor
     
+    def __init__(self,
+                 discrete_action: Optional[torch.Tensor] = None,
+                 continuous_action: Optional[torch.Tensor] = None) -> None:
+        if discrete_action is None and continuous_action is None:
+            raise ValueError("You must input at least one valid argument, but both of them are None.")
+        
+        if discrete_action is None:
+            discrete_action = torch.empty((*continuous_action.shape[:-1], 0), device=continuous_action.device)
+        if continuous_action is None:
+            continuous_action = torch.empty((*discrete_action.shape[:-1], 0), device=discrete_action.device)
+
+        object.__setattr__(self, "discrete_action", discrete_action)
+        object.__setattr__(self, "continuous_action", continuous_action)
+        
     @property
     def num_discrete_branches(self) -> int:
         """Number of discrete action branches."""
-        return self.discrete_action.shape[1]
+        return self.discrete_action.shape[-1]
     
     @property
     def num_continuous_branches(self) -> int:
         """Number of continuous action branches."""
-        return self.continuous_action.shape[1]
+        return self.continuous_action.shape[-1]
     
     @property
     def num_branches(self) -> int:
@@ -95,9 +116,8 @@ class ActionTensor(NamedTuple):
         return self.num_discrete_branches + self.num_continuous_branches
     
     @property
-    def batch_size(self) -> int:
-        """Returns batch size."""
-        return self.discrete_action.shape[0]
+    def batch_shape(self) -> torch.Size:
+        return self.discrete_action.shape[:-1]
     
     @staticmethod
     def to_batch(actions: List["ActionTensor"]) -> "ActionTensor":
@@ -124,31 +144,24 @@ class ActionTensor(NamedTuple):
         )
         return action
     
-    def slice(self, idx) -> "ActionTensor":
+    def transform(self, func: Callable[[torch.Tensor], torch.Tensor]) -> "ActionTensor":
         """
-        Slice internal discrete and continuous aaction then merge into single `ActionTensor`. 
-        If you want to slice it like `object[idx]`, you should this method instead of directly slicing.
+        Transform the action tensor.
+
+        Args:
+            func (Callable): function that transforms the action tensor.
+        """
+        discrete_action = func(self.discrete_action)
+        continuous_action = func(self.continuous_action)
+        return ActionTensor(discrete_action, continuous_action)
+    
+    def __getitem__(self, idx) -> "ActionTensor":
+        """
+        Note that it's recommended to use range slicing instead of indexing.
         """
         discrete_action = self.discrete_action[idx]
         continuous_action = self.continuous_action[idx]
         return ActionTensor(discrete_action, continuous_action)
-    
-    @staticmethod
-    def new(discrete_action: Optional[torch.Tensor] = None,
-               continuous_action: Optional[torch.Tensor] = None) -> "ActionTensor":
-        """
-        Helps to instantiate `ActionTensor`. If you don't use either discrete or continuous action, set the parameter to `None`.
-        """
-        if discrete_action is None and continuous_action is None:
-            raise ValueError("You must input at least one valid argument, but both of them are None.")
-        
-        if discrete_action is None:
-            discrete_action = torch.empty(size=(continuous_action.shape[0], 0), device=continuous_action.device)
-        if continuous_action is None:
-            continuous_action = torch.empty(size=(discrete_action.shape[0], 0), device=discrete_action.device)
-        
-        action_tensor = ActionTensor(discrete_action, continuous_action)
-        return action_tensor
 
 class Experience(NamedTuple):
     """

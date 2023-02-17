@@ -1,26 +1,14 @@
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
-from aine_drl.network import PolicyGradientNetwork
-from aine_drl.agent.reinforce.reinforce_trajectory import REINFORCEExperienceBatch, REINFORCETrajectory
 from aine_drl.policy.policy import Policy
+from aine_drl.network import NetworkTypeError
+from .config import REINFORCEConfig
+from .net import REINFORCENetwork
+from .reinforce_trajectory import REINFORCEExperienceBatch, REINFORCETrajectory
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
-
-class REINFORCEConfig(NamedTuple):
-    """
-    REINFORCE configuration.
-
-    Args:
-        `gamma (float, optional)`: discount factor. Defaults to 0.99.
-        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
-    """
-    gamma: float = 0.99
-    entropy_coef: float = 0.001
-    grad_clip_max_norm: Optional[float] = None
-    
 
 class REINFORCE(Agent):
     """
@@ -33,10 +21,10 @@ class REINFORCE(Agent):
     """
     def __init__(self, 
                  config: REINFORCEConfig,
-                 network: PolicyGradientNetwork,
+                 network: REINFORCENetwork,
                  policy: Policy) -> None:        
-        if not isinstance(network, PolicyGradientNetwork):
-            raise TypeError("The network type must be PolicyGradientNetwork.")
+        if not isinstance(network, REINFORCENetwork):
+            raise NetworkTypeError(REINFORCENetwork)
         
         super().__init__(network, policy, num_envs=1)
         
@@ -72,8 +60,8 @@ class REINFORCE(Agent):
         action = dist.sample()
         
         # store data
-        self.current_action_log_prob = dist.log_prob(action).cpu()
-        self.entropy = dist.entropy().cpu()
+        self.current_action_log_prob = dist.joint_log_prob(action).cpu()
+        self.entropy = dist.joint_entropy().cpu()
         
         return action
     
@@ -93,14 +81,14 @@ class REINFORCE(Agent):
         
         # train step
         loss = policy_loss - self.config.entropy_coef * entropy
-        self.network.train_step(loss, self.config.grad_clip_max_norm, self.clock.training_step)
+        self.network.train_step(loss, self.clock.training_step)
         self.clock.tick_training_step()
         
         # log data
         self.policy_average_loss.update(policy_loss.item())
 
         
-    def compute_return(self, exp_batch: REINFORCEExperienceBatch) -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_return(self, exp_batch: REINFORCEExperienceBatch) -> torch.Tensor:
         """
         Compute return.
 
@@ -127,7 +115,7 @@ class REINFORCE(Agent):
 
         Args:
             returns (Tensor): whose shape is `(batch_size, 1)`
-            action_log_prob (Tensor): log(pi) whose shape is `(batch_size, num_branches)`
+            action_log_prob (Tensor): log(pi) whose shape is `(batch_size, 1)`
 
         Returns:
             Tensor: REINFORCE policy loss

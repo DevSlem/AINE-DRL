@@ -41,12 +41,15 @@ class Agent(ABC):
         self.network = network
         self.num_envs = num_envs
         self._behavior_type = BehaviorType.TRAIN
-        self.device = util.get_model_device(network)
 
         self.traced_env = 0
         self.cumulative_average_reward = util.IncrementalAverage()
         self.cumulative_reward = 0.0
         self.episode_average_len = util.IncrementalAverage()
+        
+    @property
+    def device(self) -> torch.device:
+        return self.network.device
         
     def select_action(self, obs: np.ndarray) -> Action:
         """

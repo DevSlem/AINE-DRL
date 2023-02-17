@@ -5,3 +5,4 @@ from .clock import (
     IClockNeed,
     ILogable
 )
+from .truncated_sequence_generator import TruncatedSequenceGenerator

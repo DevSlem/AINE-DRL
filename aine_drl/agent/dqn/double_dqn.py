@@ -1,38 +1,16 @@
-from typing import NamedTuple, Optional, Tuple, Dict
+from typing import Tuple, Dict
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience, ExperienceBatchTensor
-from aine_drl.network import QValueNetwork
 from aine_drl.policy.policy import ActionType, Policy
+from aine_drl.network import NetworkTypeError
 from aine_drl.trajectory.experience_replay import ExperienceReplay
+from .config import DoubleDQNConfig
+from .net import DoubleDQNNetwork
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 import torch
 import torch.nn.functional as F
 import copy
-
-class DoubleDQNConfig(NamedTuple):
-    """
-    Double DQN configurations. 
-    If both `replace_freq` and `polyak_ratio` are `None`, it uses `replace_freq` as `1`. If both of them are activated, it uses `replace_freq`.
-
-    Args:
-        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
-        `batch_size (int)`: size of experience batch from experience replay
-        `capacity (int)`: number of experineces to be stored in experience replay
-        `epoch (int)`: number of parameters updates at each `training_freq`
-        `gamma (float, optional)`: discount factor. Defaults to 0.99.
-        `replace_freq (int | None, optional)`: freqeuncy which totally replaces target network with update network. Defaults to None.
-        `polyak_ratio (float | None, optional)`: smooth replace multiplier. `polyak_ratio` must be 0 < p <= 1. Defaults to None.
-        `grad_clip_max_norm (float | None, optional)`: maximum norm for the gradient clipping. Defaults to no gradient clipping.
-    """
-    training_freq: int
-    batch_size: int
-    capacity: int
-    epoch: int
-    gamma: float = 0.99
-    replace_freq: Optional[int] = None
-    polyak_ratio: Optional[float] = None
-    grad_clip_max_norm: Optional[float] = None
 
 class DoubleDQN(Agent):
     """
@@ -45,11 +23,11 @@ class DoubleDQN(Agent):
     """
     def __init__(self,
                  config: DoubleDQNConfig,
-                 network: QValueNetwork,
+                 network: DoubleDQNNetwork,
                  policy: Policy,
                  num_envs: int) -> None:
-        if not isinstance(network, QValueNetwork):
-            raise TypeError(f"The network type must be QValueNetwork.")
+        if not isinstance(network, DoubleDQNNetwork):
+            raise NetworkTypeError(DoubleDQNNetwork)
         if policy.action_type is not ActionType.DISCRETE:
             raise TypeError(f"The policy must be discrete action policy, but \"{type(policy).__name__}\" is \"{policy.action_type}\".")
         
@@ -109,7 +87,7 @@ class DoubleDQN(Agent):
             td_loss = self.compute_td_loss(exp_batch)
             
             # train step
-            self.network.train_step(td_loss, self.config.grad_clip_max_norm, self.clock.training_step)
+            self.network.train_step(td_loss, self.clock.training_step)
             self.clock.tick_training_step()
             
             # update log data
@@ -150,7 +128,7 @@ class DoubleDQN(Agent):
             drl_util.copy_network(self.network, self.target_network)
     
     def _polyak_update(self):
-        drl_util.polyak_update(self.network, self.target_network, self.config.polyak_ratio) # type: ignore
+        drl_util.polyak_update_network(self.network, self.target_network, self.config.polyak_ratio) # type: ignore
 
     @property
     def log_keys(self) -> Tuple[str, ...]:

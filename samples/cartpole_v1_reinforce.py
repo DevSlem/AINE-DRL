@@ -8,14 +8,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPolePolicyGradientcNet(aine_drl.PolicyGradientNetwork):
-    # REINFORCE uses PolicyGradientNetwork.
-    
+class CartPoleREINFORCENet(aine_drl.REINFORCENetwork):    
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
         # policy layer
-        self.policy_layer = nn.Sequential(
+        self.policy_net = nn.Sequential(
             nn.Linear(obs_shape, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
@@ -23,16 +21,22 @@ class CartPolePolicyGradientcNet(aine_drl.PolicyGradientNetwork):
             aine_drl.DiscreteActionLayer(64, discrete_action_count)
         )
         
+        # add models
+        self.add_model("policy_net", self.policy_net)
+        
         # optimizer for this network
         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        
+        self.ts = aine_drl.TrainStep(self.optimizer)
+        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # override
-    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistributionParameter:
-        return self.policy_layer(obs)
+    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistParam:
+        return self.policy_net(obs)
     
     # override
-    def train_step(self, loss: torch.Tensor, grad_clip_max_norm: Optional[float], training_step: int):
-        self.basic_train_step(loss, self.optimizer, grad_clip_max_norm)
+    def train_step(self, loss: torch.Tensor, training_step: int):
+        self.ts.train_step(loss)
     
 if __name__ == "__main__":
     seed = 0 # if you want to get the same results
@@ -48,7 +52,7 @@ if __name__ == "__main__":
     obs_shape = gym_training.observation_space.shape[0]
     action_count = gym_training.action_space.n
     device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPolePolicyGradientcNet(obs_shape, action_count).to(device=device)
+    network = CartPoleREINFORCENet(obs_shape, action_count).to(device)
     
     # create policy for discrete action type
     policy = aine_drl.CategoricalPolicy()

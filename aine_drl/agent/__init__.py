@@ -4,7 +4,6 @@ from .dqn import *
 from .reinforce import *
 from .a2c import *
 from .ppo import *
-from .sac import *
 
 # agent utility
 
@@ -19,7 +18,6 @@ def find_agent_key(agent_config: dict) -> str:
         "RecurrentPPO",
         "RecurrentPPORND",
         "DoubleDQN",
-        "SAC"
     )
     
     for agent_key in agent_keys:
@@ -56,8 +54,7 @@ def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: i
           'lam': 0.95,
           'epsilon_clip': 0.2,
           'value_loss_coef': 0.5,
-          'entropy_coef': 0.001,
-          'grad_clip_max_norm': 5.0}}}
+          'entropy_coef': 0.001}}
     """
     
     try:
@@ -83,9 +80,6 @@ def make_agent(agent_config: dict, network: Network, policy: Policy, num_envs: i
             elif agent_key == "DoubleDQN":
                 config = DoubleDQNConfig(**config)
                 return DoubleDQN(config, network, policy, num_envs)  # type: ignore
-            elif agent_key == "SAC":
-                config = SACConfig(**config)
-                return SAC(config, network, policy, num_envs) # type: ignore
         
         raise ValueError("There's no agent configuration.")
     except Exception as e:

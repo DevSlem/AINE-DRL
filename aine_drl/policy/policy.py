@@ -20,12 +20,12 @@ class Policy(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+    def get_policy_distribution(self, pdparam: pd.PolicyDistParam) -> pd.PolicyDistribution:
         """
         Returns policy distribution which is action probability distribution.
 
         Args:
-            pdparam (PolicyDistributionParameter): policy distribution parameter which is generally the output of neural network
+            pdparam (PolicyDistParam): policy distribution parameter which is generally the output of neural network
 
         Returns:
             PolicyDistribution: policy distribution
@@ -46,7 +46,7 @@ class CategoricalPolicy(Policy):
     def action_type(self) -> ActionType:
         return ActionType.DISCRETE
         
-    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+    def get_policy_distribution(self, pdparam: pd.PolicyDistParam) -> pd.PolicyDistribution:
         return pd.CategoricalDistribution(pdparam, self.is_logits)
     
 class GaussianPolicy(Policy):
@@ -54,7 +54,7 @@ class GaussianPolicy(Policy):
     Gaussian policy for the continuous action type.
     """
     
-    def __init__(self, is_log_std: bool = True) -> None:
+    def __init__(self, is_log_std: bool = False) -> None:
         super().__init__()
         
         self.is_log_std = is_log_std
@@ -63,7 +63,7 @@ class GaussianPolicy(Policy):
     def action_type(self) -> ActionType:
         return ActionType.CONTINUOUS
     
-    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+    def get_policy_distribution(self, pdparam: pd.PolicyDistParam) -> pd.PolicyDistribution:
         return pd.GaussianDistribution(pdparam, self.is_log_std)
 
 class GeneralPolicy(Policy):
@@ -80,7 +80,7 @@ class GeneralPolicy(Policy):
     def action_type(self) -> ActionType:
         return ActionType.BOTH
     
-    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+    def get_policy_distribution(self, pdparam: pd.PolicyDistParam) -> pd.PolicyDistribution:
         return pd.GeneralPolicyDistribution(pdparam, self.is_logits)
 
 class EpsilonGreedyPolicy(Policy, ILogable):
@@ -101,7 +101,7 @@ class EpsilonGreedyPolicy(Policy, ILogable):
     def action_type(self) -> ActionType:
         return ActionType.DISCRETE
         
-    def get_policy_distribution(self, pdparam: pd.PolicyDistributionParameter) -> pd.PolicyDistribution:
+    def get_policy_distribution(self, pdparam: pd.PolicyDistParam) -> pd.PolicyDistribution:
         return pd.EpsilonGreedyDistribution(pdparam, self.epsilon_decay(self.clock.global_time_step))
     
     def set_clock(self, clock: Clock):

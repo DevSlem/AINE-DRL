@@ -16,4 +16,3 @@ CartPole-v1_DoubleDQN:
     epoch: 3
     gamma: 0.99
     replace_freq: 12
-    grad_clip_max_norm: 5.0
