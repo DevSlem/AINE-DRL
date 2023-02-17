@@ -64,9 +64,7 @@ class GymTraining:
             self.is_vector_env = False
         else:
             raise TypeError(f"You've instantiated GymTraining with {type(self.gym_env)} which isn't gym environment. Reinstantiate it.")
-        
-        assert gym_env.new_step_api == True  # type: ignore
-        
+                
         if gym_action_communicator is None:
             self.gym_action_communicator = gac.GymActionCommunicator.make(self.gym_env)
         else:
@@ -126,9 +124,9 @@ class GymTraining:
             
             gym_env_config = gym_config["env"]
             if num_envs > 1:
-                gym_env = gym.vector.make(num_envs=num_envs, new_step_api=True, **gym_env_config)
+                gym_env = gym.vector.make(num_envs=num_envs, **gym_env_config)
             else:
-                gym_env = gym.make(new_step_api=True, **gym_env_config)
+                gym_env = gym.make(**gym_env_config)
                             
         training_config = GymTrainingConfig(**gym_config["training"])
         
@@ -141,7 +139,7 @@ class GymTraining:
         
         if gym_env_config is not None:
             gym_env_config["render_mode"] = "human" if training_config.inference_render else None
-            inference_gym_env = gym.make(new_step_api=True, **gym_env_config)
+            inference_gym_env = gym.make(**gym_env_config)
             inference_gym_action_communicator = gac.GymActionCommunicator.make(inference_gym_env)
             gym_training.set_inference_gym_env(inference_gym_env, inference_gym_action_communicator)
         
@@ -218,11 +216,7 @@ class GymTraining:
         
     def _train(self, agent: Agent, total_global_time_steps: int):
         logger.print(f"\'{self.training_env_id}\' training start!")        
-        gym_env = self.gym_env
-        obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)
-        if not self.is_vector_env:
-            # (num_envs, *obs_shape) = (1, *obs_shape)
-            obs = obs[np.newaxis, ...]
+        obs = self._reset_train_env()
         
         for _ in range(agent.clock.global_time_step, total_global_time_steps, self.num_envs):
             # take action and observe
@@ -243,7 +237,7 @@ class GymTraining:
             # update current observation
             if not self.is_vector_env:
                 if terminated:
-                    obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
+                    obs = self._reset_train_env()
                 else:
                     obs = next_obs[np.newaxis, ...]
             else:
@@ -269,13 +263,11 @@ class GymTraining:
             logger.set_log_dir(self.training_env_id)
         self._try_load_agent(agent, agent_save_file_dir=agent_save_file_dir)
         
-        seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
-        
         agent.behavior_type = BehaviorType.INFERENCE
         
         for episode in range(num_episodes):
             # (num_envs, *obs_shape) = (1, *obs_shape)
-            obs = self.inference_gym_env.reset(seed=seed).astype(self.dtype)[np.newaxis, ...]
+            obs = self._reset_inference_env()
             terminated = False
             cumulative_reward = 0.0
             while not terminated:
@@ -294,7 +286,20 @@ class GymTraining:
             logger.print(f"inference mode - episode: {episode}, cumulative reward: {cumulative_reward}")
             
         agent.behavior_type = BehaviorType.TRAIN
-            
+        
+    def _reset_train_env(self) -> np.ndarray:
+        obs, _ = self.gym_env.reset(seed=self.config.seed) # type: ignore
+        obs = obs.astype(self.dtype)
+        if not self.is_vector_env:
+            # (num_envs, *obs_shape) = (1, *obs_shape)
+            obs = obs[np.newaxis, ...]
+        return obs
+    
+    def _reset_inference_env(self) -> np.ndarray:
+        seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
+        obs, _ = self.inference_gym_env.reset(seed=seed) # type: ignore
+        return obs[np.newaxis, ...].astype(self.dtype)
+        
     def _save_agent(self, agent: Agent):
         try:
             logger.save_agent(agent.state_dict)
@@ -336,18 +341,18 @@ class GymTraining:
     def _make_experience(self, obs, action, next_obs, reward, terminated, is_vector_env: bool) -> Experience:
         if is_vector_env:
             exp = Experience(
-                obs.astype(np.float32),
+                obs.astype(self.dtype),
                 action,
-                next_obs.astype(np.float32),
-                reward.astype(np.float32)[..., np.newaxis],
-                terminated.astype(np.float32)[..., np.newaxis]
+                next_obs.astype(self.dtype),
+                reward.astype(self.dtype)[..., np.newaxis],
+                terminated.astype(self.dtype)[..., np.newaxis]
             )
         else:
             exp = Experience(
-                obs.astype(np.float32),
+                obs.astype(self.dtype),
                 action,
-                next_obs[np.newaxis, ...].astype(np.float32),
-                np.array([[reward]], dtype=np.float32),
-                np.array([[terminated]], dtype=np.float32)
+                next_obs[np.newaxis, ...].astype(self.dtype),
+                np.array([[reward]], dtype=self.dtype),
+                np.array([[terminated]], dtype=self.dtype)
             )
         return exp
