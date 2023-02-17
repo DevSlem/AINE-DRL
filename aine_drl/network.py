@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, Union, Any, Generic, TypeVar, Dict, Iterator
+from typing import Union, Any, Generic, TypeVar, Dict, Iterator
 from aine_drl.policy.policy_distribution import PolicyDistParam
 import torch
 import torch.nn as nn
@@ -19,12 +19,12 @@ class DiscreteActionLayer(nn.Module):
 
     Args:
         in_features (int): number of input features
-        num_discrete_actions (int | Tuple[int, ...]): each element indicates number of discrete actions of each branch
+        num_discrete_actions (int | tuple[int, ...]): each element indicates number of discrete actions of each branch
         is_logits (bool): whether logits or probabilities. Defaults to logits.
     """
 
     def __init__(self, in_features: int, 
-                 num_discrete_actions: Union[int, Tuple[int, ...]], 
+                 num_discrete_actions: Union[int, tuple[int, ...]], 
                  is_logits: bool = True,
                  bias: bool = True,
                  device: torch.device | None = None,
@@ -34,7 +34,7 @@ class DiscreteActionLayer(nn.Module):
 
         Args:
             in_features (int): number of input features
-            num_discrete_actions (int | Tuple[int, ...]): each element indicates number of discrete actions of each branch
+            num_discrete_actions (int | tuple[int, ...]): each element indicates number of discrete actions of each branch
             is_logits (bool): whether logits or probabilities. Defaults to logits.
         """
         super().__init__()
@@ -192,7 +192,7 @@ class RecurrentNetwork(Network[T]):
     """
     @property
     @abstractmethod
-    def hidden_state_shape(self) -> Tuple[int, int]:
+    def hidden_state_shape(self) -> tuple[int, int]:
         """
         Returns the shape of the rucurrent hidden state `(D x num_layers, H)`. \\
         `num_layers` is the number of recurrent layers. \\
@@ -204,7 +204,7 @@ class RecurrentNetwork(Network[T]):
         raise NotImplementedError
     
     @staticmethod
-    def unpack_seq_shape(seq: torch.Tensor) -> Tuple[int, int, torch.Size]:
+    def unpack_seq_shape(seq: torch.Tensor) -> tuple[int, int, torch.Size]:
         """
         Unpack the sequence shape.
         
@@ -220,12 +220,12 @@ class RecurrentNetwork(Network[T]):
         return seq_shape[0], seq_shape[1], seq_shape[2:]
     
     @staticmethod
-    def pack_lstm_hidden_state(lstm_hidden_state: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    def pack_lstm_hidden_state(lstm_hidden_state: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """`(D x num_layers, num_seq, H_out) x 2` -> `(D x num_layers, num_seq, H_out x 2)`"""
         return torch.cat(lstm_hidden_state, dim=2)
     
     @staticmethod
-    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """`(D x num_layers, num_seq, H_out x 2)` -> `(D x num_layers, num_seq, H_out) x 2`"""
         lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
         return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())

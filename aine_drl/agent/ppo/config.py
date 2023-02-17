@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple
+from typing import NamedTuple
 
 class PPOConfig(NamedTuple):
     """
@@ -72,8 +72,8 @@ class RecurrentPPORNDConfig(NamedTuple):
         `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
         `exp_proportion_for_predictor (float, optional)`: proportion of experience used for training predictor to keep the effective batch size. Defaults to 0.25.
         `pre_normalization_step (int | None, optional)`: number of initial steps for initializing both observation and hidden state normalization. Defaults to no normalization.
-        `obs_norm_clip_range (Tuple[float, float])`: observation normalization clipping range (min, max). Defaults to (-5.0, 5.0).
-        `hidden_state_norm_clip_range (Tuple[float, float])`: hidden state normalization clipping range (min, max). Defaults to (-5.0, 5.0).
+        `obs_norm_clip_range (tuple[float, float])`: observation normalization clipping range (min, max). Defaults to (-5.0, 5.0).
+        `hidden_state_norm_clip_range (tuple[float, float])`: hidden state normalization clipping range (min, max). Defaults to (-5.0, 5.0).
     """
     training_freq: int
     epoch: int
@@ -90,5 +90,5 @@ class RecurrentPPORNDConfig(NamedTuple):
     entropy_coef: float = 0.001
     exp_proportion_for_predictor: float = 0.25
     pre_normalization_step: int | None = None
-    obs_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
-    hidden_state_norm_clip_range: Tuple[float, float] = (-5.0, 5.0)
+    obs_norm_clip_range: tuple[float, float] = (-5.0, 5.0)
+    hidden_state_norm_clip_range: tuple[float, float] = (-5.0, 5.0)

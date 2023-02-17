@@ -1,7 +1,6 @@
 import sys
 sys.path.append(".")
 
-from typing import Tuple
 import aine_drl
 import aine_drl.util as util
 import torch
@@ -38,7 +37,7 @@ class CartPolePPONet(aine_drl.PPOSharedNetwork):
         self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # override
-    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
         encoding = self.encoding_layer(obs)
         pdparam = self.actor_layer(encoding)
         state_value = self.critic_layer(encoding)

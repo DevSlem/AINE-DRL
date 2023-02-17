@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Dict
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.policy.policy import Policy
@@ -127,7 +127,7 @@ class REINFORCE(Agent):
         return loss
 
     @property
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         return super().log_keys + ("Network/Policy Loss",)
     
     @property

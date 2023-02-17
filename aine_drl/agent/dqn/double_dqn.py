@@ -1,4 +1,4 @@
-from typing import Tuple, Dict
+from typing import Dict
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience, ExperienceBatchTensor
 from aine_drl.policy.policy import ActionType, Policy
@@ -131,7 +131,7 @@ class DoubleDQN(Agent):
         drl_util.polyak_update_network(self.network, self.target_network, self.config.polyak_ratio) # type: ignore
 
     @property
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         return super().log_keys + ("Network/TD Loss",)
     
     @property

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Union
+from typing import Dict, Union
 import aine_drl.policy.policy_distribution as pd
 from aine_drl.drl_util import Decay, NoDecay, Clock, ILogable
 from enum import Flag, auto
@@ -108,7 +108,7 @@ class EpsilonGreedyPolicy(Policy, ILogable):
         self.clock = clock
     
     @property
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         return ("Policy/Epsilon",)
     
     @property

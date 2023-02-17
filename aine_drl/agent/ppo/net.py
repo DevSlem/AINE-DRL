@@ -1,4 +1,3 @@
-from typing import Tuple
 from abc import abstractmethod
 from aine_drl.network import Network, RecurrentNetwork
 from aine_drl.policy.policy_distribution import PolicyDistParam
@@ -16,7 +15,7 @@ class PPOSharedNetwork(Network[torch.Tensor]):
     """
     
     @abstractmethod
-    def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor]:
         """
         ## Summary
         
@@ -62,7 +61,7 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
     """
         
     @abstractmethod
-    def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
+    def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -112,7 +111,7 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
         
         `forward()` method example when using LSTM::
         
-            def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
+            def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
                 # feed forward to the encoding layer
                 # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
                 _, seq_len, _ = self.unpack_seq_shape(obs_seq)
@@ -161,7 +160,7 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
     """
         
     @abstractmethod
-    def forward_actor_critic(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward_actor_critic(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -212,7 +211,7 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
         raise NotImplementedError
 
     @abstractmethod
-    def forward_rnd(self, next_obs: torch.Tensor, next_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward_rnd(self, next_obs: torch.Tensor, next_hidden_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         ## Summary
         

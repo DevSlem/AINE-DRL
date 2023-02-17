@@ -1,4 +1,3 @@
-from typing import Tuple
 from abc import abstractmethod
 from aine_drl.network import Network
 from aine_drl.policy.policy_distribution import PolicyDistParam
@@ -16,7 +15,7 @@ class A2CSharedNetwork(Network[torch.Tensor]):
     """
     
     @abstractmethod
-    def forward(self, obs: torch.Tensor) -> Tuple[PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor]:
         """
         ## Summary
         

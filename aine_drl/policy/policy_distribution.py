@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import NamedTuple, List, Tuple, Callable
+from typing import NamedTuple, List, Callable
 from aine_drl.experience import ActionTensor
 import torch
 from torch.distributions import Categorical, Normal
@@ -85,11 +85,11 @@ class PolicyDistParam:
     If it's sequence batch, `*batch_shape` = `(num_seq, seq_len)`.
 
     Args:
-        discrete_pdparams (Tuple[Tensor], ...): `(*batch_shape, *discrete_pdparam_shape)` x `num_discrete_branches`
-        continuous_pdparams (Tuple[Tensor], ...): `(*batch_shape, *continuous_pdparam_shape)` x `num_continuous_branches`
+        discrete_pdparams (tuple[Tensor, ...]): `(*batch_shape, *discrete_pdparam_shape)` x `num_discrete_branches`
+        continuous_pdparams (tuple[Tensor, ...]): `(*batch_shape, *continuous_pdparam_shape)` x `num_continuous_branches`
     """
-    discrete_pdparams: Tuple[torch.Tensor, ...] = field(default_factory=tuple)
-    continuous_pdparams: Tuple[torch.Tensor, ...] = field(default_factory=tuple)
+    discrete_pdparams: tuple[torch.Tensor, ...] = field(default_factory=tuple)
+    continuous_pdparams: tuple[torch.Tensor, ...] = field(default_factory=tuple)
     
     @property
     def num_discrete_branches(self) -> int:

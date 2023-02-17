@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict
 from aine_drl.experience import Action, ActionTensor, Experience
 from aine_drl.network import Network
 from aine_drl.policy.policy import Policy
@@ -144,7 +144,7 @@ class Agent(ABC):
         self._behavior_type = value
     
     @property
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         """Returns log data keys."""
         lk = ("Environment/Cumulative Reward", "Environment/Episode Length")
         if self.__logable_network is not None:

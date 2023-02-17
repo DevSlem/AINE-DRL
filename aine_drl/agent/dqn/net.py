@@ -1,4 +1,3 @@
-from typing import Tuple
 from abc import abstractmethod
 from aine_drl.network import Network
 from aine_drl.policy.policy_distribution import PolicyDistParam

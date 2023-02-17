@@ -2,7 +2,6 @@ import sys
 sys.path.append(".")
 
 import argparse
-from typing import Tuple
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -38,7 +37,7 @@ class BipedalWalkerPPONet(aine_drl.PPOSharedNetwork):
         self.ts = aine_drl.TrainStep(self.optimizer)
         self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
-    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
         encoding = self.encoding_layer(obs)
         pdparam = self.actor_layer(encoding)
         state_value = self.critic_layer(encoding)

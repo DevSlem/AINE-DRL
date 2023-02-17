@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Any, List
+from typing import Dict, Any, List
 
 class StaticRecursiveBuffer:
     """
@@ -6,7 +6,7 @@ class StaticRecursiveBuffer:
     It is recurisve structure which means index where an item is pushed is recurisve. 
     Specifically, you can add a key-value pair dictionary and each value is added to each buffer of the key.
     """
-    def __init__(self, keys: Tuple[str, ...], capacity: int) -> None:
+    def __init__(self, keys: tuple[str, ...], capacity: int) -> None:
         self._keys = keys
         self._capacity = capacity
         self.reset()
@@ -24,7 +24,7 @@ class StaticRecursiveBuffer:
         return self._count == self._capacity
     
     @property
-    def keys(self) -> Tuple[str, ...]:
+    def keys(self) -> tuple[str, ...]:
         return self._keys
         
     @property

@@ -2,7 +2,7 @@ import sys
 sys.path.append(".")
 
 import argparse
-from typing import List, Tuple, Union
+from typing import List, Union
 import numpy as np
 import torch
 import torch.nn as nn
@@ -102,7 +102,7 @@ class CartPoleNoVelRecurrentPPONet(aine_drl.RecurrentPPOSharedNetwork):
         self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # override
-    def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
+    def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
         # feed forward to the encoding layer
         # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
         _, seq_len, _ = self.unpack_seq_shape(obs_seq)
@@ -134,7 +134,7 @@ class CartPoleNoVelRecurrentPPONet(aine_drl.RecurrentPPOSharedNetwork):
         
     # override    
     @property
-    def hidden_state_shape(self) -> Tuple[int, int]:
+    def hidden_state_shape(self) -> tuple[int, int]:
         return (1, self.hidden_feature * 2)
     
 class CartPoleNoVelNaivePPONet(aine_drl.PPOSharedNetwork):    
@@ -169,7 +169,7 @@ class CartPoleNoVelNaivePPONet(aine_drl.PPOSharedNetwork):
         self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
     # overrride
-    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
         encoding = self.encoding_layer(obs)
         pdparam = self.actor_layer(encoding)
         state_value = self.critic_layer(encoding) 
