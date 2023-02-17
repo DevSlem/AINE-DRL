@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Union
+from typing import Any
 from aine_drl.experience import Action
 import gym.spaces as gym_space
 from gym import Env
@@ -13,7 +13,7 @@ class GymActionCommunicator(ABC):
         raise NotImplementedError
     
     @staticmethod
-    def make(gym_env: Union[Env, VectorEnv]) -> "GymActionCommunicator":
+    def make(gym_env: Env | VectorEnv) -> "GymActionCommunicator":
         """Make automatically gym action communicator."""
         action_space_type = type(gym_env.action_space)
         if action_space_type is gym_space.Discrete or action_space_type is gym_space.MultiDiscrete:

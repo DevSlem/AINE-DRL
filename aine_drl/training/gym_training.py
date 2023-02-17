@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, NamedTuple
+from typing import NamedTuple
 import gym.spaces as gym_space
 import gym
 import gym.vector
@@ -13,7 +13,7 @@ import torch
 
 class GymTrainingConfig(NamedTuple):
     """
-    dd
+    Gym training configuration.
 
     Args:
         total_global_time_steps (int): total global time steps to train
@@ -22,15 +22,15 @@ class GymTrainingConfig(NamedTuple):
         inference_freq (int | None, optional): inference frequency. Defaults to no inference.
         inference_render (bool, optional): whether render the environment when inference mode. Defaults to no rendering.
         generate_new_training_result (bool, optional): whether or not it generates new training result files. Defaults to False.
-        seed (int | List[int] | None, optional): gym environment random seed. Defaults to None.
+        seed (int | list[int] | None, optional): gym environment random seed. Defaults to None.
     """
     total_global_time_steps: int
     summary_freq: int
-    agent_save_freq: Optional[int] = None
-    inference_freq: Optional[int] = None
+    agent_save_freq: int | None = None
+    inference_freq: int | None = None
     inference_render: bool = False
     generate_new_training_result: bool = False
-    seed: Union[int, List[int], None] = None
+    seed: int | list[int] | None = None
 
 class GymTraining:
     """
@@ -45,8 +45,8 @@ class GymTraining:
     def __init__(self,
                  training_env_id: str,
                  training_config: GymTrainingConfig,
-                 gym_env: Union[Env, VectorEnv],
-                 gym_action_communicator: Optional[gac.GymActionCommunicator] = None) -> None:
+                 gym_env: Env | VectorEnv,
+                 gym_action_communicator: gac.GymActionCommunicator | None = None) -> None:
         
         assert training_config.total_global_time_steps >= 1
         assert training_config.summary_freq >= 1
@@ -64,9 +64,7 @@ class GymTraining:
             self.is_vector_env = False
         else:
             raise TypeError(f"You've instantiated GymTraining with {type(self.gym_env)} which isn't gym environment. Reinstantiate it.")
-        
-        assert gym_env.new_step_api == True  # type: ignore
-        
+                
         if gym_action_communicator is None:
             self.gym_action_communicator = gac.GymActionCommunicator.make(self.gym_env)
         else:
@@ -87,9 +85,9 @@ class GymTraining:
     @staticmethod
     def make(training_env_id: str,
              gym_config: dict,
-             num_envs: Optional[int] = None,
-             gym_env: Union[Env, VectorEnv, None] = None,
-             gym_action_communicator: Optional[gac.GymActionCommunicator] = None) -> "GymTraining":
+             num_envs: int | None = None,
+             gym_env: Env | VectorEnv | None = None,
+             gym_action_communicator: gac.GymActionCommunicator | None = None) -> "GymTraining":
         """
         ## Summary
         
@@ -126,9 +124,9 @@ class GymTraining:
             
             gym_env_config = gym_config["env"]
             if num_envs > 1:
-                gym_env = gym.vector.make(num_envs=num_envs, new_step_api=True, **gym_env_config)
+                gym_env = gym.vector.make(num_envs=num_envs, **gym_env_config)
             else:
-                gym_env = gym.make(new_step_api=True, **gym_env_config)
+                gym_env = gym.make(**gym_env_config)
                             
         training_config = GymTrainingConfig(**gym_config["training"])
         
@@ -141,14 +139,14 @@ class GymTraining:
         
         if gym_env_config is not None:
             gym_env_config["render_mode"] = "human" if training_config.inference_render else None
-            inference_gym_env = gym.make(new_step_api=True, **gym_env_config)
+            inference_gym_env = gym.make(**gym_env_config)
             inference_gym_action_communicator = gac.GymActionCommunicator.make(inference_gym_env)
             gym_training.set_inference_gym_env(inference_gym_env, inference_gym_action_communicator)
         
         return gym_training
         
         
-    def train(self, agent: Agent, total_global_time_steps: Optional[int] = None):
+    def train(self, agent: Agent, total_global_time_steps: int | None = None):
         """
         Run training.
 
@@ -185,7 +183,7 @@ class GymTraining:
         self.inference_gym_env = gym_env
         self.inference_gym_action_communicator = gym_action_communicator
             
-    def inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
+    def inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: str | None = None):
         """
         Inference the environment.
 
@@ -218,11 +216,7 @@ class GymTraining:
         
     def _train(self, agent: Agent, total_global_time_steps: int):
         logger.print(f"\'{self.training_env_id}\' training start!")        
-        gym_env = self.gym_env
-        obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)
-        if not self.is_vector_env:
-            # (num_envs, *obs_shape) = (1, *obs_shape)
-            obs = obs[np.newaxis, ...]
+        obs = self._reset_train_env()
         
         for _ in range(agent.clock.global_time_step, total_global_time_steps, self.num_envs):
             # take action and observe
@@ -243,7 +237,7 @@ class GymTraining:
             # update current observation
             if not self.is_vector_env:
                 if terminated:
-                    obs = gym_env.reset(seed=self.config.seed).astype(self.dtype)[np.newaxis, ...]
+                    obs = self._reset_train_env()
                 else:
                     obs = next_obs[np.newaxis, ...]
             else:
@@ -262,20 +256,18 @@ class GymTraining:
         
         logger.print("Training has been completed.")
         
-    def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: Optional[str] = None):
+    def _inference(self, agent: Agent, num_episodes: int = 1, agent_save_file_dir: str | None = None):
         assert self.inference_gym_env is not None and self.inference_gym_action_communicator is not None, "You must call GymTraining.set_inference_gym_env() method when you want to inference."
         
         if not self._logger_started:
             logger.set_log_dir(self.training_env_id)
         self._try_load_agent(agent, agent_save_file_dir=agent_save_file_dir)
         
-        seed: Optional[int] = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
-        
         agent.behavior_type = BehaviorType.INFERENCE
         
         for episode in range(num_episodes):
             # (num_envs, *obs_shape) = (1, *obs_shape)
-            obs = self.inference_gym_env.reset(seed=seed).astype(self.dtype)[np.newaxis, ...]
+            obs = self._reset_inference_env()
             terminated = False
             cumulative_reward = 0.0
             while not terminated:
@@ -294,7 +286,20 @@ class GymTraining:
             logger.print(f"inference mode - episode: {episode}, cumulative reward: {cumulative_reward}")
             
         agent.behavior_type = BehaviorType.TRAIN
-            
+        
+    def _reset_train_env(self) -> np.ndarray:
+        obs, _ = self.gym_env.reset(seed=self.config.seed) # type: ignore
+        obs = obs.astype(self.dtype)
+        if not self.is_vector_env:
+            # (num_envs, *obs_shape) = (1, *obs_shape)
+            obs = obs[np.newaxis, ...]
+        return obs
+    
+    def _reset_inference_env(self) -> np.ndarray:
+        seed: int | None = self.config.seed if type(self.config.seed) is not list else self.config.seed[0]  # type: ignore
+        obs, _ = self.inference_gym_env.reset(seed=seed) # type: ignore
+        return obs[np.newaxis, ...].astype(self.dtype)
+        
     def _save_agent(self, agent: Agent):
         try:
             logger.save_agent(agent.state_dict)
@@ -302,7 +307,7 @@ class GymTraining:
         except FileNotFoundError:
             pass
             
-    def _try_load_agent(self, agent: Agent, agent_save_file_dir: Optional[str] = None):
+    def _try_load_agent(self, agent: Agent, agent_save_file_dir: str | None = None):
         if agent_save_file_dir is not None:
             try:
                 ckpt = torch.load(agent_save_file_dir)
@@ -336,18 +341,18 @@ class GymTraining:
     def _make_experience(self, obs, action, next_obs, reward, terminated, is_vector_env: bool) -> Experience:
         if is_vector_env:
             exp = Experience(
-                obs.astype(np.float32),
+                obs.astype(self.dtype),
                 action,
-                next_obs.astype(np.float32),
-                reward.astype(np.float32)[..., np.newaxis],
-                terminated.astype(np.float32)[..., np.newaxis]
+                next_obs.astype(self.dtype),
+                reward.astype(self.dtype)[..., np.newaxis],
+                terminated.astype(self.dtype)[..., np.newaxis]
             )
         else:
             exp = Experience(
-                obs.astype(np.float32),
+                obs.astype(self.dtype),
                 action,
-                next_obs[np.newaxis, ...].astype(np.float32),
-                np.array([[reward]], dtype=np.float32),
-                np.array([[terminated]], dtype=np.float32)
+                next_obs[np.newaxis, ...].astype(self.dtype),
+                np.array([[reward]], dtype=self.dtype),
+                np.array([[terminated]], dtype=self.dtype)
             )
         return exp

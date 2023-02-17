@@ -1,75 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import NamedTuple, List, Optional, Tuple, Callable
+from typing import Callable
 from aine_drl.experience import ActionTensor
 import torch
 from torch.distributions import Categorical, Normal
 from dataclasses import dataclass, field
-
-class PolicyDistributionParameter(NamedTuple):
-    """
-    Policy distribution parameter batch (`pdparam`) data type.
-    Note that these `pdparam` must be valid to the policy you currently use.
-    
-    When the action type is discrete, it is generally either logits or soft-max distribution. \\
-    When the action type is continuous, it is generally mean and standard deviation of gaussian distribution.
-
-    Args:
-        discrete_pdparams (List[Tensor]): `(batch_size, *discrete_pdparam_shape)` x `num_discrete_branches`
-        continuous_pdparams (List[Tensor]): `(batch_size, *continuous_pdparam_shape)` x `num_continuous_branches`
-    """
-    discrete_pdparams: List[torch.Tensor]
-    continuous_pdparams: List[torch.Tensor]
-    
-    @property
-    def num_discrete_branches(self) -> int:
-        """Number of discrete action branches."""
-        return len(self.discrete_pdparams)
-    
-    @property
-    def num_continuous_branches(self) -> int:
-        """Number of continuous action branches."""
-        return len(self.continuous_pdparams)
-    
-    @property
-    def num_branches(self) -> int:
-        """Number of total branches."""
-        return self.num_discrete_branches + self.num_continuous_branches
-    
-    def flattened_to_sequence(self, seq_len: int) -> "PolicyDistributionParameter":
-        discrete_pdparam_sequences = []
-        continuous_pdparam_sequences = []
-        
-        for pdparam_batch in self.discrete_pdparams:
-            discrete_pdparam_shape = pdparam_batch.shape[1:]
-            discrete_pdparam_sequences.append(pdparam_batch.reshape(-1, seq_len, *discrete_pdparam_shape))
-            
-        for pdparam_batch in self.continuous_pdparams:
-            continuous_pdparam_shape = pdparam_batch.shape[1:]
-            continuous_pdparam_sequences.append(pdparam_batch.reshape(-1, seq_len, *continuous_pdparam_shape))
-            
-        return PolicyDistributionParameter(discrete_pdparam_sequences, continuous_pdparam_sequences)
-    
-    def sequence_to_flattened(self) -> "PolicyDistributionParameter":
-        discrete_pdaparam_batches = []
-        continuous_pdaparam_batches = []
-        
-        for pdparam_seq in self.discrete_pdparams:
-            discrete_pdaparam_batches.append(pdparam_seq.flatten(0, 1))
-        
-        for pdparam_seq in self.continuous_pdparams:
-            continuous_pdaparam_batches.append(pdparam_seq.flatten(0, 1))
-            
-        return PolicyDistributionParameter(discrete_pdaparam_batches, continuous_pdaparam_batches)
-    
-    @staticmethod
-    def new(discrete_pdparams: Optional[List[torch.Tensor]] = None,
-               continuous_pdparams: Optional[List[torch.Tensor]] = None) -> "PolicyDistributionParameter":
-        if discrete_pdparams is None:
-            discrete_pdparams = []
-        if continuous_pdparams is None:
-            continuous_pdparams = []
-        
-        return PolicyDistributionParameter(discrete_pdparams, continuous_pdparams)
     
 @dataclass(frozen=True)
 class PolicyDistParam:
@@ -85,11 +19,11 @@ class PolicyDistParam:
     If it's sequence batch, `*batch_shape` = `(num_seq, seq_len)`.
 
     Args:
-        discrete_pdparams (Tuple[Tensor], ...): `(*batch_shape, *discrete_pdparam_shape)` x `num_discrete_branches`
-        continuous_pdparams (Tuple[Tensor], ...): `(*batch_shape, *continuous_pdparam_shape)` x `num_continuous_branches`
+        discrete_pdparams (tuple[Tensor, ...]): `(*batch_shape, *discrete_pdparam_shape)` x `num_discrete_branches`
+        continuous_pdparams (tuple[Tensor, ...]): `(*batch_shape, *continuous_pdparam_shape)` x `num_continuous_branches`
     """
-    discrete_pdparams: Tuple[torch.Tensor, ...] = field(default_factory=tuple)
-    continuous_pdparams: Tuple[torch.Tensor, ...] = field(default_factory=tuple)
+    discrete_pdparams: tuple[torch.Tensor, ...] = field(default_factory=tuple)
+    continuous_pdparams: tuple[torch.Tensor, ...] = field(default_factory=tuple)
     
     @property
     def num_discrete_branches(self) -> int:

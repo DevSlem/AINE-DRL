@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 from aine_drl.trajectory.montecarlo_trajectory import MonteCarloTrajectory
 from aine_drl.experience import ActionTensor, Experience
 import torch
@@ -37,7 +37,7 @@ class REINFORCETrajectory:
         self.action_log_prob.append(action_log_prob)
         self.entropy.append(entropy)
         
-    def sample(self, device: Optional[torch.device] = None) -> REINFORCEExperienceBatch:
+    def sample(self, device: torch.device | None = None) -> REINFORCEExperienceBatch:
         exp_batch = self.exp_trajectory.sample(device)
         exp_batch = REINFORCEExperienceBatch(
             exp_batch.obs,

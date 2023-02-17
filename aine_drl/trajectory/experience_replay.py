@@ -1,4 +1,3 @@
-from typing import Optional
 from aine_drl.experience import Action, Experience, ExperienceBatchTensor
 import aine_drl.util as util
 import numpy as np
@@ -71,7 +70,7 @@ class ExperienceReplay:
             self.terminated[self._recent_idx] = experience.terminated[i]
             self.next_obs_buffer[i] = experience.next_obs[i]
         
-    def sample(self, device: Optional[torch.device] = None) -> ExperienceBatchTensor:
+    def sample(self, device: torch.device | None = None) -> ExperienceBatchTensor:
         """Samples experience batch from it. Default sampling distribution is uniform."""
         self.n_step = 0
         sample_idx = self._sample_idxs()
@@ -89,7 +88,7 @@ class ExperienceReplay:
         )
         return experience_batch
     
-    def _get_batch_tensor(self, items: list, batch_idx: np.ndarray, device: Optional[torch.device] = None) -> torch.Tensor:
+    def _get_batch_tensor(self, items: list, batch_idx: np.ndarray, device: torch.device | None = None) -> torch.Tensor:
         return torch.from_numpy(util.get_batch(items, batch_idx)).to(device=device)
     
     def _sample_idxs(self) -> np.ndarray:

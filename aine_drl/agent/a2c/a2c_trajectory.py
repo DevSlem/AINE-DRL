@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 from aine_drl.trajectory.batch_trajectory import BatchTrajectory
 from aine_drl.experience import ActionTensor, Experience
 import torch
@@ -42,7 +42,7 @@ class A2CTrajectory:
         self.v_pred[self.exp_trajectory.recent_idx] = v_pred
         self.entropy[self.exp_trajectory.recent_idx] = entropy
         
-    def sample(self, device: Optional[torch.device] = None) -> A2CExperienceBatch:
+    def sample(self, device: torch.device | None = None) -> A2CExperienceBatch:
         exp_batch = self.exp_trajectory.sample(device)
         exp_batch = A2CExperienceBatch(
             exp_batch.obs,

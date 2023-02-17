@@ -1,4 +1,3 @@
-from typing import Union
 import torch.nn as nn
 import torch
 from aine_drl.network import Network
@@ -140,5 +139,5 @@ def compute_gae(v_preds: torch.Tensor,
      
     return gaes
 
-def normalize(x: torch.Tensor, mask: Union[bool, torch.Tensor] = True) -> torch.Tensor:
+def normalize(x: torch.Tensor, mask: bool | torch.Tensor = True) -> torch.Tensor:
     return (x - x[mask].mean()) / (x[mask].std() + 1e-8)

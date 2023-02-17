@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import time
-from typing import Dict, Tuple
 from aine_drl.util import check_freq
 
 class Clock:
@@ -89,17 +88,17 @@ class IClockNeed(ABC):
 class ILogable(IClockNeed):
     @property
     @abstractmethod
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         """Returns log data keys."""
         raise NotImplementedError
     
     @property
     @abstractmethod
-    def log_data(self) -> Dict[str, tuple]:
+    def log_data(self) -> dict[str, tuple]:
         """
         Returns log data and reset it.
 
         Returns:
-            Dict[str, tuple]: key: (value, time)
+            dict[str, tuple]: key: (value, time)
         """
         raise NotImplementedError

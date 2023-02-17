@@ -1,4 +1,3 @@
-from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import NetworkTypeError
@@ -181,7 +180,7 @@ class RecurrentPPO(Agent):
                 self.actor_average_loss.update(actor_loss.item())
                 self.critic_average_loss.update(critic_loss.item())
 
-    def _compute_adavantage_target_state_value(self, exp_batch: RecurrentPPOExperienceBatch) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _compute_adavantage_target_state_value(self, exp_batch: RecurrentPPOExperienceBatch) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute advantage, v_target.
 
@@ -231,11 +230,11 @@ class RecurrentPPO(Agent):
         return advantage, target_state_value
 
     @property
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         return super().log_keys + ("Network/Actor Loss", "Network/Critic Loss")
     
     @property
-    def log_data(self) -> Dict[str, tuple]:
+    def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
             ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)

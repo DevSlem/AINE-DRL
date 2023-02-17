@@ -1,4 +1,3 @@
-from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import NetworkTypeError
@@ -246,7 +245,7 @@ class RecurrentPPORND(Agent):
                 self.int_critic_average_loss.update(int_critic_loss.item())
                 self.rnd_average_loss.update(rnd_loss.item())
 
-    def _compute_adavantage_v_target(self, exp_batch: tj.RecurrentPPORNDExperienceBatchTensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _compute_adavantage_v_target(self, exp_batch: tj.RecurrentPPORNDExperienceBatchTensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute advantage, extrinisc target state value, intrinsic target state value.
         
@@ -363,11 +362,11 @@ class RecurrentPPORND(Agent):
         return normalized_next_hidden_state.clip(self.config.hidden_state_norm_clip_range[0], self.config.hidden_state_norm_clip_range[1])
     
     @property
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         return super().log_keys + ("Network/Actor Loss", "Network/Extrinsic Critic Loss", "Network/Intrinsic Critic Loss", "Network/RND Loss", "RND/Intrinsic Reward")
     
     @property
-    def log_data(self) -> Dict[str, tuple]:
+    def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
             ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)

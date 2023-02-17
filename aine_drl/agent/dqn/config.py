@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 class DoubleDQNConfig(NamedTuple):
     """
@@ -19,5 +19,5 @@ class DoubleDQNConfig(NamedTuple):
     capacity: int
     epoch: int
     gamma: float = 0.99
-    replace_freq: Optional[int] = None
-    polyak_ratio: Optional[float] = None
+    replace_freq: int | None = None
+    polyak_ratio: float | None = None

@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 from aine_drl.trajectory.batch_trajectory import BatchTrajectory
 from aine_drl.experience import ActionTensor, Experience, Action
 import torch
@@ -39,7 +39,7 @@ class PPOTrajectory:
         self.action_log_prob[self.exp_trajectory.recent_idx] = action_log_prob
         self.v_pred[self.exp_trajectory.recent_idx] = v_pred
         
-    def sample(self, device: Optional[torch.device] = None) -> PPOExperienceBatch:
+    def sample(self, device: torch.device | None = None) -> PPOExperienceBatch:
         exp_batch = self.exp_trajectory.sample(device)
         exp_batch = PPOExperienceBatch(
             exp_batch.obs,
@@ -92,7 +92,7 @@ class RecurrentPPOTrajectory:
         self.v_pred[self.exp_trajectory.recent_idx] = v_pred
         self.hidden_state[self.exp_trajectory.recent_idx] = hidden_state
         
-    def sample(self, device: Optional[torch.device] = None) -> RecurrentPPOExperienceBatch:
+    def sample(self, device: torch.device | None = None) -> RecurrentPPOExperienceBatch:
         exp_batch = self.exp_trajectory.sample(device)
         exp_batch = RecurrentPPOExperienceBatch(
             exp_batch.obs,
@@ -152,7 +152,7 @@ class RecurrentPPORNDTrajectory:
         self._next_obs_buffer = exp_dict.pop("next_obs")
         self._buffer.add(exp_dict)
     
-    def sample(self, device: Optional[torch.device] = None):
+    def sample(self, device: torch.device | None = None):
         exp_buffers = self._buffer.buffer_dict
         exp_batch = {}
         for key, buffer in exp_buffers.items():

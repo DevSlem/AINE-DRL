@@ -1,21 +1,16 @@
 # AINE-DRL
 
-A project for the DRL framework. **AINE** means "Agent IN Environment".
+A project for the DRL baseline framework. **AINE** means "Agent IN Environment".
 
-Table of Contents:
-
-* [Implementation](#implementation)
-* [Experiments](#experiments)
-* [Setup](#setup)
-* [Module](#module)
+[Implementation](#implementation) | [Experiments](#experiments) | [Setup](#setup) | [Module](#module)
 
 ## Implementation
 
 AINE-DRL provides below things.
 
 * deep reinforcement learning agents
-* training with gym environment (vectorized environment also supported) and inference (rendering)
-* training interrupt and model save
+* training in gym environment (vectorized environment also supported) and inference (rendering)
+* model save/load
 * YAML configuration format
 
 If you want to know how to use, see details in [sample codes](samples/) and [Wiki](https://github.com/DevSlem/AINE-DRL/wiki).
@@ -127,20 +122,38 @@ Follow the instructions.
 
 ### Installation
 
-* Python 3.7.13
-* Pytorch 1.11.0 - CUDA 11.3
-* Tensorboard 2.10.0
-* Gym 0.25.2
-* PyYAML 6.0
+Required packages:
+
+* [Python](https://www.python.org/) 3.10.9
+* [Pytorch](https://pytorch.org/) 1.11.0 - CUDA 11.3
+* [Tensorboard](https://github.com/tensorflow/tensorboard) 2.12.0
+* [Gym](https://github.com/openai/gym) 0.26.2
+* [PyYAML](https://pyyaml.org/) 6.0
+
+> Note that it's recommended to match the package versions. If not, it may cause API conflicts.
 
 You can easily create an Anaconda environment. Input the command in your Anaconda shell:
 
 ```
-$ conda env create -f conda_env.yaml
+$ conda env create -f <CONDA_ENV>.yaml
 $ conda activate aine-drl
 ```
 
-> Note that it's recommended to match the package versions. If not, it may cause API conflicts.
+`<CONDA_ENV`> depends on your OS:
+
+* Linux: `conda_env_linux`
+
+If it doesn't work, install the packages manually by entering the command below:
+
+```
+$ conda create -n aine-drl python=3.10.9 -y
+conda activate aine-drl
+conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch -y
+pip install tensorboard==2.12.0
+pip install gym==0.26.2
+pip install 'gym[all]'
+pip install PyYAML==6.0
+```
 
 ### Run
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Union, Any, Generic, TypeVar, Dict, Iterator
+from typing import Any, Generic, TypeVar, Iterator
 from aine_drl.policy.policy_distribution import PolicyDistParam
 import torch
 import torch.nn as nn
@@ -19,22 +19,22 @@ class DiscreteActionLayer(nn.Module):
 
     Args:
         in_features (int): number of input features
-        num_discrete_actions (int | Tuple[int, ...]): each element indicates number of discrete actions of each branch
+        num_discrete_actions (int | tuple[int, ...]): each element indicates number of discrete actions of each branch
         is_logits (bool): whether logits or probabilities. Defaults to logits.
     """
 
     def __init__(self, in_features: int, 
-                 num_discrete_actions: Union[int, Tuple[int, ...]], 
+                 num_discrete_actions: int | tuple[int, ...], 
                  is_logits: bool = True,
                  bias: bool = True,
-                 device: Optional[torch.device] = None,
-                 dtype: Optional[Any] = None) -> None:
+                 device: torch.device | None = None,
+                 dtype: Any | None = None) -> None:
         """
         Linear layer for the discrete action type.
 
         Args:
             in_features (int): number of input features
-            num_discrete_actions (int | Tuple[int, ...]): each element indicates number of discrete actions of each branch
+            num_discrete_actions (int | tuple[int, ...]): each element indicates number of discrete actions of each branch
             is_logits (bool): whether logits or probabilities. Defaults to logits.
         """
         super().__init__()
@@ -46,7 +46,7 @@ class DiscreteActionLayer(nn.Module):
         self.num_discrete_actions = num_discrete_actions
         
         self.total_num_discrete_actions = 0
-        for num_action in num_discrete_actions:
+        for num_action in num_discrete_actions: # type: ignore
             self.total_num_discrete_actions += num_action
         
         self.layer = nn.Linear(
@@ -82,8 +82,8 @@ class GaussianContinuousActionLayer(nn.Module):
                  num_continuous_actions: int, 
                  is_log_std: bool = True,
                  bias: bool = True,
-                 device: Optional[torch.device] = None,
-                 dtype: Optional[Any] = None) -> None:
+                 device: torch.device | None = None,
+                 dtype: Any | None = None) -> None:
         """
         Linear layer for the continuous action type.
 
@@ -114,7 +114,7 @@ class Network(ABC, Generic[T]):
     """
     
     def __init__(self) -> None:
-        self._models: Dict[str, nn.Module] = {}
+        self._models: dict[str, nn.Module] = {}
         self._device = torch.device("cpu")
     
     @abstractmethod
@@ -138,7 +138,7 @@ class Network(ABC, Generic[T]):
         """
         return self._device
     
-    def to(self, device: Optional[torch.device] = None) -> "Network[T]":
+    def to(self, device: torch.device | None = None) -> "Network[T]":
         """
         Move the network to the device.
 
@@ -192,7 +192,7 @@ class RecurrentNetwork(Network[T]):
     """
     @property
     @abstractmethod
-    def hidden_state_shape(self) -> Tuple[int, int]:
+    def hidden_state_shape(self) -> tuple[int, int]:
         """
         Returns the shape of the rucurrent hidden state `(D x num_layers, H)`. \\
         `num_layers` is the number of recurrent layers. \\
@@ -204,7 +204,7 @@ class RecurrentNetwork(Network[T]):
         raise NotImplementedError
     
     @staticmethod
-    def unpack_seq_shape(seq: torch.Tensor) -> Tuple[int, int, torch.Size]:
+    def unpack_seq_shape(seq: torch.Tensor) -> tuple[int, int, torch.Size]:
         """
         Unpack the sequence shape.
         
@@ -220,12 +220,12 @@ class RecurrentNetwork(Network[T]):
         return seq_shape[0], seq_shape[1], seq_shape[2:]
     
     @staticmethod
-    def pack_lstm_hidden_state(lstm_hidden_state: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    def pack_lstm_hidden_state(lstm_hidden_state: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """`(D x num_layers, num_seq, H_out) x 2` -> `(D x num_layers, num_seq, H_out x 2)`"""
         return torch.cat(lstm_hidden_state, dim=2)
     
     @staticmethod
-    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """`(D x num_layers, num_seq, H_out x 2)` -> `(D x num_layers, num_seq, H_out) x 2`"""
         lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
         return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())

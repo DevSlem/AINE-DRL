@@ -1,4 +1,3 @@
-from typing import Dict, Tuple
 from aine_drl.agent import Agent
 from aine_drl.experience import ActionTensor, Experience
 from aine_drl.network import NetworkTypeError
@@ -97,7 +96,7 @@ class A2C(Agent):
         self.critic_average_loss.update(critic_loss.item())
 
         
-    def compute_adavantage_v_target(self, exp_batch: A2CExperienceBatch) -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_adavantage_v_target(self, exp_batch: A2CExperienceBatch) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute advantage, v_target. `batch_size` is `num_evns` x `n_steps`.
 
@@ -105,7 +104,7 @@ class A2C(Agent):
             exp_batch (A2CExperienceBatch): experience batch
 
         Returns:
-            Tuple[Tensor, Tensor]: advantage, v_target whose each shape is `(batch_size, 1)`
+            tuple[Tensor, Tensor]: advantage, v_target whose each shape is `(batch_size, 1)`
         """
         with torch.no_grad():
             final_next_obs = exp_batch.next_obs[-self.num_envs:]
@@ -167,11 +166,11 @@ class A2C(Agent):
         return F.mse_loss(v_target, v_pred)
 
     @property
-    def log_keys(self) -> Tuple[str, ...]:
+    def log_keys(self) -> tuple[str, ...]:
         return super().log_keys + ("Network/Actor Loss", "Network/Critic Loss")
     
     @property
-    def log_data(self) -> Dict[str, tuple]:
+    def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
             ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)

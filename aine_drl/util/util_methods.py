@@ -1,5 +1,5 @@
 import operator
-from typing import Union, Iterator
+from typing import Iterator
 import numpy as np
 import datetime
 import os
@@ -24,7 +24,7 @@ def seed(value: int):
     cudnn.deterministic = True
     random.seed(value)
     
-def get_seed() -> Union[int, None]:
+def get_seed() -> int | None:
     global _random_seed
     return _random_seed
 
@@ -123,7 +123,7 @@ def get_optim_params(optimizer: torch.optim.Optimizer):
 def train_step(loss: torch.Tensor, 
                optimizer: torch.optim.Optimizer, 
                lr_scheduler = None, 
-               grad_clip_max_norm: Union[float, None] = None,
+               grad_clip_max_norm: float | None = None,
                epoch: int = -1):
     optimizer.zero_grad()
     loss.backward()

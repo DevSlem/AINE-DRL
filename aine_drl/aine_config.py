@@ -1,4 +1,3 @@
-from typing import Optional, Union
 import yaml
 from .agent import make_agent
 from .agent.agent import Agent
@@ -37,8 +36,8 @@ class AINEConfig:
         return self._num_envs
     
     def make_gym_training(self,
-                          gym_env: Union[Env, VectorEnv, None] = None,
-                          gym_action_communicator: Optional[GymActionCommunicator] = None) -> GymTraining:
+                          gym_env: Env | VectorEnv | None = None,
+                          gym_action_communicator: GymActionCommunicator | None = None) -> GymTraining:
         """
         ## Summary
         

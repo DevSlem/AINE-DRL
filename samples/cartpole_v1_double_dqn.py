@@ -1,7 +1,6 @@
 import sys
 sys.path.append(".")
 
-from typing import Optional
 import aine_drl
 import aine_drl.util as util
 from aine_drl.drl_util import LinearDecay

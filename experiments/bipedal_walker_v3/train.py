@@ -2,7 +2,6 @@ import sys
 sys.path.append(".")
 
 import argparse
-from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -38,7 +37,7 @@ class BipedalWalkerPPONet(aine_drl.PPOSharedNetwork):
         self.ts = aine_drl.TrainStep(self.optimizer)
         self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
-    def forward(self, obs: torch.Tensor) -> Tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
         encoding = self.encoding_layer(obs)
         pdparam = self.actor_layer(encoding)
         state_value = self.critic_layer(encoding)
@@ -53,7 +52,7 @@ def get_bipedal_env_info(gym_training: GymTraining):
 def auto_device() -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-def run_ppo(inference: Optional[bool] = False):
+def run_ppo(inference: bool | None = False):
     # AINE-DRL configuration manager
     aine_config = aine_drl.AINEConfig("config/experiments/bipedal_walker_v3_ppo.yaml")
     
