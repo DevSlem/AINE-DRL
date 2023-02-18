@@ -6,7 +6,7 @@ from gym import Env
 from gym.vector import VectorEnv
 from aine_drl.agent.agent import Agent, BehaviorType
 from aine_drl.experience import Experience
-from aine_drl.util import logger
+from aine_drl.util import logger, TextInfoBox
 import aine_drl.training.gym_action_communicator as gac
 import numpy as np
 import torch
@@ -81,6 +81,8 @@ class GymTraining:
         self.inference_gym_action_communicator = None
         
         self.dtype = np.float32
+        
+        self.text_info_box = TextInfoBox(max_text_len=max(60, len(self.training_env_id) + 20))
         
     @staticmethod
     def make(training_env_id: str,
@@ -215,7 +217,9 @@ class GymTraining:
         return self.gym_env.single_action_space if self.is_vector_env else self.gym_env.action_space  # type: ignore
         
     def _train(self, agent: Agent, total_global_time_steps: int):
-        logger.print(f"\'{self.training_env_id}\' training start!")        
+        # logger.print(f"\'{self.training_env_id}\' training start!")
+        self._print_training_info(agent, total_global_time_steps)
+        
         obs = self._reset_train_env()
         
         for _ in range(agent.clock.global_time_step, total_global_time_steps, self.num_envs):
@@ -356,3 +360,27 @@ class GymTraining:
                 np.array([[terminated]], dtype=self.dtype)
             )
         return exp
+    
+    def _print_training_info(self, agent: Agent, total_global_time_steps: int):
+        self.text_info_box.add_text(f"AINE-DRL Training Start!")
+        
+        self.text_info_box.add_line(marker="=")
+        
+        self.text_info_box.add_text(f"ID: \'{self.training_env_id}\'")
+        self.text_info_box.add_text(f"Output Path: {logger.log_dir()}")
+        
+        self.text_info_box.add_line()
+        
+        self.text_info_box.add_text("Training INFO:")
+        self.text_info_box.add_text(f"    total global time steps: {total_global_time_steps}")
+        self.text_info_box.add_text(f"    summary frequency: {self.config.summary_freq}")
+        if self.config.inference_freq is not None:
+            self.text_info_box.add_text(f"    inference frequency: {self.config.inference_freq}")
+            
+        self.text_info_box.add_line()
+        self.text_info_box.add_text(f"Agent INFO:")
+        self.text_info_box.add_text(f"    name: {agent.name}")
+        self.text_info_box.add_text(f"    device: {agent.device}")
+        
+        logger.print(self.text_info_box.make(), prefix="")
+        logger.print("", prefix="")

@@ -14,9 +14,9 @@ class logger:
     _logger: SummaryWriter = None
     
     @staticmethod    
-    def print(message: str, prefix: str = "[AINE-DRL]"):
+    def print(message: str, prefix: str = "[AINE-DRL] "):
         """Print message with prefix."""
-        builtins.print(f"{prefix} {message}")
+        builtins.print(f"{prefix}{message}")
     
     @classmethod
     def numbering_env_id(cls, env_id: str) -> str:
@@ -93,3 +93,32 @@ class logger:
     #     if lr_scheduler is not None:
     #         lr = lr_scheduler.get_lr()
     #         cls.log(f"Network/{key}", lr if type(lr) is float else lr[0], t)
+
+class TextInfoBox:
+    def __init__(self,
+                 max_text_len: int) -> None:
+        self._texts = []
+        self._max_space_len = max_text_len + 2
+        
+    def add_text(self, text: str):
+        if len(text) > self._max_space_len - 2:
+            raise ValueError(f"text must be less than {self._max_space_len - 2} characters, but {len(text)}")
+        self._texts.append(f" {text} ")
+        
+    def add_line(self, marker: str = "-"):
+        if len(marker) != 1:
+            raise ValueError(f"marker must be one character, but {marker}")
+        self._texts.append(self._horizontal_line(marker))
+    
+    def make(self) -> str:
+        text_info_box = f"+{self._horizontal_line()}+\n"
+        for text in self._texts:
+            text_info_box += f"|{text}{self._remained_whitespace(text)}|\n"
+        text_info_box += f"+{self._horizontal_line()}+"
+        return text_info_box
+        
+    def _remained_whitespace(self, text: str) -> str:
+        return " " * (self._max_space_len - len(text))
+    
+    def _horizontal_line(self, marker: str = "-") -> str:
+        return marker * (self._max_space_len)
