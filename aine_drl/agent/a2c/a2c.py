@@ -41,6 +41,10 @@ class A2C(Agent):
         self.actor_average_loss = util.IncrementalAverage()
         self.critic_average_loss = util.IncrementalAverage()    
         
+    @property
+    def name(self) -> str:
+        return "A2C"
+        
     def update(self, experience: Experience):
         super().update(experience)
         

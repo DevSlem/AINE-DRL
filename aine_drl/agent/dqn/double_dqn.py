@@ -53,6 +53,10 @@ class DoubleDQN(Agent):
             
         self.average_td_loss = util.IncrementalAverage()
         
+    @property
+    def name(self) -> str:
+        return "Double DQN"
+        
     def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
         # feed forward
         pdparam = self.network.forward(obs)

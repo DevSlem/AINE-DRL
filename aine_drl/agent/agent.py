@@ -129,6 +129,11 @@ class Agent(ABC):
         raise NotImplementedError
     
     @property
+    @abstractmethod
+    def name(self) -> str:
+        raise NotImplementedError
+    
+    @property
     def clock(self) -> Clock:
         return self._clock
     

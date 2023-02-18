@@ -63,6 +63,10 @@ class RecurrentPPORND(Agent):
         self.inference_next_hidden_state = np.zeros(inference_hidden_state_shape, dtype=np.float32)
         self.inference_prev_terminated = np.zeros((1, 1), dtype=np.float32)
         
+    @property
+    def name(self) -> str:
+        return "Recurrent PPO RND"
+        
     def update(self, experience: Experience):
         super().update(experience)
         

@@ -36,6 +36,10 @@ class REINFORCE(Agent):
         
         self.policy_average_loss = util.IncrementalAverage()
     
+    @property
+    def name(self) -> str:
+        return "REINFORCE"
+    
     def update(self, experience: Experience):
         super().update(experience)
         

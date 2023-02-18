@@ -50,6 +50,10 @@ class RecurrentPPO(Agent):
         self.inference_next_hidden_state = torch.zeros(inference_hidden_state_shape)
         self.inference_prev_terminated = torch.zeros(1, 1)
         
+    @property
+    def name(self) -> str:
+        return "Recurrent PPO"
+        
     def update(self, experience: Experience):
         super().update(experience)
         
