@@ -63,7 +63,7 @@ class RecurrentPPORNDConfig(NamedTuple):
         `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
         `padding_value (float, optional)`: pad sequences to the value for the same `sequence_length`. Defaults to 0.
         `extrinsic_gamma (float, optional)`: discount factor of extrinsic reward. Defaults to 0.99.
-        `intrinsic_gamma (float, optional)`: discount factor of intrinsic reward. Defaults to 0.99.
+        `intrinsic_gamma (float, optional)`: discount factor of intrinsic reward. Defaults to 0.999.
         `extrinsic_adv_coef (float, optional)`: multiplier to extrinsic advantage. Defaults to 1.0.
         `intrinsic_adv_coef (float, optional)`: multiplier to intrinsic advantage. Defaults to 1.0.
         `lam (float, optional)`: regularization parameter which controls the balanace of Generalized Advantage Estimation (GAE) between bias and variance. Defaults to 0.95.
@@ -80,7 +80,7 @@ class RecurrentPPORNDConfig(NamedTuple):
     sequence_length: int
     num_sequences_per_step: int
     padding_value: float = 0.0
-    extrinsic_gamma: float = 0.99
+    extrinsic_gamma: float = 0.999
     intrinsic_gamma: float = 0.99
     extrinsic_adv_coef: float = 1.0
     intrinsic_adv_coef: float = 1.0
