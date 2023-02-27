@@ -71,7 +71,7 @@ class RecurrentPPORNDConfig(NamedTuple):
         `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
         `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
         `exp_proportion_for_predictor (float, optional)`: proportion of experience used for training predictor to keep the effective batch size. Defaults to 0.25.
-        `pre_normalization_step (int | None, optional)`: number of initial steps for initializing both observation and hidden state normalization. Defaults to no normalization.
+        `pre_normalization_step (int | None, optional)`: number of initial steps for initializing both observation and hidden state normalization. When the value is `None`, it never normalize them during training. Defaults to 50.
         `obs_norm_clip_range (tuple[float, float])`: observation normalization clipping range (min, max). Defaults to (-5.0, 5.0).
         `hidden_state_norm_clip_range (tuple[float, float])`: hidden state normalization clipping range (min, max). Defaults to (-5.0, 5.0).
     """
@@ -89,6 +89,6 @@ class RecurrentPPORNDConfig(NamedTuple):
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
     exp_proportion_for_predictor: float = 0.25
-    pre_normalization_step: int | None = None
+    pre_normalization_step: int | None = 50
     obs_norm_clip_range: tuple[float, float] = (-5.0, 5.0)
     hidden_state_norm_clip_range: tuple[float, float] = (-5.0, 5.0)
