@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import torch
 
 from aine_drl.exp import Action
-from aine_drl.trajectory.montecarlo_trajectory import MonteCarloTrajectory
 
 
 @dataclass(frozen=True)

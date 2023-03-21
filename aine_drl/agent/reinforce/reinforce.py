@@ -25,12 +25,14 @@ class REINFORCE(Agent):
         network (PolicyGradientNetwork): standard policy gradient network
         policy (Policy): policy
     """
-    def __init__(self, 
-                 config: REINFORCEConfig,
-                 network: REINFORCENetwork,
-                 optimizer: REINFORCEOptim,
-                 policy: Policy,
-                 behavior_type: BehaviorType = BehaviorType.TRAIN) -> None:        
+    def __init__(
+        self, 
+        config: REINFORCEConfig,
+        network: REINFORCENetwork,
+        optimizer: REINFORCEOptim,
+        policy: Policy,
+        behavior_type: BehaviorType = BehaviorType.TRAIN
+    ) -> None:        
         if not isinstance(network, REINFORCENetwork):
             raise NetworkTypeError(REINFORCENetwork)
         
@@ -77,6 +79,7 @@ class REINFORCE(Agent):
         
         return action
     
+    @torch.no_grad()
     def _select_action_inference(self, obs: torch.Tensor) -> Action:
         pdparam = self._network.forward(obs)
         return self._policy.policy_dist(pdparam).sample()

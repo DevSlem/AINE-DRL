@@ -15,7 +15,6 @@ class REINFORCENetwork(Network):
     """
     REINFORCE policy network.    
     """
-    
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> PolicyDistParam:
         """

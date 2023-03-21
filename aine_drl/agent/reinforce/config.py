@@ -1,6 +1,7 @@
-from typing import NamedTuple
+from dataclasses import dataclass
 
-class REINFORCEConfig(NamedTuple):
+@dataclass(frozen=True)
+class REINFORCEConfig:
     """
     REINFORCE configuration.
 
