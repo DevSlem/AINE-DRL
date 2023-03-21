@@ -96,3 +96,21 @@ def reinforce_loss(
     if baseline:
         ret = (ret - ret.mean()) / (ret.std() + eps)
     return -(ret * action_log_prob).mean()
+
+def advantage_policy_loss(
+    advantage: torch.Tensor,
+    action_log_prob: torch.Tensor
+) -> torch.Tensor:
+    """
+    Naive advantage policy loss according to the policy gradient theorem.
+
+    It uses mean loss (but not sum loss).
+    
+    Args:
+        advantage (Tensor): `(batch_size, 1)`
+        action_log_prob (Tensor): `(batch_size, 1)`
+
+    Returns:
+        loss (Tensor): scalar value
+    """
+    return -(advantage * action_log_prob).mean()
