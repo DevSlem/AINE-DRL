@@ -20,14 +20,16 @@ class Action:
     discrete_action: Tensor
     continuous_action: Tensor
     
-    def __init__(self,
-                 discrete_action: Tensor | None = None,
-                 continuous_action: Tensor | None = None) -> None:
+    def __init__(
+        self,
+        discrete_action: Tensor | None = None,
+        continuous_action: Tensor | None = None
+    ) -> None:
         if discrete_action is None and continuous_action is None:
             raise ValueError("You must input at least one valid argument, but both of them are None.")
         
         if discrete_action is None:
-            discrete_action = torch.empty((*continuous_action.shape[:-1], 0), device=continuous_action.device)
+            discrete_action = torch.empty((*continuous_action.shape[:-1], 0), device=continuous_action.device) # type: ignore
         if continuous_action is None:
             continuous_action = torch.empty((*discrete_action.shape[:-1], 0), device=discrete_action.device)
 
