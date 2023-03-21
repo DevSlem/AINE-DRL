@@ -1,13 +1,19 @@
-from abc import abstractmethod
-from aine_drl.network import Network
-from aine_drl.policy.policy_distribution import PolicyDistParam
+from abc import ABC, abstractmethod
+
 import torch
 
-class REINFORCENetwork(Network[torch.Tensor]):
+from aine_drl.net import Network
+from aine_drl.policy.policy import PolicyDistParam
+
+
+class REINFORCEOptim(ABC):
+    @abstractmethod
+    def step(self, loss: torch.Tensor, training_steps: int):
+        raise NotImplementedError
+
+class REINFORCENetwork(Network):
     """
-    Simple REINFORCE policy network. 
-    
-    Generic type `T` is `Tensor`.
+    REINFORCE policy network.    
     """
     
     @abstractmethod
