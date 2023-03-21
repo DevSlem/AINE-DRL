@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
-from aine_drl.exp import Action
+
 import torch
 import torch.distributions as D
+
+from aine_drl.exp import Action
+
 
 class PolicyDist(ABC):
     """
@@ -66,7 +69,7 @@ class CategoricalDist(PolicyDist):
     Categorical policy distribution for the discrete action type. 
     It's parameterized by either `probs` or `logits` (but not both). 
     
-    The shapes of parameters are `(*batch_shape, num_discrete_actions) * num_discrete_branches`.
+    The shapes of parameters are `(*batch_shape, num_discrete_actions)` * `num_discrete_branches`.
     """
     def __init__(self, probs: tuple[torch.Tensor, ...] | None = None, logits: tuple[torch.Tensor, ...] | None = None) -> None:
         if probs is None and logits is None:
@@ -166,7 +169,7 @@ class EpsilonGreedyDist(CategoricalDist):
     Epsilon-greedy policy distribution for the discrete action type. 
     It's parameterized by `action_values` and `epsilon`. 
     
-    The shape of `action_values` is `(*batch_shape, num_discrete_actions) * num_discrete_branches`.
+    The shape of `action_values` is `(*batch_shape, num_discrete_actions)` * `num_discrete_branches`.
     """
     def __init__(self, action_values: tuple[torch.Tensor, ...], epsilon: float) -> None:
         epsilon_greedy_probs = []

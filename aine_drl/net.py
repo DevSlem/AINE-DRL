@@ -1,10 +1,18 @@
 from abc import ABC, abstractmethod
 from typing import Any, Iterator
+
 import torch
 import torch.nn as nn
-from torch.nn.parameter import Parameter
 import torch.nn.functional as F
-from aine_drl.policy.policy_dist import PolicyDistParam
+from torch.nn.parameter import Parameter
+
+from aine_drl.policy import PolicyDistParam
+
+
+class NetworkTypeError(TypeError):
+    def __init__(self, true_net_type: type) -> None:
+        message = f"network must be inherited from \"{true_net_type.__name__}\"."
+        super().__init__(message)
 
 class DiscreteActionLayer(nn.Module):
     """

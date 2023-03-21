@@ -65,7 +65,7 @@ class A2C(Agent):
         pdparam, v_pred = self.network.forward(obs)
         
         # action sampling
-        dist = self.policy.get_policy_distribution(pdparam)
+        dist = self.policy.policy_dist(pdparam)
         action = dist.sample()
         
         # store data
@@ -77,7 +77,7 @@ class A2C(Agent):
     
     def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
         pdparam, _ = self.network.forward(obs)
-        dist = self.policy.get_policy_distribution(pdparam)
+        dist = self.policy.policy_dist(pdparam)
         return dist.sample()
             
     def train(self):

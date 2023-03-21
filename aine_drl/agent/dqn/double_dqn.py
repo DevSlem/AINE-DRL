@@ -62,14 +62,14 @@ class DoubleDQN(Agent):
         pdparam = self.network.forward(obs)
         
         # action sampling
-        dist = self.policy.get_policy_distribution(pdparam)
+        dist = self.policy.policy_dist(pdparam)
         action = dist.sample()
         
         return action
     
     def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
         pdparam = self.network.forward(obs)
-        dist = self.policy.get_policy_distribution(pdparam)
+        dist = self.policy.policy_dist(pdparam)
         return dist.sample()
     
     def update(self, experience: Experience):

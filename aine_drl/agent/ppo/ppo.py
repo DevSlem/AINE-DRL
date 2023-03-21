@@ -64,7 +64,7 @@ class PPO(Agent):
             pdparam, v_pred = self.network.forward(obs)
             
             # action sampling
-            dist = self.policy.get_policy_distribution(pdparam)
+            dist = self.policy.policy_dist(pdparam)
             action = dist.sample()
             
             # store data
@@ -75,7 +75,7 @@ class PPO(Agent):
     
     def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
         pdparam, _ = self.network.forward(obs)
-        dist = self.policy.get_policy_distribution(pdparam)
+        dist = self.policy.policy_dist(pdparam)
         return dist.sample()
             
     def train(self):
@@ -94,7 +94,7 @@ class PPO(Agent):
                 pdparam, v_pred = self.network.forward(exp_batch.obs[sample_idx])
                 
                 # compute actor loss
-                dist = self.policy.get_policy_distribution(pdparam)
+                dist = self.policy.policy_dist(pdparam)
                 new_action_log_prob = dist.joint_log_prob(exp_batch.action[sample_idx])
                 adv = drl_util.normalize(advantage[sample_idx]) if self.config.advantage_normalization else advantage[sample_idx]
                 actor_loss = PPO.compute_actor_loss(

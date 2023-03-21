@@ -87,7 +87,7 @@ class RecurrentPPO(Agent):
             )
             
             # action sampling
-            dist = self.policy.get_policy_distribution(pdparam_seq)
+            dist = self.policy.policy_dist(pdparam_seq)
             action = dist.sample()
             
             # store data
@@ -103,7 +103,7 @@ class RecurrentPPO(Agent):
             obs.unsqueeze(dim=1), 
             self.inference_current_hidden_state.to(device=self.device)
         )
-        dist = self.policy.get_policy_distribution(pdparam_seq)
+        dist = self.policy.policy_dist(pdparam_seq)
         action = dist.sample()
         self.inference_next_hidden_state = next_hidden_state.cpu()
         return action.transform(lambda a: a.squeeze_(dim=1))
@@ -158,7 +158,7 @@ class RecurrentPPO(Agent):
                 )
                 
                 # compute actor loss
-                dist = self.policy.get_policy_distribution(pdparam_seq)
+                dist = self.policy.policy_dist(pdparam_seq)
                 sample_action_seq = ActionTensor(
                     discrete_action_seq[sample_seq],
                     continuous_action_seq[sample_seq]
