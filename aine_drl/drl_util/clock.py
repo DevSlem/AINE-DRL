@@ -63,17 +63,14 @@ class Clock:
     @property
     def state_dict(self) -> dict:
         clock_state_dict = {
-            "clock": {
-                "global_time_step": self._global_time_step,
-                "episode": self._episode,
-                "episode_len": self._episode_len,
-                "training_step": self._training_step,
-            }
+            "global_time_step": self._global_time_step,
+            "episode": self._episode,
+            "episode_len": self._episode_len,
+            "training_step": self._training_step,
         }
         return clock_state_dict
     
     def load_state_dict(self, state_dict: dict):
-        state_dict = state_dict["clock"]
         for key, value in state_dict.items():
             setattr(self, f"_{key}", value)
 

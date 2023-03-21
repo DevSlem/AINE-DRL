@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
-from aine_drl.experience import Action, ActionTensor, Experience
-from aine_drl.network import Network
-from aine_drl.policy.policy import Policy
-import aine_drl.util as util
-from aine_drl.drl_util import Clock, IClockNeed, ILogable
-import numpy as np
-import torch
+from contextlib import contextmanager
 from enum import Enum
+
+import torch
+
+from aine_drl.drl_util import Clock, IClockNeed, ILogable
+from aine_drl.exp import Action, Experience
+from aine_drl.net import Network
+from aine_drl.policy.policy import Policy
+
 
 class BehaviorType(Enum):
     TRAIN = 0,
@@ -21,10 +23,13 @@ class Agent(ABC):
         policy (Policy): policy
         num_envs (int): number of environments
     """
-    def __init__(self, 
-                 network: Network,
-                 policy: Policy,
-                 num_envs: int) -> None:
+    def __init__(
+        self,
+        network: Network,
+        policy: Policy,
+        num_envs: int,
+        behavior_type: BehaviorType = BehaviorType.TRAIN
+    ) -> None:
         assert num_envs >= 1, "The number of environments must be greater than or euqal to 1."
         
         self._clock = Clock(num_envs)
@@ -33,105 +38,76 @@ class Agent(ABC):
         if isinstance(policy, IClockNeed):
             policy.set_clock(self._clock)
             
-        self.__logable_network = network if isinstance(network, ILogable) else None
         self.__logable_policy = policy if isinstance(policy, ILogable) else None
         
-        self.policy = policy
-        self.network = network
-        self.num_envs = num_envs
-        self._behavior_type = BehaviorType.TRAIN
-
-        self.traced_env = 0
-        self.cumulative_average_reward = util.IncrementalAverage()
-        self.cumulative_reward = 0.0
-        self.episode_average_len = util.IncrementalAverage()
+        self._policy = policy
+        self._network = network
+        self._num_envs = num_envs
+        self._behavior_type = behavior_type
         
-    @property
-    def device(self) -> torch.device:
-        return self.network.device
+        self._using_behavior_type_scope = False
         
-    def select_action(self, obs: np.ndarray) -> Action:
+    def select_action(self, obs: torch.Tensor) -> Action:
         """
-        Select action from the observation. 
-        `batch_size` must be `num_envs` x `n_steps`. `n_steps` is generally 1. 
-        It depends on `Agent.behavior_type` enum value.
+        Select actions from the `obs`.
 
         Args:
-            obs (ndarray): observation which is the input of neural network. shape must be `(batch_size, *obs_shape)`
+            obs (Tensor): observation `(num_envs, *obs_shape)`
 
         Returns:
-            Action: selected action
+            action (Tensor): `*batch_shape` = `(num_envs,)`
         """
-        assert self.policy is not None, "You must call `Agent.set_policy()` method before it."
-        
-        if self.behavior_type == BehaviorType.TRAIN:
-            return self.select_action_train(torch.from_numpy(obs).to(device=self.device)).to_action()
-        elif self.behavior_type == BehaviorType.INFERENCE:
-            with torch.no_grad():
-                return self.select_action_inference(torch.from_numpy(obs).to(device=self.device)).to_action()
-        else:
-            raise ValueError(f"Agent.behavior_type you currently use is invalid value. Your value is: {self.behavior_type}")
-        
-    def update(self, experience: Experience):
-        """
-        Update the agent. It stores data, trains the agent, etc.
-
-        Args:
-            experience (Experience): experience
-        """
-        assert experience.num_envs == self.num_envs
-        
-        self._update_info(experience)
-      
-    def inference(self, experience: Experience):
-        """
-        Inference the agent.
-
-        Args:
-            experience (Experience): experience
-        """
-        pass
+        match self.behavior_type:
+            case BehaviorType.TRAIN:
+                return self._select_action_train(obs).transform(torch.detach)
+            case BehaviorType.INFERENCE:
+                return self._select_action_inference(obs).transform(torch.detach)
             
-    def _update_info(self, experience: Experience):
-        self.clock.tick_gloabl_time_step()
-        self.cumulative_reward += experience.reward[self.traced_env].item()
-        # if the traced environment is terminated
-        if experience.terminated[self.traced_env] > 0.5:
-            self.cumulative_average_reward.update(self.cumulative_reward)
-            self.cumulative_reward = 0.0
-            self.episode_average_len.update(self.clock.episode_len)
-            self.clock.tick_episode()
-        
-    @abstractmethod
-    def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
+    def update(self, exp: Experience):
         """
-        Select action when training.
+        Update and train the agent.
 
         Args:
-            obs (Tensor): observation tensor whose shape is `(batch_size, *obs_shape)`
-
-        Returns:
-            ActionTensor: action tensor
-        """
+            exp (Experience): one-step experience tuple
+        """ 
+        match self.behavior_type:
+            case BehaviorType.TRAIN:
+                self._update_train_info(exp)
+                self._update_train(exp)
+            case BehaviorType.INFERENCE:
+                self._update_inference(exp)
+                
+    def _update_train_info(self, exp: Experience):
+        self.clock.tick_gloabl_time_step()
+    
+    @abstractmethod
+    def _update_train(self, exp: Experience):
         raise NotImplementedError
     
     @abstractmethod
-    def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
-        """
-        Select action when inference. It's automatically called with `torch.no_grad()`.
-
-        Args:
-            obs (Tensor): observation tensor
-
-        Returns:
-            ActionTensor action tensor
-        """
+    def _update_inference(self, exp: Experience):
+        raise NotImplementedError
+              
+    @abstractmethod
+    def _select_action_train(self, obs: torch.Tensor) -> Action:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def _select_action_inference(self, obs: torch.Tensor) -> Action:
         raise NotImplementedError
     
     @property
     @abstractmethod
     def name(self) -> str:
         raise NotImplementedError
+    
+    @property
+    def device(self) -> torch.device:
+        return self._network.device
+    
+    @property
+    def num_envs(self) -> int:
+        return self._num_envs
     
     @property
     def clock(self) -> Clock:
@@ -146,13 +122,28 @@ class Agent(ABC):
     def behavior_type(self, value: BehaviorType):
         """Set behavior type."""
         self._behavior_type = value
+        
+    @contextmanager
+    def behavior_type_scope(self, behavior_type: BehaviorType):
+        """
+        Context manager for behavior type.
+        
+        Example::
+        
+            with agent.behavior_type_scope(BehaviorType.INFERENCE):
+                # do something
+        """
+        self._using_behavior_type_scope = True
+        old_behavior_type = self.behavior_type
+        self.behavior_type = behavior_type
+        yield
+        self._using_behavior_type_scope = False
+        self.behavior_type = old_behavior_type
     
     @property
     def log_keys(self) -> tuple[str, ...]:
         """Returns log data keys."""
-        lk = ("Environment/Cumulative Reward", "Environment/Episode Length")
-        if self.__logable_network is not None:
-            lk += self.__logable_network.log_keys
+        lk = tuple()
         if self.__logable_policy is not None:
             lk += self.__logable_policy.log_keys
         return lk
@@ -166,13 +157,6 @@ class Agent(ABC):
             dict[str, tuple]: key: (value, time)
         """
         ld = {}
-        if self.cumulative_average_reward.count > 0:
-            ld["Environment/Cumulative Reward"] = (self.cumulative_average_reward.average, self.clock.global_time_step)
-            ld["Environment/Episode Length"] = (self.episode_average_len.average, self.clock.episode)
-            self.cumulative_average_reward.reset()
-            self.episode_average_len.reset()
-        if self.__logable_network is not None:
-            ld.update(self.__logable_network.log_data)
         if self.__logable_policy is not None:
             ld.update(self.__logable_policy.log_data)
         return ld
@@ -180,11 +164,10 @@ class Agent(ABC):
     @property
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
-        sd = self.clock.state_dict
-        sd["network"] = self.network.state_dict()
-        return sd
+        return dict(
+            clock=self.clock.state_dict
+        )
     
     def load_state_dict(self, state_dict: dict):
         """Load the state dict."""
-        self.clock.load_state_dict(state_dict)
-        self.network.load_state_dict(state_dict["network"])
+        self.clock.load_state_dict(state_dict["clock"])
