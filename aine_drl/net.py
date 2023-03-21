@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
-from aine_drl.policy import PolicyDistParam
+from aine_drl.policy.policy import PolicyDistParam
 
 
 class NetworkTypeError(TypeError):
