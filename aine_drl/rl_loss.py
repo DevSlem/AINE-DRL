@@ -114,3 +114,32 @@ def advantage_policy_loss(
         loss (Tensor): scalar value
     """
     return -(advantage * action_log_prob).mean()
+
+def ppo_clipped_loss(
+    advantage: torch.Tensor,
+    old_action_log_prob: torch.Tensor,
+    new_action_log_prob: torch.Tensor,
+    epsilon: float = 0.2
+) -> torch.Tensor:
+    """
+    PPO clipped surrogate loss according to the policy gradient theorem.
+    
+    It uses mean loss (but not sum loss).
+
+    Args:
+        advantage (Tensor): whose shape is `(batch_size, 1)`
+        old_action_log_prob (Tensor): log(pi_old) `(batch_size, 1)`
+        new_action_log_prob (Tensor): log(pi_new) `(batch_size, 1)`
+        epsilon (float, optional): clamps the probability ratio (pi_new / pi_old) into the range [1-eps, 1+eps]. Defaults to 0.2.
+
+    Returns:
+        loss (Tensor): scalar value
+    """
+    # r = pi_new / pi_old
+    old_action_log_prob = old_action_log_prob.detach()
+    ratio = torch.exp(new_action_log_prob - old_action_log_prob)
+    
+    # clipped surrogate loss
+    sur1 = ratio * advantage
+    sur2 = torch.clamp(ratio, 1 - epsilon, 1 + epsilon) * advantage
+    return -torch.min(sur1, sur2).mean()

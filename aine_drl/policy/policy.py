@@ -54,17 +54,6 @@ class PolicyDistParam:
             tuple(func(pdparam) for pdparam in self.continuous_pdparams)
         )
 
-class PolicyDistParmBranchError(ValueError):
-    def __init__(self, pdparam: PolicyDistParam) -> None:
-        if pdparam.num_branches == 0:
-            message = f"you must specify at least one action branch. "
-        elif pdparam.num_discrete_branches == 0:
-            message = f"the policy requires discrete action branch. "
-        else:
-            message = f"the policy requires continuous action branch. "
-        message += f"there are {pdparam.num_discrete_branches} discrete and {pdparam.num_continuous_branches} continuous branches."
-        super().__init__(message)
-
 class ActionType(Flag):
     DISCRETE = auto()
     CONTINUOUS = auto()
@@ -209,4 +198,21 @@ class BoltzmannPolicy(Policy):
     """
     TODO: implement
     """
-    raise NotImplementedError
+    def __init__(self) -> None:
+        raise NotImplementedError
+
+class PolicyDistParmBranchError(ValueError):
+    def __init__(self, pdparam: PolicyDistParam) -> None:
+        if pdparam.num_branches == 0:
+            message = f"you must specify at least one action branch. "
+        elif pdparam.num_discrete_branches == 0:
+            message = f"the policy requires discrete action branch. "
+        else:
+            message = f"the policy requires continuous action branch. "
+        message += f"there are {pdparam.num_discrete_branches} discrete and {pdparam.num_continuous_branches} continuous branches."
+        super().__init__(message)
+
+class PolicyActionTypeError(TypeError):
+    def __init__(self, valid_action_type: ActionType, invalid_policy: Policy) -> None:
+        message = f"The policy action type must be \"{valid_action_type}\", but \"{type(invalid_policy).__name__}\" is \"{invalid_policy.action_type}\"."
+        super().__init__(message)

@@ -1,58 +1,71 @@
+from dataclasses import dataclass
 from typing import NamedTuple
-from aine_drl.trajectory.batch_trajectory import BatchTrajectory
-from aine_drl.experience import ActionTensor, Experience, Action
-import torch
-from aine_drl.util import StaticRecursiveBuffer
-import numpy as np
 
-class PPOExperienceBatch(NamedTuple):
+import numpy as np
+import torch
+
+from aine_drl.exp import Action, Experience
+from aine_drl.trajectory.batch_trajectory import BatchTrajectory
+from aine_drl.util import StaticRecursiveBuffer
+
+
+@dataclass(frozen=True)
+class PPOExperience:
     obs: torch.Tensor
-    action: ActionTensor
+    action: Action
     next_obs: torch.Tensor
     reward: torch.Tensor
     terminated: torch.Tensor
     action_log_prob: torch.Tensor
-    v_pred: torch.Tensor
-    n_steps: int
+    state_value: torch.Tensor
 
 class PPOTrajectory:
-    def __init__(self, max_n_steps: int) -> None:
-        self.max_n_steps = max_n_steps
-        self.exp_trajectory = BatchTrajectory(max_n_steps)
+    def __init__(self, n_steps: int) -> None:
+        self._n_steps = n_steps
         self.reset()
         
     @property
-    def count(self) -> int:
-        return self.exp_trajectory.count
+    def reached_n_steps(self) -> bool:
+        return self._recent_idx == self._n_steps - 1
         
     def reset(self):
-        self.exp_trajectory.reset()
+        self._recent_idx = -1
         
-        self.action_log_prob = [None] * self.max_n_steps
-        self.v_pred = [None] * self.max_n_steps
+        self._obs_buffer = self._make_buffer()
+        self._action_buffer = self._make_buffer()
+        self._reward_buffer = self._make_buffer()
+        self._terminated_buffer = self._make_buffer()
+        self._action_log_prob_buffer = self._make_buffer()
+        self._state_value_buffer = self._make_buffer()
         
-    def add(self, 
-            experience: Experience,
-            action_log_prob: torch.Tensor,
-            v_pred: torch.Tensor):
-        self.exp_trajectory.add(experience)
-        self.action_log_prob[self.exp_trajectory.recent_idx] = action_log_prob
-        self.v_pred[self.exp_trajectory.recent_idx] = v_pred
+        self._final_next_obs = None
         
-    def sample(self, device: torch.device | None = None) -> PPOExperienceBatch:
-        exp_batch = self.exp_trajectory.sample(device)
-        exp_batch = PPOExperienceBatch(
-            exp_batch.obs,
-            exp_batch.action,
-            exp_batch.next_obs,
-            exp_batch.reward,
-            exp_batch.terminated,
-            torch.cat(self.action_log_prob, dim=0).to(device=device),
-            torch.cat(self.v_pred, dim=0).to(device=device),
-            exp_batch.n_steps
+    def add(self, exp: PPOExperience):
+        self._recent_idx += 1
+        self._obs_buffer[self._recent_idx] = exp.obs
+        self._action_buffer[self._recent_idx] = exp.action
+        self._reward_buffer[self._recent_idx] = exp.reward
+        self._terminated_buffer[self._recent_idx] = exp.terminated
+        self._action_log_prob_buffer[self._recent_idx] = exp.action_log_prob
+        self._state_value_buffer[self._recent_idx] = exp.state_value
+        self._final_next_obs = exp.next_obs
+        
+    def sample(self) -> PPOExperience:
+        self._obs_buffer.append(self._final_next_obs)
+        exp_batch = PPOExperience(
+            torch.cat(self._obs_buffer[:-1], dim=0),
+            Action.from_iter(self._action_buffer),
+            torch.cat(self._obs_buffer[1:], dim=0),
+            torch.cat(self._reward_buffer, dim=0),
+            torch.cat(self._terminated_buffer, dim=0),
+            torch.cat(self._action_log_prob_buffer, dim=0),
+            torch.cat(self._state_value_buffer, dim=0),
         )
         self.reset()
         return exp_batch
+    
+    def _make_buffer(self) -> list:
+        return [None] * self._n_steps
 
 class RecurrentPPOExperienceBatch(NamedTuple):
     obs: torch.Tensor

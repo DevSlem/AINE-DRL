@@ -1,17 +1,17 @@
 from abc import abstractmethod
-from aine_drl.network import Network, RecurrentNetwork
-from aine_drl.policy.policy_distribution import PolicyDistParam
+
 import torch
 
-class PPOSharedNetwork(Network[torch.Tensor]):
+from aine_drl.net import Network, RecurrentNetwork
+from aine_drl.policy.policy import PolicyDistParam
+
+
+class PPOSharedNetwork(Network):
     """
     Proximal Policy Optimization (PPO) shared network. 
     
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
-    Therefore, single loss that is the sum of the actor and critic losses will be input.
-    
-    Generic type `T` is `Tensor`.
     """
     
     @abstractmethod
