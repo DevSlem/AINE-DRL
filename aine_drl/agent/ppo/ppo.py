@@ -10,7 +10,7 @@ from aine_drl.policy.policy import Policy
 
 from .config import PPOConfig
 from .net import PPOSharedNetwork
-from .ppo_trajectory import PPOExperience, PPOTrajectory
+from .trajectory import PPOExperience, PPOTrajectory
 
 
 class PPO(Agent):
@@ -86,6 +86,7 @@ class PPO(Agent):
         
         return action
     
+    @torch.no_grad()
     def _select_action_inference(self, obs: torch.Tensor) -> Action:
         pdparam, _ = self._network.forward(obs)
         return self._policy.policy_dist(pdparam).sample()

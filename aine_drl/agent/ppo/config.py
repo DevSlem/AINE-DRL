@@ -28,14 +28,15 @@ class PPOConfig:
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
     
-class RecurrentPPOConfig(NamedTuple):
+@dataclass(frozen=True)
+class RecurrentPPOConfig:
     """
     Recurrent PPO configurations.
 
     Args:
-        `training_freq (int)`: training frequency which is the number of time steps to gather experiences
-        `epoch (int)`: number of using total experiences to update parameters at each training frequency
-        `sequence_length (int)`: sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
+        `n_steps (int)`: the number of time steps to collect experiences until training
+        `epoch (int)`: the number of times the entire experience batch is used to update parameters
+        `seq_len (int)`: the sequence length of recurrent network when training. trajectory is split by `sequence_length` unit. a value of `8` or greater are typically recommended.
         `num_sequences_per_step (int)`: number of sequences per train step, which are selected randomly
         `padding_value (float, optional)`: pad sequences to the value for the same `sequence_length`. Defaults to 0.
         `gamma (float, optional)`: discount factor. Defaults to 0.99.
@@ -44,10 +45,10 @@ class RecurrentPPOConfig(NamedTuple):
         `value_loss_coef (float, optional)`: state value loss (critic loss) multiplier. Defaults to 0.5.
         `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
     """
-    training_freq: int
+    n_steps: int
     epoch: int
-    sequence_length: int
-    num_sequences_per_step: int
+    seq_len: int
+    seq_mini_batch_size: int
     padding_value: float = 0.0
     gamma: float = 0.99
     lam: float = 0.95

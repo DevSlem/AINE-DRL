@@ -45,7 +45,7 @@ class PPOSharedNetwork(Network):
         """
         raise NotImplementedError
 
-class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
+class RecurrentPPOSharedNetwork(RecurrentNetwork):
     """
     Recurrent Proximal Policy Optimization (PPO) shared network.
     
@@ -54,10 +54,6 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
     
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
-    Therefore, single loss that is the sum of the actor and critic losses will be input.
-    
-    
-    Generic type `T` is `Tensor`.
     """
         
     @abstractmethod
