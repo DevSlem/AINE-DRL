@@ -4,10 +4,7 @@ from enum import Enum
 
 import torch
 
-from aine_drl.drl_util import Clock, IClockNeed, ILogable
 from aine_drl.exp import Action, Experience
-from aine_drl.net import Network
-from aine_drl.policy.policy import Policy
 
 
 class BehaviorType(Enum):
@@ -25,27 +22,18 @@ class Agent(ABC):
     """
     def __init__(
         self,
-        network: Network,
-        policy: Policy,
         num_envs: int,
+        device: torch.device | None = None,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:
         assert num_envs >= 1, "The number of environments must be greater than or euqal to 1."
-        
-        self._clock = Clock(num_envs)
-        if isinstance(network, IClockNeed):
-            network.set_clock(self._clock)
-        if isinstance(policy, IClockNeed):
-            policy.set_clock(self._clock)
-            
-        self.__logable_policy = policy if isinstance(policy, ILogable) else None
-        
-        self._policy = policy
-        self._network = network
+                
+        self._device = device if device is not None else torch.device("cpu")
         self._num_envs = num_envs
         self._behavior_type = behavior_type
         
         self._using_behavior_type_scope = False
+        self._training_steps = 0
         
     def select_action(self, obs: torch.Tensor) -> Action:
         """
@@ -72,14 +60,10 @@ class Agent(ABC):
         """ 
         match self.behavior_type:
             case BehaviorType.TRAIN:
-                self._update_train_info(exp)
                 self._update_train(exp)
             case BehaviorType.INFERENCE:
                 self._update_inference(exp)
                 
-    def _update_train_info(self, exp: Experience):
-        self.clock.tick_gloabl_time_step()
-    
     @abstractmethod
     def _update_train(self, exp: Experience):
         raise NotImplementedError
@@ -103,15 +87,18 @@ class Agent(ABC):
     
     @property
     def device(self) -> torch.device:
-        return self._network.device
+        return self._device
     
     @property
     def num_envs(self) -> int:
         return self._num_envs
     
     @property
-    def clock(self) -> Clock:
-        return self._clock
+    def training_steps(self) -> int:
+        return self._training_steps
+    
+    def _tick_training_steps(self):
+        self._training_steps += 1
     
     @property
     def behavior_type(self) -> BehaviorType:
@@ -143,10 +130,7 @@ class Agent(ABC):
     @property
     def log_keys(self) -> tuple[str, ...]:
         """Returns log data keys."""
-        lk = tuple()
-        if self.__logable_policy is not None:
-            lk += self.__logable_policy.log_keys
-        return lk
+        return tuple()
         
     @property
     def log_data(self) -> dict[str, tuple]:
@@ -156,18 +140,13 @@ class Agent(ABC):
         Returns:
             dict[str, tuple]: key: (value, time)
         """
-        ld = {}
-        if self.__logable_policy is not None:
-            ld.update(self.__logable_policy.log_data)
-        return ld
+        return dict()
             
     @property
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
-        return dict(
-            clock=self.clock.state_dict
-        )
+        return dict(training_steps=self._training_steps)
     
     def load_state_dict(self, state_dict: dict):
         """Load the state dict."""
-        self.clock.load_state_dict(state_dict["clock"])
+        self._training_steps = state_dict["training_steps"]

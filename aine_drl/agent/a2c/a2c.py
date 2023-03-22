@@ -7,11 +7,11 @@ import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
 from aine_drl.exp import Action, Experience
-from aine_drl.net import NetworkTypeError
+from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
 
 from .config import A2CConfig
-from .net import A2CSharedNetwork, A2CSharedOptim
+from .net import A2CSharedNetwork
 from .trajectory import A2CExperience, A2CTrajectory
 
 
@@ -29,7 +29,7 @@ class A2C(Agent):
         self, 
         config: A2CConfig,
         network: A2CSharedNetwork,
-        optimizer: A2CSharedOptim,
+        trainer: Trainer,
         policy: Policy,
         num_envs: int,
         behavior_type: BehaviorType = BehaviorType.TRAIN
@@ -37,11 +37,12 @@ class A2C(Agent):
         if not isinstance(network, A2CSharedNetwork):
             raise NetworkTypeError(A2CSharedNetwork)
         
-        super().__init__(network, policy, num_envs, behavior_type)
+        super().__init__(num_envs, network.device, behavior_type)
         
         self._config = config
         self._network = network
-        self._optimizer = optimizer
+        self._trainer = trainer
+        self._policy = policy
         self._trajectory = A2CTrajectory(self._config.n_steps)
         
         self._action_log_prob: torch.Tensor = None # type: ignore
@@ -102,8 +103,8 @@ class A2C(Agent):
         
         # train step
         loss = actor_loss + self._config.value_loss_coef * critic_loss - self._config.entropy_coef * entropy
-        self._optimizer.step(loss, self.clock.training_step)
-        self.clock.tick_training_step()
+        self._trainer.step(loss, self.training_steps)
+        self._tick_training_steps()
         
         # log data
         self.actor_average_loss.update(actor_loss.item())
@@ -161,8 +162,8 @@ class A2C(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
-            ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)
-            ld["Network/Critic Loss"] = (self.critic_average_loss.average, self.clock.training_step)
+            ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.training_steps)
+            ld["Network/Critic Loss"] = (self.critic_average_loss.average, self.training_steps)
             self.actor_average_loss.reset()
             self.critic_average_loss.reset()
         return ld

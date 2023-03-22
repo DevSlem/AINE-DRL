@@ -1,15 +1,10 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import torch
 
 from aine_drl.net import Network
 from aine_drl.policy.policy import PolicyDistParam
 
-
-class A2CSharedOptim(ABC):
-    @abstractmethod
-    def step(self, loss: torch.Tensor, training_steps: int):
-        raise NotImplementedError
 
 class A2CSharedNetwork(Network):
     """

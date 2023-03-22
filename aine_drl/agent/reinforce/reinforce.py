@@ -6,11 +6,11 @@ import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
 from aine_drl.exp import Action, Experience
-from aine_drl.net import NetworkTypeError
+from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
 
 from .config import REINFORCEConfig
-from .net import REINFORCENetwork, REINFORCEOptim
+from .net import REINFORCENetwork
 from .trajectory import REINFORCEExperience, REINFORCETrajectory
 
 
@@ -29,18 +29,19 @@ class REINFORCE(Agent):
         self, 
         config: REINFORCEConfig,
         network: REINFORCENetwork,
-        optimizer: REINFORCEOptim,
+        trainer: Trainer,
         policy: Policy,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:        
         if not isinstance(network, REINFORCENetwork):
             raise NetworkTypeError(REINFORCENetwork)
         
-        super().__init__(network, policy, 1, behavior_type)
+        super().__init__(1, network.device, behavior_type)
                 
         self._config = config
         self._network = network
-        self._optimizer = optimizer
+        self._trainer = trainer
+        self._policy = policy
         self._trajectory = REINFORCETrajectory()
         
         self._action_log_prob: torch.Tensor = None # type: ignore
@@ -103,8 +104,8 @@ class REINFORCE(Agent):
         
         # train step
         loss = policy_loss - self._config.entropy_coef * entropy
-        self._optimizer.step(loss, self.clock.training_step)
-        self.clock.tick_training_step()
+        self._trainer.step(loss, self.training_steps)
+        self._tick_training_steps()
         
         # log data
         self._policy_loss_mean.update(policy_loss.item())
@@ -117,6 +118,6 @@ class REINFORCE(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self._policy_loss_mean.count > 0:
-            ld["Network/Policy Loss"] = (self._policy_loss_mean.average, self.clock.training_step)
+            ld["Network/Policy Loss"] = (self._policy_loss_mean.average, self.training_steps)
             self._policy_loss_mean.reset()
         return ld

@@ -1,13 +1,69 @@
 from abc import ABC, abstractmethod
-from typing import Any, Iterator
+from dataclasses import asdict, dataclass
+from typing import Any, Iterable
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
+from torch.nn.utils.clip_grad import clip_grad_norm_
 
 from aine_drl.policy.policy import PolicyDistParam
 
+
+class Trainer:
+    """
+    PyTorch optimizer wrapper for single scalar loss.
+    """
+    @dataclass(frozen=True)
+    class __ClipGradNormConfig:
+        parameters: torch.Tensor | Iterable[torch.Tensor]
+        max_norm: float
+        norm_type: float = 2.0
+        error_if_nonfinite: bool = False
+    
+    def __init__(self, optimizer: torch.optim.Optimizer) -> None:
+        self._optimizer = optimizer
+        self._clip_grad_norm_config = None
+        
+    def enable_grad_clip(
+        self,
+        parameters: torch.Tensor | Iterable[torch.Tensor],
+        max_norm: float,
+        norm_type: float = 2.0,
+        error_if_nonfinite: bool = False
+    ) -> "Trainer":
+        """
+        Enable gradient clipping when parameter update. Clips gradient norm of an iterable of parameters.
+
+        The norm is computed over all gradients together, as if they were concatenated into a single vector. Gradients are modified in-place.
+
+        Args:
+            parameters (Tensor | Iterable[Tensor]): an iterable of Tensors or a single Tensor that will have gradients normalized
+            max_norm (float): max norm of the gradients
+            norm_type (float, optional): type of the used p-norm. Can be `inf` for infinity norm.
+            error_if_nonfinite (bool, optional): if True, an error is thrown if the total norm of the gradients from `parameters` is `nan`, `inf`, or `-inf`. Default: False (will switch to True in the future)
+
+        Returns:
+            Trainer: self
+        """
+        self._clip_grad_norm_config = Trainer.__ClipGradNormConfig(
+            parameters,
+            max_norm,
+            norm_type,
+            error_if_nonfinite
+        )
+        return self
+    
+    def step(self, loss: torch.Tensor, training_steps: int):
+        """
+        Performs a single optimization step (parameter update).
+        """
+        self._optimizer.zero_grad()
+        loss.backward()
+        if self._clip_grad_norm_config is not None:
+            clip_grad_norm_(**asdict(self._clip_grad_norm_config))
+        self._optimizer.step()
 
 class NetworkTypeError(TypeError):
     def __init__(self, true_net_type: type) -> None:
@@ -124,12 +180,12 @@ class Network(ABC):
         return next(model.parameters()).device
     
     @staticmethod
-    def concat_model_params(*models: nn.Module) -> Iterator[Parameter]:
+    def concat_model_params(*models: nn.Module) -> Iterable[Parameter]:
         """Concatenate model parameters."""
         params = []
         for model in models:
             params.extend(list(model.parameters()))
-        return params  # type: ignore
+        return params
     
 class RecurrentNetwork(Network):
     """
