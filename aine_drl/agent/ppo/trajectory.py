@@ -1,12 +1,8 @@
 from dataclasses import dataclass
-from typing import NamedTuple
 
-import numpy as np
 import torch
 
-from aine_drl.exp import Action, Experience
-from aine_drl.trajectory.batch_trajectory import BatchTrajectory
-from aine_drl.util import StaticRecursiveBuffer
+from aine_drl.exp import Action
 
 
 @dataclass(frozen=True)
@@ -122,7 +118,7 @@ class RecurrentPPOTrajectory:
             torch.cat(self._terminated_buffer, dim=0),
             torch.cat(self._action_log_prob_buffer, dim=0),
             torch.cat(self._state_value_buffer, dim=0),
-            torch.cat(self._hidden_state_buffer, dim=0),
+            torch.cat(self._hidden_state_buffer, dim=1),
         )
         self.reset()
         return exp_batch
@@ -130,63 +126,73 @@ class RecurrentPPOTrajectory:
     def _make_buffer(self) -> list:
         return [None] * self._n_steps
     
-class RecurrentPPORNDExperience(NamedTuple):
-    obs: np.ndarray
-    action: Action
-    next_obs: np.ndarray
-    reward: np.ndarray
-    terminated: np.ndarray
-    int_reward: np.ndarray
-    action_log_prob: np.ndarray
-    ext_state_value: np.ndarray
-    int_state_value: np.ndarray
-    hidden_state: np.ndarray
-    
-class RecurrentPPORNDExperienceBatchTensor(NamedTuple):
+@dataclass(frozen=True)
+class RecurrentPPORNDExperience:
     obs: torch.Tensor
-    action: ActionTensor
+    action: Action
     next_obs: torch.Tensor
-    reward: torch.Tensor
-    terminated: torch.Tensor
+    ext_reward: torch.Tensor
     int_reward: torch.Tensor
+    terminated: torch.Tensor
     action_log_prob: torch.Tensor
     ext_state_value: torch.Tensor
     int_state_value: torch.Tensor
     hidden_state: torch.Tensor
-    n_steps: int
 
 class RecurrentPPORNDTrajectory:
-    def __init__(self, training_freq: int) -> None:
-        fields = list(RecurrentPPORNDExperience._fields)
-        fields.remove("next_obs")
-        self._buffer = StaticRecursiveBuffer(tuple(fields), training_freq)
+    def __init__(self, n_steps: int) -> None:
+        self._n_steps = n_steps
+        self.reset()
         
     @property
-    def can_train(self) -> bool:
-        return self._buffer.is_full
+    def reached_n_steps(self) -> bool:
+        return self._recent_idx == self._n_steps - 1
         
     def reset(self):
-        self._next_obs_buffer = None
-        self._buffer.reset()
+        self._recent_idx = -1
         
-    def add(self, experience: RecurrentPPORNDExperience):
-        exp_dict = experience._asdict()
-        self._next_obs_buffer = exp_dict.pop("next_obs")
-        self._buffer.add(exp_dict)
+        self._obs_buffer = self._make_buffer()
+        self._action_buffer = self._make_buffer()
+        self._ext_reward_buffer = self._make_buffer()
+        self._int_reward_buffer = self._make_buffer()
+        self._terminated_buffer = self._make_buffer()
+        self._action_log_prob_buffer = self._make_buffer()
+        self._ext_state_value_buffer = self._make_buffer()
+        self._int_state_value_buffer = self._make_buffer()
+        self._hidden_state_buffer = self._make_buffer()
+        
+        self._final_next_obs = None
+        
+    def add(self, exp: RecurrentPPORNDExperience):
+        self._recent_idx += 1
+        
+        self._obs_buffer[self._recent_idx] = exp.obs
+        self._action_buffer[self._recent_idx] = exp.action
+        self._ext_reward_buffer[self._recent_idx] = exp.ext_reward
+        self._int_reward_buffer[self._recent_idx] = exp.int_reward
+        self._terminated_buffer[self._recent_idx] = exp.terminated
+        self._action_log_prob_buffer[self._recent_idx] = exp.action_log_prob
+        self._ext_state_value_buffer[self._recent_idx] = exp.ext_state_value
+        self._int_state_value_buffer[self._recent_idx] = exp.int_state_value
+        self._hidden_state_buffer[self._recent_idx] = exp.hidden_state
+        self._final_next_obs = exp.next_obs
     
-    def sample(self, device: torch.device | None = None):
-        exp_buffers = self._buffer.buffer_dict
-        exp_batch = {}
-        for key, buffer in exp_buffers.items():
-            if key == "action":
-                exp_batch[key] = Action.to_batch(buffer).to_action_tensor(device=device)
-            elif key == "hidden_state":
-                exp_batch[key] = torch.from_numpy(np.concatenate(buffer, axis=1)).to(device=device)
-            else:
-                exp_batch[key] = torch.from_numpy(np.concatenate(buffer, axis=0)).to(device=device)
-        obs_buffer = exp_buffers["obs"]
-        obs_buffer.append(self._next_obs_buffer)
-        exp_batch["next_obs"] = torch.from_numpy(np.concatenate(obs_buffer[1:], axis=0)).to(device=device)
-        exp_batch["n_steps"] = self._buffer.count
+    def sample(self) -> RecurrentPPORNDExperience:
+        self._obs_buffer.append(self._final_next_obs)
+        exp_batch = RecurrentPPORNDExperience(
+            torch.cat(self._obs_buffer[:-1], dim=0),
+            Action.from_iter(self._action_buffer),
+            torch.cat(self._obs_buffer[1:], dim=0),
+            torch.cat(self._ext_reward_buffer, dim=0),
+            torch.cat(self._int_reward_buffer, dim=0),
+            torch.cat(self._terminated_buffer, dim=0),
+            torch.cat(self._action_log_prob_buffer, dim=0),
+            torch.cat(self._ext_state_value_buffer, dim=0),
+            torch.cat(self._int_state_value_buffer, dim=0),
+            torch.cat(self._hidden_state_buffer, dim=1),
+        )
         self.reset()
-        return RecurrentPPORNDExperienceBatchTensor(**exp_batch)
+        return exp_batch
+    
+    def _make_buffer(self) -> list:
+        return [None] * self._n_steps

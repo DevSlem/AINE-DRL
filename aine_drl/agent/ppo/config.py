@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import NamedTuple
 
 
 @dataclass(frozen=True)
@@ -56,7 +55,8 @@ class RecurrentPPOConfig:
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
 
-class RecurrentPPORNDConfig(NamedTuple):
+@dataclass(frozen=True)
+class RecurrentPPORNDConfig:
     """
     Recurrent PPO with RND configurations.
 
@@ -79,20 +79,20 @@ class RecurrentPPORNDConfig(NamedTuple):
         `obs_norm_clip_range (tuple[float, float])`: observation normalization clipping range (min, max). Defaults to (-5.0, 5.0).
         `hidden_state_norm_clip_range (tuple[float, float])`: hidden state normalization clipping range (min, max). Defaults to (-5.0, 5.0).
     """
-    training_freq: int
+    n_steps: int
     epoch: int
-    sequence_length: int
-    num_sequences_per_step: int
+    seq_len: int
+    seq_mini_batch_size: int
     padding_value: float = 0.0
-    extrinsic_gamma: float = 0.999
-    intrinsic_gamma: float = 0.99
-    extrinsic_adv_coef: float = 1.0
-    intrinsic_adv_coef: float = 1.0
+    ext_gamma: float = 0.999
+    int_gamma: float = 0.99
+    ext_adv_coef: float = 1.0
+    int_adv_coef: float = 1.0
     lam: float = 0.95
     epsilon_clip: float = 0.2
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
-    exp_proportion_for_predictor: float = 0.25
-    pre_normalization_step: int | None = 50
+    rnd_pred_exp_proportion: float = 0.25
+    init_norm_steps: int | None = 50
     obs_norm_clip_range: tuple[float, float] = (-5.0, 5.0)
     hidden_state_norm_clip_range: tuple[float, float] = (-5.0, 5.0)

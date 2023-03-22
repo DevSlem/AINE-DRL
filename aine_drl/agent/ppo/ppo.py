@@ -3,7 +3,7 @@ import torch
 import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
-from aine_drl.agent import Agent, BehaviorType
+from aine_drl.agent.agent import Agent, BehaviorType
 from aine_drl.exp import Action, Experience
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy

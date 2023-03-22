@@ -81,26 +81,26 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
         
         |Input|Shape|
         |:---|:---|
-        |obs_seq|`(num_seq, seq_len, *obs_shape)`|
-        |hidden_state|`(D x num_layers, num_seq, H)`|
+        |obs_seq|`(seq_batch_size, seq_len, *obs_shape)`|
+        |hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Output:
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistParam` docs|
-        |state_value_seq|`(num_seq, seq_len, 1)`|
-        |next_seq_hidden_state|`(D x num_layers, num_seq, H)`|
+        |pdparam_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDistParam` docs|
+        |state_value_seq|`(seq_batch_size, seq_len, 1)`|
+        |next_seq_hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Refer to the following explanation:
         
-        * `num_seq`: the number of independent sequences
+        * `seq_batch_size`: the number of independent sequences
         * `seq_len`: the length of each sequence
         * `num_layers`: the number of recurrent layers
         * `D`: 2 if bidirectional otherwise 1
         * `H`: the value depends on the type of the recurrent network
         
-        When you use LSTM, `H` = `H_out x 2`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use LSTM, `H` = `H_cell` + `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
         When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
             
         ## Examples
@@ -109,25 +109,25 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
         
             def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
                 # feed forward to the encoding layer
-                # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
+                # (seq_batch_size, seq_len, *obs_shape) -> (seq_batch_size * seq_len, *obs_shape)
                 _, seq_len, _ = self.unpack_seq_shape(obs_seq)
                 obs_batch = obs_seq.flatten(0, 1)
                 encoded_batch = self.encoding_layer(obs_batch)
                 
                 # LSTM layer
                 unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
-                # (num_seq * seq_len, lstm_in_features) -> (num_seq, seq_len, lstm_in_features)
+                # (seq_batch_size * seq_len, lstm_in_features) -> (seq_batch_size, seq_len, lstm_in_features)
                 encoded_seq = encoded_batch.reshape(-1, seq_len, self.lstm_in_features)
                 encoded_seq, unpacked_next_seq_hidden_state = self.lstm_layer(encoded_seq, unpacked_hidden_state)
                 next_seq_hidden_state = self.pack_lstm_hidden_state(unpacked_next_seq_hidden_state)
                 
                 # actor-critic layer
-                # (num_seq, seq_len, D x H_out) -> (num_seq * seq_len, D x H_out)
+                # (seq_batch_size, seq_len, D x H_out) -> (seq_batch_size * seq_len, D x H_out)
                 encoded_batch = encoded_seq.flatten(0, 1)
                 pdparam_batch = self.actor_layer(encoded_batch)
                 state_value_batch = self.critic_layer(encoded_batch)
                 
-                # (num_seq * seq_len, *shape) -> (num_seq, seq_len, *shape)
+                # (seq_batch_size * seq_len, *shape) -> (seq_batch_size, seq_len, *shape)
                 pdparam_seq = pdparam_batch.transform(lambda x: x.reshape(-1, seq_len, *x.shape[1:]))
                 state_value_seq = state_value_batch.reshape(-1, seq_len, 1)
                 
@@ -135,7 +135,7 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
         """
         raise NotImplementedError
     
-class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
+class RecurrentPPORNDNetwork(RecurrentNetwork):
     """
     Recurrent Proximal Policy Optimization (PPO) shared network with Random Network Distillation (RND).
     
@@ -143,7 +143,6 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
     
     Note that since PPO uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
-    Therefore, single loss that is the sum of the actor and critic losses will be input. 
     Be careful not to share parameters between PPO and RND networks.
     
     RND uses extrinsic and intrinsic reward streams. 
@@ -151,8 +150,6 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
     RND constitutes of the predictor and target networks. 
     Both of them must have the same architectures but their initial parameters should not be the same.
     The target network is determinsitic, which means it will be never updated. 
-    
-    Generic type `T` is `Tensor`.
     """
         
     @abstractmethod
@@ -170,7 +167,7 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
             hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
-            pdparam_seq (PolicyDistParam): policy distribution parameter sequences
+            pdparam_seq (Tensor): policy distribution parameter (categorical probabilities) sequences
             ext_state_value_seq (Tensor): extrinsic state value sequences
             int_state_value_seq (Tensor): intrinsic state value sequences
             next_seq_hidden_state (Tensor): hidden state which will be used for the next sequence
@@ -181,27 +178,27 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
         
         |Input|Shape|
         |:---|:---|
-        |obs_seq|`(num_seq, seq_len, *obs_shape)`|
-        |hidden_state|`(D x num_layers, num_seq, H)`|
+        |obs_seq|`(seq_batch_size, seq_len, *obs_shape)`|
+        |hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Output:
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistParam` docs|
-        |ext_state_value_seq|`(num_seq, seq_len, 1)`|
-        |int_state_value_seq|`(num_seq, seq_len, 1)`|
-        |next_seq_hidden_state|`(D x num_layers, num_seq, H)`|
+        |pdparam_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDistParam` docs|
+        |ext_state_value_seq|`(seq_batch_size, seq_len, 1)`|
+        |int_state_value_seq|`(seq_batch_size, seq_len, 1)`|
+        |next_seq_hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Refer to the following explanation:
         
-        * `num_seq`: the number of independent sequences
+        * `seq_batch_size`: the size of sequence batch
         * `seq_len`: the length of each sequence
         * `num_layers`: the number of recurrent layers
         * `D`: 2 if bidirectional otherwise 1
         * `H`: the value depends on the type of the recurrent network
         
-        When you use LSTM, `H` = `H_out x 2`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use LSTM, `H` = `H_cell` + `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
         When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
         """
         raise NotImplementedError
@@ -211,7 +208,7 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
         """
         ## Summary
         
-        Feed forward method tp to compute both predicted feature and target feature. 
+        Feed forward method to compute both predicted feature and target feature. 
         You can use the hidden state by concatenating the next observation or the feature extracted from it with the hidden state. 
 
         Args:
