@@ -1,16 +1,23 @@
 from abc import abstractmethod
-from aine_drl.network import Network
-from aine_drl.policy.policy_distribution import PolicyDistParam
-import torch
 
-class DoubleDQNNetwork(Network[torch.Tensor]):
+import torch
+import torch.nn as nn
+
+from aine_drl.net import Network
+from aine_drl.policy.policy import PolicyDistParam
+
+
+class DoubleDQNNetwork(Network):
     """
     Double Deep Q Network. 
     
-    Note that since it allows only discrete action type, `PolicyDistParam.discrete_pdparams` is only considered.
-    
-    Generic type `T` is `Tensor`.
+    Note that since it allows only discrete action type, only `PolicyDistParam.discrete_pdparams` have to be considered.
     """
+    
+    @property
+    @abstractmethod
+    def update_net(self) -> nn.Module:
+        raise NotImplementedError
     
     @abstractmethod
     def forward(self, obs: torch.Tensor) -> PolicyDistParam:
