@@ -2,7 +2,7 @@
 
 A project for the DRL baseline framework. **AINE** means "Agent IN Environment".
 
-[Implementation](#implementation) | [Experiments](#experiments) | [Setup](#setup) | [Module](#module)
+[Implementation](#implementation) | [Experiments](#experiments) | [Setup](#setup) |
 
 ## Implementation
 
@@ -33,10 +33,8 @@ AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to
 <summary><h3>TODO</h3></summary>
 
 - [ ] Unity ML-Agents Training
-- [ ] Recurrent PPO improvement
 - [ ] DDPG
 - [ ] Prioritized Experience Replay 
-- [ ] A3C
 - [ ] SAC
 - [ ] Intrinsic Curiosity Module (ICM)
 - [ ] Random Network Distillation (RND)
@@ -60,24 +58,24 @@ Fig 1. BipedalWalker-v3 inference rendering (PPO):
 * [experiment](experiments/bipedal_walker_v3/)
 * [PPO configuration](config/experiments/bipedal_walker_v3_ppo.yaml)
 
-You can train it using the command:
+To train the agent, enter the following command:
 
-```
-$ python experiments/bipedal_walker_v3/train.py
+```bash
+python experiments/bipedal_walker_v3/train.py
 ```
 
 If paging file error happens, see [Paging File Error](#paging-file-error).
 
-You can inference it using the command:
+<!-- To inference, use:
 
 ```
-$ python experiments/bipedal_walker_v3/train.py -m=inference
-```
+python experiments/bipedal_walker_v3/train.py -m=inference
+``` -->
 
-You can see graphical experiment results using the command:
+To check graphical experiment results, use:
 
-```
-$ tensorboard --logdir=experiments/bipedal_walker_v3
+```bash
+tensorboard --logdir=experiments/bipedal_walker_v3
 ```
 
 ### CartPole-v1 with No Velocity
@@ -98,22 +96,22 @@ Fig 3. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPol
 * [Recurrent PPO configuration](config/experiments/cartpole_v1_no_velocity_recurrent_ppo.yaml)
 * [Naive PPO configuration](config/experiments/cartpole_v1_no_velocity_ppo.yaml)
 
-You can train it using the command:
+To train the agent, enter the following command:
 
-```
-$ python experiments/cartpole_v1_no_velocity/train.py
+```bash
+python experiments/cartpole_v1_no_velocity/train.py
 ```
 
-You can inference it using the command:
+<!-- You can inference it using the command:
 
 ```
 $ python experiments/cartpole_v1_no_velocity/train.py -m=inference
-```
+``` -->
 
-You can see graphical experiment results using the command:
+To check graphical experiment results, use:
 
-```
-$ tensorboard --logdir=experiments/cartpole_v1_no_velocity
+```bash
+tensorboard --logdir=experiments/cartpole_v1_no_velocity
 ```
 
 ## Setup
@@ -134,9 +132,9 @@ Required packages:
 
 You can easily create an Anaconda environment. Input the command in your Anaconda shell:
 
-```
-$ conda env create -f <CONDA_ENV>.yaml
-$ conda activate aine-drl
+```bash
+conda env create -f <CONDA_ENV>.yaml
+conda activate aine-drl
 ```
 
 `<CONDA_ENV`> depends on your OS:
@@ -145,28 +143,30 @@ $ conda activate aine-drl
 
 If it doesn't work, install the packages manually by entering the command below:
 
-```
-$ conda create -n aine-drl python=3.10.9 -y
+```bash
+conda create -n aine-drl python=3.10.8 -y
 conda activate aine-drl
 conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch -y
 pip install tensorboard==2.12.0
+pip install PyYAML==6.0
 pip install gym==0.26.2
 pip install 'gym[all]'
-pip install PyYAML==6.0
+pip install mlagents==0.30.0
+pip install 'protobuf==3.20.*'
 ```
 
 ### Run
 
-Run a sample script in [samples](samples/) directory. Input the command in your shell:
+Run a sample script in [samples](samples/) directory. Enter the following command in your shell:
 
-```
-$ python samples/<file_name>
+```bash
+python samples/<FILE_NAME>
 ```
 
 Example:
 
-```
-$ python samples/cartpole_v1_ppo.py
+```bash
+python samples/cartpole_v1_ppo.py
 ```
 
 Then, you can see the training information in the shell:
@@ -182,14 +182,14 @@ The graphical result file (Tensorboard) is generated in `results` directory. You
 
 If you want to see the graphical result, input the command:
 
-```
-$ tensorboard --logdir=results
+```bash
+tensorboard --logdir=results
 ```
 
 or
 
-```
-$ tensorboard --logdir=results/<sub_directory>
+```bash
+tensorboard --logdir=results/<sub_directory>
 ```
 
 then, you can open the TensorBoard like below it.
@@ -205,35 +205,11 @@ Fig 4. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO:
 
 When you use too many workers (e.g., greater than 8), because of too many multi parallel environments in multi threads, **"The paging file is too small for this operation to complete."** error may happen. If it happens, you can mitigate it using the command (Windows):
 
-```
-$ pip install pefile
-$ python fixNvPe.py --input=C:\<Anaconda3 Path>\envs\aine-drl\Lib\site-packages\torch\lib\*.dll
+```bash
+pip install pefile
+python fixNvPe.py --input=C:\<Anaconda3 Path>\envs\aine-drl\Lib\site-packages\torch\lib\*.dll
 ```
 
 `<Anaconda3 Path>` is one in which your Anaconda3 is installed.
 
 Reference: [cobryan05/fixNvPe.py (Github)](https://gist.github.com/cobryan05/7d1fe28dd370e110a372c4d268dcb2e5)  
-
-## Module
-
-* [aine_drl](aine_drl/)
-  * [agent](aine_drl/agent/)*
-  * [drl_util](aine_drl/drl_util/)
-  * [policy](aine_drl/policy/)*
-  * [training](aine_drl/training/)
-  * [trajectory](aine_drl/trajectory/)
-  * [util](aine_drl/util/)
-  * [aine_config](aine_drl/aine_config.py)*
-  * [experience](aine_drl/experience.py)*
-  * [network](aine_drl/network.py)*
-
-> Note that `*` indicates you can directly access API in the module using `aine_drl`.
-
-API access example:
-
-```python
-import aine_drl
-
-# aine_drl.aine_config.AINEConfig but you can directly access using aine_drl.AINEConfig
-aine_drl.AINEConfig("config/samples/cartpole_v1_ppo.yaml")
-```
