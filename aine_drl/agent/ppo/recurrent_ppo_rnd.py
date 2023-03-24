@@ -6,13 +6,12 @@ import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent.agent import Agent, BehaviorType
-from aine_drl.exp import Action, Experience
+from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
 
 from .config import RecurrentPPORNDConfig
 from .net import RecurrentPPORNDNetwork
-from .ppo import PPO
 from .trajectory import RecurrentPPORNDExperience, RecurrentPPORNDTrajectory
 
 
@@ -57,11 +56,11 @@ class RecurrentPPORND(Agent):
         self._next_hidden_state = torch.zeros(hidden_state_shape, device=self.device)
         self._prev_terminated = torch.zeros((self._num_envs, 1), device=self.device)
         # compute intrinic reward normalization parameters of each env along time steps
-        self._int_reward_mean_var = util.IncrementalMeanVarianceFromBatch(dim=1) 
+        self._int_reward_mean_var = util.IncrementalMeanVarianceFromBatch(dim=1, device=self.device) 
         # compute normalization parameters of each feature of next observation along batches
-        self._next_obs_feature_mean_var = util.IncrementalMeanVarianceFromBatch(dim=0) 
+        self._next_obs_feature_mean_var: tuple[util.IncrementalMeanVarianceFromBatch] = tuple()
         # compute normalization parameters of each feature of next hidden state along batches
-        self._next_hidden_state_feature_mean_var = util.IncrementalMeanVarianceFromBatch(dim=0) 
+        self._next_hidden_state_feature_mean_var = util.IncrementalMeanVarianceFromBatch(dim=0, device=self.device) 
         self._current_init_norm_steps = 0
         
         self._actor_loss_mean = util.IncrementalAverage()
@@ -86,10 +85,15 @@ class RecurrentPPORND(Agent):
         # (D x num_layers, num_envs, H) -> (num_envs, D x num_layers, H)
         next_hidden_state = (self._next_hidden_state * (1.0 - self._prev_terminated)).swapdims(0, 1)
         
-        # pre-normalization
+        # initialize normalization parameters
         if (self._config.init_norm_steps is not None) and (self._current_init_norm_steps < self._config.init_norm_steps):
             self._current_init_norm_steps += 1
-            self._next_obs_feature_mean_var.update(exp.next_obs)
+            if len(self._next_obs_feature_mean_var) == 0:
+                self._next_obs_feature_mean_var = tuple(
+                    util.IncrementalMeanVarianceFromBatch(dim=0, device=self.device) for _ in range(exp.next_obs.num_items)
+                )
+            for mean_var, obs in zip(self._next_obs_feature_mean_var, exp.next_obs.items):
+                mean_var.update(obs)
             self._next_hidden_state_feature_mean_var.update(next_hidden_state)
             return
         
@@ -119,14 +123,14 @@ class RecurrentPPORND(Agent):
         self._infer_prev_terminated = exp.terminated
     
     @torch.no_grad()
-    def _select_action_train(self, obs: torch.Tensor) -> Action:
+    def _select_action_train(self, obs: Observation) -> Action:
         self._hidden_state = self._next_hidden_state * (1.0 - self._prev_terminated)
             
         # feed forward
         # when interacting with environment, sequence_length must be 1
         # *batch_shape = (seq_batch_size, seq_len) = (num_envs, 1)
         pdparam_seq, ext_state_value_seq, int_state_value_seq, next_hidden_state = self._network.forward_actor_critic(
-            obs.unsqueeze(dim=1), 
+            obs.transform(lambda o: o.unsqueeze(dim=1)),
             self._hidden_state
         )
         
@@ -145,10 +149,10 @@ class RecurrentPPORND(Agent):
         return action
     
     @torch.no_grad()
-    def _select_action_inference(self, obs: torch.Tensor) -> Action:
+    def _select_action_inference(self, obs: Observation) -> Action:
         self._infer_hidden_state = self._infer_next_hidden_state * (1.0 - self._infer_prev_terminated)
         pdparam_seq, _, _, next_hidden_state = self._network.forward_actor_critic(
-            obs.unsqueeze(dim=1), 
+            obs.transform(lambda o: o.unsqueeze(dim=1)),
             self._infer_hidden_state
         )
         seq_dist = self._policy.policy_dist(pdparam_seq)
@@ -179,8 +183,10 @@ class RecurrentPPORND(Agent):
             
         add_to_seq_gen(exp_batch.hidden_state.swapaxes(0, 1), seq_len=1)
         add_to_seq_gen(next_hidden_state.swapaxes(0, 1))
-        add_to_seq_gen(exp_batch.obs)
-        add_to_seq_gen(exp_batch.next_obs)
+        for obs in exp_batch.next_obs.items:
+            add_to_seq_gen(obs)
+        for next_obs in exp_batch.next_obs.items:
+            add_to_seq_gen(next_obs)
         if exp_batch.action.num_discrete_branches > 0:
             add_to_seq_gen(exp_batch.action.discrete_action)
         else:
@@ -195,8 +201,18 @@ class RecurrentPPORND(Agent):
         add_to_seq_gen(int_target_state_value)
         
         sequences = seq_generator.generate(drl_util.batch2perenv(exp_batch.terminated, self._num_envs).unsqueeze_(-1))
-        (mask, seq_init_hidden_state, next_hidden_state_seq, obs_seq, next_obs_seq, discrete_action_seq, continuous_action_seq, 
-         old_action_log_prob_seq, advantage_seq, ext_target_state_value_seq, int_target_state_value_seq) = sequences
+        
+        mask = sequences[0]
+        seq_init_hidden_state, next_hidden_state_seq = sequences[1:3]
+        
+        next_obs_seq_start_idx = 3 + exp_batch.obs.num_items
+        obs_seq = Observation(sequences[3:next_obs_seq_start_idx])
+        
+        action_seq_start_idx = next_obs_seq_start_idx + exp_batch.next_obs.num_items
+        next_obs_seq = Observation(sequences[next_obs_seq_start_idx:action_seq_start_idx])
+        
+        action_seq = Action(*sequences[action_seq_start_idx:action_seq_start_idx + 2])
+        old_action_log_prob_seq, advantage_seq, ext_target_state_value_seq, int_target_state_value_seq = sequences[action_seq_start_idx + 2:]
         
         seq_batch_size = len(mask)
         # (seq_batch_size, 1, D x num_layers, H) -> (D x num_layers, seq_batch_size, H)
@@ -206,7 +222,9 @@ class RecurrentPPORND(Agent):
         # when masked by mask, (seq_batch_size, seq_len, *shape) -> (masked_batch_size, *shape)
         masked_next_obs = next_obs_seq[mask]
         masked_next_hidden_state = next_hidden_state_seq[mask]
-        self._next_obs_feature_mean_var.update(masked_next_obs)
+        
+        for mean_var, next_obs in zip(self._next_obs_feature_mean_var, masked_next_obs.items):
+            mean_var.update(next_obs)
         self._next_hidden_state_feature_mean_var.update(masked_next_hidden_state)
         
         # normalize next observation and next hidden state
@@ -235,11 +253,7 @@ class RecurrentPPORND(Agent):
                 
                 # compute actor loss
                 seq_dist = self._policy.policy_dist(sample_pdparam_seq)
-                sample_action_seq = Action(
-                    discrete_action_seq[sample_seq_idx],
-                    continuous_action_seq[sample_seq_idx]
-                )
-                sample_new_action_log_prob_seq = seq_dist.joint_log_prob(sample_action_seq)
+                sample_new_action_log_prob_seq = seq_dist.joint_log_prob(action_seq[sample_seq_idx])
                 actor_loss = L.ppo_clipped_loss(
                     advantage_seq[sample_seq_idx][sample_mask],
                     old_action_log_prob_seq[sample_seq_idx][sample_mask],
@@ -294,7 +308,7 @@ class RecurrentPPORND(Agent):
         with torch.no_grad():
             # (num_envs, 1, *obs_shape) because sequence length is 1
             _, final_ext_next_state_value_seq, final_int_next_state_value_seq, _ = self._network.forward_actor_critic(
-                final_next_obs.unsqueeze(dim=1), 
+                final_next_obs.transform(lambda o: o.unsqueeze(dim=1)),
                 final_next_hidden_state
             )
         
@@ -355,7 +369,7 @@ class RecurrentPPORND(Agent):
         
         return advantage, ext_target_state_value, int_target_state_value
     
-    def _compute_intrinsic_reward(self, next_obs: torch.Tensor, next_hidden_state: torch.Tensor) -> torch.Tensor:
+    def _compute_intrinsic_reward(self, next_obs: Observation, next_hidden_state: torch.Tensor) -> torch.Tensor:
         """
         Compute intrinsic reward.
         
@@ -371,16 +385,17 @@ class RecurrentPPORND(Agent):
             intrinsic_reward = 0.5 * ((target_feature - predicted_feature)**2).sum(dim=1, keepdim=True)
             return intrinsic_reward
         
-    def _normalize_next_obs(self, next_obs: torch.Tensor) -> torch.Tensor:
+    def _normalize_next_obs(self, next_obs: Observation) -> Observation:
         """
         Normalize next observation. If `init_norm_steps` setting in the configuration is `None`, this method doesn't normalize it.
         """
         if self._config.init_norm_steps is None:
             return next_obs
-        obs_feature_mean = torch.from_numpy(self._next_obs_feature_mean_var.mean).to(dtype=torch.float32, device=next_obs.device)
-        obs_feature_std = torch.from_numpy(np.sqrt(self._next_obs_feature_mean_var.variance)).to(dtype=torch.float32, device=next_obs.device)
-        normalized_next_obs = (next_obs - obs_feature_mean) / obs_feature_std
-        return normalized_next_obs.clip(self._config.obs_norm_clip_range[0], self._config.obs_norm_clip_range[1])
+        normalized_next_obs_tensors = []
+        for mean_var, next_obs_tensor in zip(self._next_obs_feature_mean_var, next_obs.items):
+            normalized_next_obs_tensor = ((next_obs_tensor - mean_var.mean) / torch.sqrt(mean_var.variance)).clamp(self._config.obs_norm_clip_range[0], self._config.obs_norm_clip_range[1])
+            normalized_next_obs_tensors.append(normalized_next_obs_tensor)
+        return Observation(tuple(normalized_next_obs_tensors))
 
     def _normalize_next_hidden_state(self, next_hidden_state: torch.Tensor) -> torch.Tensor:
         """

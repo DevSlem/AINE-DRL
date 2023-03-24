@@ -1,10 +1,12 @@
+from dataclasses import asdict
+
 import torch
 
 import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent.agent import Agent, BehaviorType
-from aine_drl.exp import Action, Experience
+from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
 
@@ -56,13 +58,9 @@ class PPO(Agent):
     def _update_train(self, exp: Experience):
         # add the experience
         self._trajectory.add(PPOExperience(
-            exp.obs,
-            exp.action,
-            exp.next_obs,
-            exp.reward,
-            exp.terminated,
-            self._action_log_prob,
-            self._state_value
+            **asdict(exp),
+            action_log_prob=self._action_log_prob,
+            state_value=self._state_value
         ))
         
         if self._trajectory.reached_n_steps:
@@ -72,7 +70,7 @@ class PPO(Agent):
         pass
     
     @torch.no_grad()
-    def _select_action_train(self, obs: torch.Tensor) -> Action:
+    def _select_action_train(self, obs: Observation) -> Action:
         # feed forward 
         pdparam, v_pred = self._network.forward(obs)
         
@@ -87,13 +85,13 @@ class PPO(Agent):
         return action
     
     @torch.no_grad()
-    def _select_action_inference(self, obs: torch.Tensor) -> Action:
+    def _select_action_inference(self, obs: Observation) -> Action:
         pdparam, _ = self._network.forward(obs)
         return self._policy.policy_dist(pdparam).sample()
             
     def _train(self):
         exp_batch = self._trajectory.sample()
-        batch_size = len(exp_batch.obs)
+        batch_size = self.num_envs * self._config.n_steps
         
         old_action_log_prob = exp_batch.action_log_prob
         advantage, target_state_value = self._compute_adv_target(exp_batch)

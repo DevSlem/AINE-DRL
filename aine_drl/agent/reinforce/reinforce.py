@@ -5,7 +5,7 @@ import torch
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
-from aine_drl.exp import Action, Experience
+from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
 
@@ -67,7 +67,7 @@ class REINFORCE(Agent):
     def _update_inference(self, _: Experience):
         pass
     
-    def _select_action_train(self, obs: torch.Tensor) -> Action:
+    def _select_action_train(self, obs: Observation) -> Action:
         # feed forward
         pdparam = self._network.forward(obs)
         
@@ -81,7 +81,7 @@ class REINFORCE(Agent):
         return action
     
     @torch.no_grad()
-    def _select_action_inference(self, obs: torch.Tensor) -> Action:
+    def _select_action_inference(self, obs: Observation) -> Action:
         pdparam = self._network.forward(obs)
         return self._policy.policy_dist(pdparam).sample()
             

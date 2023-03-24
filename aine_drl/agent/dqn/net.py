@@ -1,8 +1,8 @@
 from abc import abstractmethod
 
-import torch
 import torch.nn as nn
 
+from aine_drl.exp import Observation
 from aine_drl.net import Network
 from aine_drl.policy.policy import PolicyDistParam
 
@@ -20,14 +20,14 @@ class DoubleDQNNetwork(Network):
         raise NotImplementedError
     
     @abstractmethod
-    def forward(self, obs: torch.Tensor) -> PolicyDistParam:
+    def forward(self, obs: Observation) -> PolicyDistParam:
         """
         ## Summary
         
         Feed forward method to compute policy distribution parameter (pdparam) consisting of discrete action values.
         
         Args:
-            obs (Tensor): observation batch
+            obs (Observation): observation batch
             
         Returns:
             pdparam (PolicyDistParam): policy distribution parameter consisting of discrete action values Q(s, a)
@@ -38,7 +38,7 @@ class DoubleDQNNetwork(Network):
         
         |Input|Shape|
         |:---|:---|
-        |obs|`(batch_size, *obs_shape)`|
+        |obs|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
         
         Output:
         

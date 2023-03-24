@@ -4,7 +4,7 @@ from enum import Enum
 
 import torch
 
-from aine_drl.exp import Action, Experience
+from aine_drl.exp import Action, Experience, Observation
 
 
 class BehaviorType(Enum):
@@ -35,7 +35,7 @@ class Agent(ABC):
         self._using_behavior_type_scope = False
         self._training_steps = 0
         
-    def select_action(self, obs: torch.Tensor) -> Action:
+    def select_action(self, obs: Observation) -> Action:
         """
         Select actions from the `obs`.
 
@@ -73,11 +73,11 @@ class Agent(ABC):
         raise NotImplementedError
               
     @abstractmethod
-    def _select_action_train(self, obs: torch.Tensor) -> Action:
+    def _select_action_train(self, obs: Observation) -> Action:
         raise NotImplementedError
     
     @abstractmethod
-    def _select_action_inference(self, obs: torch.Tensor) -> Action:
+    def _select_action_inference(self, obs: Observation) -> Action:
         raise NotImplementedError
     
     @property

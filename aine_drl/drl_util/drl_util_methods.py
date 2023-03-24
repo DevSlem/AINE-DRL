@@ -1,6 +1,5 @@
 import torch.nn as nn
 import torch
-from aine_drl.network import Network
 
 def batch2perenv(batch: torch.Tensor, num_envs: int) -> torch.Tensor:
     """
@@ -74,17 +73,6 @@ def copy_module(src_module: nn.Module, target_module: nn.Module):
 def polyak_update_module(src_module: nn.Module, target_module: nn.Module, src_ratio: float):
     assert src_ratio >= 0 and src_ratio <= 1
     for src_param, target_param in zip(src_module.parameters(), target_module.parameters()):
-        target_param.data.copy_(src_ratio * src_param.data + (1.0 - src_ratio) * target_param.data)
-
-def copy_network(src_net: Network, target_net: Network):
-    """
-    Copy model weights from src to target.
-    """
-    target_net.load_state_dict(src_net.state_dict())
-    
-def polyak_update_network(src_net: Network, target_net: Network, src_ratio: float):
-    assert src_ratio >= 0 and src_ratio <= 1
-    for src_param, target_param in zip(src_net.parameters(), target_net.parameters()):
         target_param.data.copy_(src_ratio * src_param.data + (1.0 - src_ratio) * target_param.data)
 
 def compute_return(rewards: torch.Tensor, gamma: float) -> torch.Tensor:

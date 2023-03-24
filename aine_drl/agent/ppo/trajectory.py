@@ -2,14 +2,14 @@ from dataclasses import dataclass
 
 import torch
 
-from aine_drl.exp import Action
+from aine_drl.exp import Action, Observation
 
 
 @dataclass(frozen=True)
 class PPOExperience:
-    obs: torch.Tensor
+    obs: Observation
     action: Action
-    next_obs: torch.Tensor
+    next_obs: Observation
     reward: torch.Tensor
     terminated: torch.Tensor
     action_log_prob: torch.Tensor
@@ -49,9 +49,9 @@ class PPOTrajectory:
     def sample(self) -> PPOExperience:
         self._obs_buffer.append(self._final_next_obs)
         exp_batch = PPOExperience(
-            torch.cat(self._obs_buffer[:-1], dim=0),
+            Observation.from_iter(self._obs_buffer[:-1]),
             Action.from_iter(self._action_buffer),
-            torch.cat(self._obs_buffer[1:], dim=0),
+            Observation.from_iter(self._obs_buffer[1:]),
             torch.cat(self._reward_buffer, dim=0),
             torch.cat(self._terminated_buffer, dim=0),
             torch.cat(self._action_log_prob_buffer, dim=0),
@@ -65,9 +65,9 @@ class PPOTrajectory:
 
 @dataclass(frozen=True)
 class RecurrentPPOExperience:
-    obs: torch.Tensor
+    obs: Observation
     action: Action
-    next_obs: torch.Tensor
+    next_obs: Observation
     reward: torch.Tensor
     terminated: torch.Tensor
     action_log_prob: torch.Tensor
@@ -111,9 +111,9 @@ class RecurrentPPOTrajectory:
     def sample(self) -> RecurrentPPOExperience:
         self._obs_buffer.append(self._final_next_obs)
         exp_batch = RecurrentPPOExperience(
-            torch.cat(self._obs_buffer[:-1], dim=0),
+            Observation.from_iter(self._obs_buffer[:-1]),
             Action.from_iter(self._action_buffer),
-            torch.cat(self._obs_buffer[1:], dim=0),
+            Observation.from_iter(self._obs_buffer[1:]),
             torch.cat(self._reward_buffer, dim=0),
             torch.cat(self._terminated_buffer, dim=0),
             torch.cat(self._action_log_prob_buffer, dim=0),
@@ -128,9 +128,9 @@ class RecurrentPPOTrajectory:
     
 @dataclass(frozen=True)
 class RecurrentPPORNDExperience:
-    obs: torch.Tensor
+    obs: Observation
     action: Action
-    next_obs: torch.Tensor
+    next_obs: Observation
     ext_reward: torch.Tensor
     int_reward: torch.Tensor
     terminated: torch.Tensor
@@ -180,9 +180,9 @@ class RecurrentPPORNDTrajectory:
     def sample(self) -> RecurrentPPORNDExperience:
         self._obs_buffer.append(self._final_next_obs)
         exp_batch = RecurrentPPORNDExperience(
-            torch.cat(self._obs_buffer[:-1], dim=0),
+            Observation.from_iter(self._obs_buffer[:-1]),
             Action.from_iter(self._action_buffer),
-            torch.cat(self._obs_buffer[1:], dim=0),
+            Observation.from_iter(self._obs_buffer[1:]),
             torch.cat(self._ext_reward_buffer, dim=0),
             torch.cat(self._int_reward_buffer, dim=0),
             torch.cat(self._terminated_buffer, dim=0),

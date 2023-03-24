@@ -4,14 +4,14 @@ from dataclasses import dataclass
 import torch
 
 import aine_drl.util as util
-from aine_drl.exp import Action
+from aine_drl.exp import Action, Observation
 
 
 @dataclass(frozen=True)
 class DQNExperience:
-    obs: torch.Tensor
+    obs: Observation
     action: Action
-    next_obs: torch.Tensor
+    next_obs: Observation
     reward: torch.Tensor
     terminated: torch.Tensor
 
@@ -45,7 +45,7 @@ class DQNTrajectory:
         self._action_buffer = self._make_buffer()
         self._reward_buffer = self._make_buffer()
         self._terminated_buffer = self._make_buffer()
-        self._final_next_obs: list[torch.Tensor] = [None] * self._num_envs # type: ignore
+        self._final_next_obs: list[Observation] = [None] * self._num_envs # type: ignore
         
     @property
     def can_sample(self) -> bool:
@@ -53,10 +53,7 @@ class DQNTrajectory:
         return self._count >= self._sample_batch_size and (not self._online or self._n_steps >= self._training_freq)
         
     def add(self, exp: DQNExperience):
-        """Add an experience when you use online learning."""
-        num_envs = exp.obs.shape[0]
-        assert self._num_envs == num_envs
-        
+        """Add an experience when you use online learning."""  
         self._n_steps += 1
         
         discrete_action = torch.split(exp.action.discrete_action, self._num_envs, dim=0)
@@ -78,11 +75,15 @@ class DQNTrajectory:
         self._n_steps = 0
         sample_idx = self._sample_idx()
         
-        action_list = util.get_batch_list(self._action_buffer, sample_idx)
-        action = Action.from_iter(action_list)
+        obs = Observation.from_iter(
+            util.get_batch_list(self._obs_buffer, sample_idx)
+        )
+        action = Action.from_iter(
+            util.get_batch_list(self._action_buffer, sample_idx)
+        )
         
         return DQNExperience(
-            DQNTrajectory._to_batch(self._obs_buffer, sample_idx),
+            obs,
             action,
             self._sample_next_obs(sample_idx),
             DQNTrajectory._to_batch(self._reward_buffer, sample_idx),
@@ -93,7 +94,7 @@ class DQNTrajectory:
         batch_idx = torch.randint(self._count, size=(self._sample_batch_size,), device=self._device)
         return batch_idx
         
-    def _sample_next_obs(self, batch_idx: torch.Tensor) -> torch.Tensor:
+    def _sample_next_obs(self, batch_idx: torch.Tensor) -> Observation:
         """
         Sample next obs from the trajectory.
         
@@ -125,10 +126,14 @@ class DQNTrajectory:
             # to avoid index out of range exception due to the case 2
             next_obs_idxs[not_exsists_next_obs] = 0
         # get the next obs batch
-        next_obs = DQNTrajectory._to_batch(self._obs_buffer, next_obs_idxs)
+        next_obs = Observation.from_iter(
+            util.get_batch_list(self._obs_buffer, next_obs_idxs)
+        )
         if do_replace:
             # replace them
-            next_obs[not_exsists_next_obs] = DQNTrajectory._to_batch(self._final_next_obs, next_obs_buffer_idxs)
+            next_obs[not_exsists_next_obs] = Observation.from_iter(
+                util.get_batch_list(self._final_next_obs, next_obs_buffer_idxs)
+            )
         return next_obs
 
     def _make_buffer(self) -> list:

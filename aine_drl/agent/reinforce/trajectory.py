@@ -2,14 +2,14 @@ from dataclasses import dataclass
 
 import torch
 
-from aine_drl.exp import Action
+from aine_drl.exp import Observation, Action
 
 
 @dataclass(frozen=True)
 class REINFORCEExperience:
-    obs: torch.Tensor
+    obs: Observation
     action: Action
-    next_obs: torch.Tensor
+    next_obs: Observation
     reward: torch.Tensor
     terminated: torch.Tensor
     action_log_prob: torch.Tensor
@@ -49,9 +49,9 @@ class REINFORCETrajectory:
     def sample(self) -> REINFORCEExperience:
         self._obs_buffer.append(self._fianl_next_obs)
         exp_batch = REINFORCEExperience(
-            torch.cat(self._obs_buffer[:-1], dim=0),
+            Observation.from_iter(self._obs_buffer[:-1]),
             Action.from_iter(self._action_buffer),
-            torch.cat(self._obs_buffer[1:], dim=0),
+            Observation.from_iter(self._obs_buffer[1:]),
             torch.cat(self._reward_buffer, dim=0),
             torch.cat(self._terminated_buffer, dim=0),
             torch.cat(self._action_log_prob_buffer, dim=0),

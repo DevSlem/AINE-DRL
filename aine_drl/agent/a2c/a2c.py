@@ -6,7 +6,7 @@ import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
-from aine_drl.exp import Action, Experience
+from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
 
@@ -70,7 +70,7 @@ class A2C(Agent):
     def _update_inference(self, _: Experience):
         pass
     
-    def _select_action_train(self, obs: torch.Tensor) -> Action:
+    def _select_action_train(self, obs: Observation) -> Action:
         # feed forward
         pdparam, state_value = self._network.forward(obs)
         
@@ -85,7 +85,7 @@ class A2C(Agent):
         return action
     
     @torch.no_grad()
-    def _select_action_inference(self, obs: torch.Tensor) -> Action:
+    def _select_action_inference(self, obs: Observation) -> Action:
         pdparam, _ = self._network.forward(obs)
         return self._policy.policy_dist(pdparam).sample()
             

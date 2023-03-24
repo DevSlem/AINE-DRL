@@ -6,7 +6,7 @@ import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent.agent import Agent, BehaviorType
-from aine_drl.exp import Action, Experience
+from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
 
@@ -82,14 +82,14 @@ class RecurrentPPO(Agent):
         self._infer_prev_terminated = exp.terminated
     
     @torch.no_grad()
-    def _select_action_train(self, obs: torch.Tensor) -> Action:
+    def _select_action_train(self, obs: Observation) -> Action:
         self._hidden_state = self._next_hidden_state * (1.0 - self._prev_terminated)
         
         # feed forward
         # when interacting with environment, sequence length must be 1
         # *batch_shape = (seq_batch_size, seq_len) = (num_envs, 1)
         pdparam_seq, state_value_seq, next_hidden_state = self._network.forward(
-            obs.unsqueeze(dim=1), 
+            obs.transform(lambda o: o.unsqueeze(dim=1)),
             self._hidden_state
         )
         
@@ -107,10 +107,10 @@ class RecurrentPPO(Agent):
         return action
     
     @torch.no_grad()
-    def _select_action_inference(self, obs: torch.Tensor) -> Action:
+    def _select_action_inference(self, obs: Observation) -> Action:
         self._infer_hidden_state = self._infer_next_hidden_state * (1.0 - self._infer_prev_terminated)
         pdparam_seq, _, next_hidden_state = self._network.forward(
-            obs.unsqueeze(dim=1), 
+            obs.transform(lambda o: o.unsqueeze(dim=1)),
             self._infer_hidden_state
         )
         seq_dist = self._policy.policy_dist(pdparam_seq)
@@ -137,7 +137,8 @@ class RecurrentPPO(Agent):
             seq_generator.add(drl_util.batch2perenv(batch, self._num_envs), start_idx=start_idx, seq_len=seq_len)
             
         add_to_seq_gen(exp_batch.hidden_state.swapaxes(0, 1), seq_len=1)
-        add_to_seq_gen(exp_batch.obs)
+        for obs_tensor in exp_batch.obs.items:
+            add_to_seq_gen(obs_tensor)
         if exp_batch.action.num_discrete_branches > 0:
             add_to_seq_gen(exp_batch.action.discrete_action)
         else:
@@ -151,7 +152,10 @@ class RecurrentPPO(Agent):
         add_to_seq_gen(target_state_value)
         
         sequences = seq_generator.generate(drl_util.batch2perenv(exp_batch.terminated, self._num_envs).unsqueeze_(-1))
-        mask, seq_init_hidden_state, obs_seq, discrete_action_seq, continuous_action_seq, old_action_log_prob_seq, advantage_seq, target_state_value_seq = sequences
+        mask = sequences[0]
+        seq_init_hidden_state = sequences[1]
+        obs_seq = Observation(sequences[2:2 + exp_batch.obs.num_items])
+        discrete_action_seq, continuous_action_seq, old_action_log_prob_seq, advantage_seq, target_state_value_seq = sequences[2 + exp_batch.obs.num_items:]
         
         num_seq = len(mask)
         # (num_seq, 1, D x num_layers, H) -> (D x num_layers, num_seq, H)
@@ -221,7 +225,7 @@ class RecurrentPPO(Agent):
         with torch.no_grad():
             # (num_envs, 1, *obs_shape) because sequence length is 1
             _, final_next_state_value_seq, _ = self._network.forward(
-                final_next_obs.unsqueeze(dim=1), 
+                final_next_obs.transform(lambda o: o.unsqueeze(dim=1)),
                 final_next_hidden_state
             )
         

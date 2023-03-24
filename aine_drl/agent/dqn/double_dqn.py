@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
-from aine_drl.exp import Action, Experience
+from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import ActionType, Policy, PolicyActionTypeError
 
@@ -80,7 +80,7 @@ class DoubleDQN(Agent):
         pass
     
     @torch.no_grad()
-    def _select_action_train(self, obs: torch.Tensor) -> Action:
+    def _select_action_train(self, obs: Observation) -> Action:
         # feed forward
         pdparam = self._network.forward(obs)
         
@@ -88,7 +88,7 @@ class DoubleDQN(Agent):
         return self._policy.policy_dist(pdparam).sample()
     
     @torch.no_grad()
-    def _select_action_inference(self, obs: torch.Tensor) -> Action:
+    def _select_action_inference(self, obs: Observation) -> Action:
         pdparam = self._network.forward(obs)
         return self._policy.policy_dist(pdparam).sample()
     
