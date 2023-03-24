@@ -12,11 +12,18 @@ class IncrementalMeanVarianceFromBatch:
         unbiased (bool, optional): whether unbiased or biased variance. Defaults to unbiased variance.
         dim (int | None, optional): dimension along which mean and variance are computed. The default is to compute the values of the flattened array.
     """
-    def __init__(self, unbiased: bool = True, dim: Optional[int] = None, dtype: torch.dtype = torch.float32) -> None:
+    def __init__(
+        self, 
+        unbiased: bool = True, 
+        dim: Optional[int] = None, 
+        dtype: torch.dtype = torch.float32,
+        device: torch.device | None = None
+    ) -> None:
         self._unbiased = unbiased
         self._ddof = 1 if unbiased else 0
         self._dim = dim
         self._dtype = dtype
+        self._device = device if device is not None else torch.device("cpu")
         self.reset()
         
     @property
@@ -33,8 +40,8 @@ class IncrementalMeanVarianceFromBatch:
     
     def reset(self):
         """Reset the mean and variance to zero."""
-        self._mean = torch.tensor(0.0, dtype=self._dtype)
-        self._var = torch.tensor(0.0, dtype=self._dtype)
+        self._mean = torch.tensor(0.0, dtype=self._dtype, device=self._device)
+        self._var = torch.tensor(0.0, dtype=self._dtype, device=self._device)
         self._n = 0
     
     def update(self, batch: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
