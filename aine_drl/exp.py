@@ -48,6 +48,13 @@ class Observation:
             obs_tensor[idx] = value_obs_tensor
     
     @staticmethod
+    def from_tensor(*obs_tensors: Tensor) -> "Observation":
+        """
+        Create Observation from tensors.
+        """
+        return Observation(obs_tensors)
+    
+    @staticmethod
     def from_iter(iter: Iterable["Observation"]) -> "Observation":
         """
         Create Observation batch from iterable of Observation.
