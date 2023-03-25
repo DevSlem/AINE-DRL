@@ -3,6 +3,7 @@ from typing import Generic, TypeVar
 
 import yaml
 
+import aine_drl.util as util
 from aine_drl.agent.agent import Agent
 from aine_drl.train.env import Env, GymEnv, GymRenderableEnv
 from aine_drl.train.inference import Inference, InferenceConfig
@@ -53,13 +54,19 @@ class AINETrainFactory(AINEFactory[Train]):
         env_dict: dict = self._config_dict["Env"]
         train_dict: dict = self._config_dict["Train"]
         num_envs = train_dict.get("num_envs", 1)
-        self._env = self._make_train_env(env_dict, num_envs)
+        seed = train_dict.get("seed", None)
+        if seed is not None:
+            util.seed(seed)
+        self._env = self._make_train_env(env_dict, num_envs, seed)
         return self
     
-    def _make_train_env(self, env_dict: dict, num_envs: int) -> Env:        
+    def _make_train_env(self, env_dict: dict, num_envs: int, seed: int | None) -> Env:        
+        config_dict: dict = env_dict["Config"]
         match env_dict["type"]:
             case "Gym":
-                return GymEnv.from_gym_make(num_envs=num_envs, **env_dict["Config"])
+                if "seed" not in config_dict.keys():
+                    config_dict["seed"] = seed
+                return GymEnv.from_gym_make(num_envs=num_envs, **config_dict)
             case "ML-Agents":
                 raise NotImplementedError("ML-Agents environment is not implemented yet")
             case _:
@@ -84,8 +91,11 @@ class AINEInferenceFactory(AINEFactory[Inference]):
     def make_env(self) -> "AINEInferenceFactory":
         env_dict: dict = self._config_dict["Env"]
         inference_dict: dict = self._config_dict["Inference"]
+        seed = inference_dict.get("seed", None)
+        if seed is not None:
+            util.seed(seed)
         inference_config = InferenceConfig(**inference_dict["Config"])
-        self._env = self._make_inference_env(env_dict, inference_config.export)
+        self._env = self._make_inference_env(env_dict, inference_config.export, seed)
         return self
     
     def ready(self) -> Inference:
@@ -97,7 +107,8 @@ class AINEInferenceFactory(AINEFactory[Inference]):
         inference_config = InferenceConfig(**inference_dict["Config"])
         return Inference(self.id, inference_config, self._env, self._agent)
     
-    def _make_inference_env(self, env_dict: dict, export: str | None) -> Env:
+    def _make_inference_env(self, env_dict: dict, export: str | None, seed: int | None) -> Env:
+        config_dict: dict = env_dict["Config"]
         match env_dict["type"]:
             case "Gym":
                 match export:
@@ -107,8 +118,10 @@ class AINEInferenceFactory(AINEFactory[Inference]):
                         render_mode = "human"
                     case _:
                         render_mode = "rgb_array"
-                env_dict["Config"]["render_mode"] = render_mode
-                return GymRenderableEnv.from_gym_make(**env_dict["Config"])
+                config_dict["render_mode"] = render_mode
+                if "seed" not in config_dict.keys():
+                    config_dict["seed"] = seed
+                return GymRenderableEnv.from_gym_make(**config_dict)
             case "ML-Agents":
                 raise NotImplementedError("ML-Agents environment is not implemented yet")
             case _:
