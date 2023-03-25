@@ -31,15 +31,19 @@ class logger:
     _log_file: __log_file | None = None
     
     @classmethod
-    def enable(cls, env_id: str, enable_log_file: bool = True):
+    def enabled(cls) -> bool:
+        return cls._enabled
+    
+    @classmethod
+    def enable(cls, id: str, enable_log_file: bool = True):
         """Enalbe the logger."""
         if not cls._enabled:
             cls._enabled = True
-            cls._log_dir = f"{cls._LOG_BASE_DIR}/{env_id}"
+            cls._log_dir = f"{cls._LOG_BASE_DIR}/{id}"
             if enable_log_file:
                 cls._log_file = logger.__log_file(
                     tb_logger=SummaryWriter(cls._log_dir),
-                    log_message_file=open(f"{cls._log_dir}/log_message.txt", "w")
+                    log_message_file=open(f"{cls._log_dir}/log_msg.txt", "a")
                 )
         else:
             raise Exception("logger is already enabled")
