@@ -158,7 +158,7 @@ class CategoricalGaussianPolicy(Policy):
         else:
             return pd.CategoricalGaussianDist(mean, std, probs=pdparam.discrete_pdparams)
 
-class EpsilonGreedyPolicy(Policy, ILogable):
+class EpsilonGreedyPolicy(Policy):
     """
     Epsilon-greedy policy for value-based method. It only works to the discrete action type.
     
@@ -180,19 +180,7 @@ class EpsilonGreedyPolicy(Policy, ILogable):
         if pdparam.num_discrete_branches == 0:
             raise PolicyDistParmBranchError(pdparam)
         
-        return pd.EpsilonGreedyDist(pdparam.discrete_pdparams, self.epsilon_decay(self.clock.global_time_step))
-    
-    def set_clock(self, clock: Clock):
-        self.clock = clock
-    
-    @property
-    def log_keys(self) -> tuple[str, ...]:
-        return ("Policy/Epsilon",)
-    
-    @property
-    def log_data(self) -> dict[str, tuple]:
-        t = self.clock.global_time_step
-        return {"Policy/Epsilon": (self.epsilon_decay(t), t)}
+        return pd.EpsilonGreedyDist(pdparam.discrete_pdparams, self.epsilon_decay(0))
 
 class BoltzmannPolicy(Policy):
     """
