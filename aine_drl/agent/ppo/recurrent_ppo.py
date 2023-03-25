@@ -1,5 +1,3 @@
-from dataclasses import asdict
-
 import torch
 
 import aine_drl.drl_util as drl_util
@@ -37,7 +35,7 @@ class RecurrentPPO(Agent):
         if not isinstance(network, RecurrentPPOSharedNetwork):
             raise NetworkTypeError(RecurrentPPOSharedNetwork)
         
-        super().__init__(num_envs, network.device, behavior_type)
+        super().__init__(num_envs, network, behavior_type)
         
         self._config = config
         self._network = network
@@ -69,7 +67,7 @@ class RecurrentPPO(Agent):
         self._prev_terminated = exp.terminated
         
         self._trajectory.add(RecurrentPPOExperience(
-            **asdict(exp),
+            **exp.__dict__,
             action_log_prob=self._action_log_prob,
             state_value=self._state_value,
             hidden_state=self._hidden_state

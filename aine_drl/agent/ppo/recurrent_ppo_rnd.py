@@ -39,7 +39,7 @@ class RecurrentPPORND(Agent):
         if not isinstance(network, RecurrentPPORNDNetwork):
             raise NetworkTypeError(RecurrentPPORNDNetwork)
         
-        super().__init__(num_envs, network.device, behavior_type)
+        super().__init__(num_envs, network, behavior_type)
         
         self._config = config
         self._network = network
