@@ -54,7 +54,7 @@ def auto_device() -> torch.device:
         
 def run_ppo(inference: bool | None = False):
     # AINE-DRL configuration manager
-    aine_config = aine_drl.AINEConfig("config/experiments/bipedal_walker_v3_ppo.yaml")
+    aine_config = aine_drl.AINEFactory("config/experiments/bipedal_walker_v3_ppo.yaml")
     
     # make gym training instance
     gym_training = aine_config.make_gym_training()

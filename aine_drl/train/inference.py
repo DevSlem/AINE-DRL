@@ -87,7 +87,7 @@ class Inference:
                     not_terminated = not terminated[self._trace_env].item()
                     cumulative_reward += reward[self._trace_env].item()
 
-                logger.print(f"inference - episode: {e}, cumulative reward: {cumulative_reward}")
+                logger.print(f"inference - episode: {e}, cumulative reward: {cumulative_reward:.2f}")
                 self._export(e)
                 
         return self
@@ -121,7 +121,7 @@ class Inference:
                     save_all=True,
                     append_images=images[1:],
                     optimize=False,
-                    duration=40,
+                    duration=33,
                     loop=0
                 )
             case "picture":
