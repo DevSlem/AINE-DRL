@@ -1,5 +1,3 @@
-from dataclasses import asdict
-
 import torch
 
 import aine_drl.drl_util as drl_util
@@ -37,7 +35,7 @@ class A2C(Agent):
         if not isinstance(network, A2CSharedNetwork):
             raise NetworkTypeError(A2CSharedNetwork)
         
-        super().__init__(num_envs, network.device, behavior_type)
+        super().__init__(num_envs, network, behavior_type)
         
         self._config = config
         self._network = network
@@ -58,7 +56,7 @@ class A2C(Agent):
                 
     def _update_train(self, exp: Experience):
         self._trajectory.add(A2CExperience(
-            **asdict(exp),
+            **exp.__dict__,
             action_log_prob=self._action_log_prob,
             state_value=self._state_value,
             entropy=self._entropy

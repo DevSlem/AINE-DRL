@@ -13,6 +13,3 @@ CartPole-v1_REINFORCE:
     Config:
       episodes: 3
       export: render_only
-  Agent:
-    gamma: 0.99
-    entropy_coef: 0.001

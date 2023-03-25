@@ -1,14 +1,18 @@
 import sys
-sys.path.append(".")
 
-import aine_drl
-import aine_drl.util as util
+sys.path.append(".")
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPoleA2CNet(aine_drl.A2CSharedNetwork):    
+import aine_drl
+from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
+                              AINETrainFactory)
+from aine_drl.train import Env
+
+
+class CartPoleA2CNet(nn.Module, aine_drl.A2CSharedNetwork):    
     def __init__(self, obs_shape, discrete_action_count) -> None:
         super().__init__()
         
@@ -23,55 +27,57 @@ class CartPoleA2CNet(aine_drl.A2CSharedNetwork):
         )
         
         # actor-critic layer
-        self.actor_layer = aine_drl.DiscreteActionLayer(self.hidden_feature, discrete_action_count)
+        self.actor_layer = aine_drl.CategoricalLayer(self.hidden_feature, discrete_action_count)
         self.critic_layer = nn.Linear(self.hidden_feature, 1)
-        
-        # add models
-        self.add_model("encoding_layer", self.encoding_layer)
-        self.add_model("actor_layer", self.actor_layer)
-        self.add_model("critic_layer", self.critic_layer)
-        
-        # optimizer for this network
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
-        
-        self.ts = aine_drl.TrainStep(self.optimizer)
-        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
     
-    # override
-    def forward(self, obs: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
-        encoding = self.encoding_layer(obs)
+    def model(self) -> nn.Module:
+        return self
+    
+    def forward(self, obs: aine_drl.Observation) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+        encoding = self.encoding_layer(obs.items[0])
         pdparam = self.actor_layer(encoding)
         state_value = self.critic_layer(encoding)
         return pdparam, state_value
     
-    # override
-    def train_step(self, loss: torch.Tensor, training_step: int):
-        self.ts.train_step(loss)
+class A2CFactory(AgentFactory):
+    def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
+        config = aine_drl.A2CConfig(**config_dict)
+        
+        network = CartPoleA2CNet(
+            obs_shape=env.obs_shape[0],
+            discrete_action_count=env.action_spec.num_discrete_actions[0]
+        )
+        
+        trainer = aine_drl.Trainer(optim.Adam(
+            network.parameters(),
+            lr=0.001
+        )).enable_grad_clip(network.parameters(), max_norm=5.0)
+        
+        policy = aine_drl.CategoricalPolicy()
+        
+        return aine_drl.A2C(
+            config,
+            network,
+            trainer,
+            policy,
+            env.num_envs
+        )
     
 if __name__ == "__main__":
-    seed = 0 # if you want to get the same results
-    util.seed(seed)
+    config_path = "config/samples/cartpole_v1_a2c.yaml"
     
-    # AINE-DRL configuration manager
-    aine_config = aine_drl.AINEConfig("config/samples/cartpole_v1_a2c.yaml")
-    
-    # make gym training instance
-    gym_training = aine_config.make_gym_training()
-    
-    # create custom network
-    obs_shape = gym_training.observation_space.shape[0]
-    action_count = gym_training.action_space.n
-    device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPoleA2CNet(obs_shape, action_count).to(device=device)
-    
-    # create policy for discrete action type
-    policy = aine_drl.CategoricalPolicy()
-    
-    # make A2C agent
-    a2c = aine_config.make_agent(network, policy)
-    
-    # training start!
-    gym_training.train(a2c)
-    
-    # training close safely
-    gym_training.close()
+    AINETrainFactory \
+        .from_yaml(config_path) \
+        .make_env() \
+        .make_agent(A2CFactory()) \
+        .ready() \
+        .train() \
+        .close()
+        
+    AINEInferenceFactory \
+        .from_yaml(config_path) \
+        .make_env() \
+        .make_agent(A2CFactory()) \
+        .ready() \
+        .inference() \
+        .close()
