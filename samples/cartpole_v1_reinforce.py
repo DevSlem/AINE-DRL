@@ -6,7 +6,8 @@ import torch.nn as nn
 import torch.optim as optim
 
 import aine_drl
-import aine_drl.util as util
+from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
+                              AINETrainFactory)
 from aine_drl.train import Env
 
 
@@ -29,7 +30,7 @@ class CartPoleREINFORCENet(nn.Module, aine_drl.REINFORCENetwork):
     def forward(self, obs: aine_drl.Observation) -> aine_drl.PolicyDistParam:
         return self.policy_net(obs.items[0])
     
-class REINFORCEFactory(aine_drl.AgentFactory):
+class REINFORCEFactory(AgentFactory):
     def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
         config = aine_drl.REINFORCEConfig(**config_dict)
         
@@ -52,13 +53,10 @@ class REINFORCEFactory(aine_drl.AgentFactory):
             policy,
         )
     
-if __name__ == "__main__":
-    seed = 0 # if you want to get the same results
-    util.seed(seed)
-    
+if __name__ == "__main__": 
     config_path = "config/samples/cartpole_v1_reinforce.yaml"
     
-    aine_drl.AINETrainFactory \
+    AINETrainFactory \
         .from_yaml(config_path) \
         .make_env() \
         .make_agent(REINFORCEFactory()) \
@@ -66,7 +64,7 @@ if __name__ == "__main__":
         .train() \
         .close()
         
-    aine_drl.AINEInferenceFactory \
+    AINEInferenceFactory \
         .from_yaml(config_path) \
         .make_env() \
         .make_agent(REINFORCEFactory()) \
