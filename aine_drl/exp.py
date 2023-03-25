@@ -1,7 +1,9 @@
-from typing import Callable, Iterable
 from dataclasses import dataclass
+from typing import Callable, Iterable
+
 import torch
 from torch import Tensor
+
 
 @dataclass(frozen=True)
 class Observation:

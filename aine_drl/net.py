@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Any, Iterable
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.parameter import Parameter
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
 from aine_drl.policy.policy import PolicyDistParam
@@ -62,7 +61,7 @@ class Trainer:
         self._optimizer.zero_grad()
         loss.backward()
         if self._clip_grad_norm_config is not None:
-            clip_grad_norm_(**asdict(self._clip_grad_norm_config))
+            clip_grad_norm_(**self._clip_grad_norm_config.__dict__)
         self._optimizer.step()
 
 class NetworkTypeError(TypeError):
@@ -70,7 +69,7 @@ class NetworkTypeError(TypeError):
         message = f"network must be inherited from \"{true_net_type.__name__}\"."
         super().__init__(message)
 
-class DiscreteActionLayer(nn.Module):
+class CategoricalLayer(nn.Module):
     """
     Linear layer for the discrete action type.
 
@@ -169,23 +168,13 @@ class Network(ABC):
     """
     AINE-DRL network abstract class.
     """
-    
-    @property
     @abstractmethod
-    def device(self) -> torch.device:
+    def model(self) -> nn.Module:
         raise NotImplementedError
     
-    @staticmethod
-    def model_device(model: nn.Module) -> torch.device:
-        return next(model.parameters()).device
-    
-    @staticmethod
-    def concat_model_params(*models: nn.Module) -> Iterable[Parameter]:
-        """Concatenate model parameters."""
-        params = []
-        for model in models:
-            params.extend(list(model.parameters()))
-        return params
+    @property
+    def device(self) -> torch.device:
+        return next(self.model().parameters()).device
     
 class RecurrentNetwork(Network):
     """
