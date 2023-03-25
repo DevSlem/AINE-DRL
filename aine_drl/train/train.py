@@ -1,21 +1,35 @@
-from dataclasses import dataclass
-from .env import Env
-import torch
-from aine_drl.exp import Experience
-from aine_drl.agent.agent import Agent, BehaviorType
 import time
-from aine_drl.util.logger import logger, TextInfoBox
+from dataclasses import dataclass
+
+import torch
+
+from aine_drl.agent.agent import Agent, BehaviorScope, BehaviorType
+from aine_drl.exp import Experience
+from aine_drl.util.logger import TextInfoBox, logger
 from aine_drl.util.util_methods import IncrementalAverage
 
-class InferenceError(Exception):
-    pass
+from .env import Env
+from .error import AgentLoadError
+
 
 @dataclass(frozen=True)
 class TrainConfig:
-    total_n_steps: int
+    time_steps: int
     summary_freq: int
-    agent_save_freq: int | None = None
-    inference_freq: int | None = None
+    agent_save_freq: int
+    
+    def __init__(
+        self,
+        time_steps: int,
+        summary_freq: int | None = None,
+        agent_save_freq: int | None = None,
+    ) -> None:
+        summary_freq = time_steps // 20 if summary_freq is None else summary_freq
+        agent_save_freq = summary_freq * 10 if agent_save_freq is None else agent_save_freq
+        
+        object.__setattr__(self, "time_steps", time_steps)
+        object.__setattr__(self, "summary_freq", summary_freq)
+        object.__setattr__(self, "agent_save_freq", agent_save_freq)
 
 class Train:
     def __init__(
@@ -32,7 +46,7 @@ class Train:
         
         self._dtype = torch.float32
         self._device = self._agent.device
-        self._inference_enabled = False
+        self._trace_env = 0
         
         self._time_steps = 0
         self._episodes = 0
@@ -43,65 +57,38 @@ class Train:
         self._cumulative_reward_mean = IncrementalAverage()
         self._episode_len_mean = IncrementalAverage()
         
-    def enable_inference(self, infer_env: Env) -> "Train":
-        if infer_env.num_envs != 1:
-            raise Warning("it is recommended to use only one environment for inference")
-        self._inference_enabled = True
-        self._infer_env = infer_env
-        return self
+        self._enabled = True
         
-    def train(self):
-        self._print_train_info()
+    def train(self) -> "Train":
+        if not self._enabled:
+            raise RuntimeError("Train is already closed.")
         
-        obs = self._env.reset().transform(self._agent_tensor)
-        for t in range(self._time_steps, self._config.total_n_steps):
-            # take action and observe
-            action = self._agent.select_action(obs)
-            next_obs, reward, terminated, real_final_next_obs = self._env.step(action)
-            
-            # update the agent
-            real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs
-            exp = Experience(
-                obs,
-                action,
-                real_next_obs.transform(self._agent_tensor),
-                self._agent_tensor(reward),
-                self._agent_tensor(terminated),
-            )
-            self._agent.update(exp)
-            
-            # take next step
-            obs = next_obs
-            
-            # summary
-            if t % self._config.summary_freq == 0:
-                self._summary_train()
-                
-            # inference
-            if self._config.inference_freq is not None and t % self._config.inference_freq == 0:
-                try:
-                    self.inference()
-                except InferenceError:
-                    pass
-    
-    def inference(self):
-        if not self._inference_enabled:
-            raise InferenceError("inference is not enabled")
+        if not logger.enabled():
+            logger.enable(self._id)
         
-        with self._agent.behavior_type_scope(BehaviorType.INFERENCE):
-            obs = self._infer_env.reset().transform(self._agent_tensor)
-            not_terminated = True
-            while not_terminated:
+        with BehaviorScope(self._agent, BehaviorType.TRAIN):
+            self._load_train()
+            
+            if self._time_steps >= self._config.time_steps:
+                logger.print(f"train is already finished.")
+                return self
+            
+            self._print_train_info()            
+            
+            obs = self._env.reset().transform(self._agent_tensor)
+            cumulative_reward = 0.0
+            for _ in range(self._time_steps, self._config.time_steps):
                 # take action and observe
                 action = self._agent.select_action(obs)
-                next_obs, reward, terminated, real_final_next_obs = self._infer_env.step(action)
+                next_obs, reward, terminated, real_final_next_obs = self._env.step(action)
                 
                 # update the agent
-                real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs
+                next_obs = next_obs.transform(self._agent_tensor)
+                real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs.transform(self._agent_tensor)
                 exp = Experience(
                     obs,
                     action,
-                    real_next_obs.transform(self._agent_tensor),
+                    real_next_obs,
                     self._agent_tensor(reward),
                     self._agent_tensor(terminated),
                 )
@@ -109,7 +96,31 @@ class Train:
                 
                 # take next step
                 obs = next_obs
-                not_terminated = not terminated[0].item()
+                cumulative_reward += reward[self._trace_env].item()
+                self._tick_time_steps()
+                
+                if terminated[self._trace_env].item():
+                    self._cumulative_reward_mean.update(cumulative_reward)
+                    self._episode_len_mean.update(self._episode_len)
+                    
+                    cumulative_reward = 0.0
+                    self._tick_episode()
+                
+                # summary
+                if self._time_steps % self._config.summary_freq == 0:
+                    self._summary_train()
+                    
+                # save the agent
+                if self._time_steps % self._config.agent_save_freq == 0:
+                    self._save_train()
+                    
+        return self
+    
+    def close(self):
+        self._enabled = False
+        self._env.close()
+        if logger.enabled():
+            logger.disable()
     
     def _tick_time_steps(self):
         self._episode_len += 1
@@ -131,10 +142,9 @@ class Train:
             .add_text(f"Output Path: {logger.log_dir()}") \
             .add_line() \
             .add_text(f"Training INFO:") \
-            .add_text(f"    total time steps: {self._config.total_n_steps}") \
+            .add_text(f"    total time steps: {self._config.time_steps}") \
             .add_text(f"    summary frequency: {self._config.summary_freq}") \
             .add_text(f"    agent save frequency: {self._config.agent_save_freq}") \
-            .add_text(f"    inference frequency: {self._config.inference_freq}") \
             .add_line() \
             .add_text(f"Agent INFO:") \
             .add_text(f"    name: {self._agent.name}") \
@@ -155,5 +165,33 @@ class Train:
             self._episode_len_mean.reset()
         logger.print(f"training time: {self._real_time:.2f}, time steps: {self._time_steps}, {reward_info}")
         
-        for key, (value, t) in self._agent.log_data:
+        for key, (value, t) in self._agent.log_data.items():
             logger.log(key, value, t)
+            
+    def _save_train(self):
+        train_dict = dict(
+            time_steps=self._time_steps,
+            episodes=self._episodes,
+            episode_len=self._episode_len,
+        )
+        state_dict = dict(
+            train=train_dict,
+            agent=self._agent.state_dict,
+        )
+        logger.save_agent(state_dict)
+        logger.print(f"the agent is successfully saved: {logger.agent_save_dir()}")
+    
+    def _load_train(self):
+        try:
+            state_dict = logger.load_agent()
+        except FileNotFoundError:
+            return
+        
+        try:
+            train_dict = state_dict["train"]
+            self._time_steps = train_dict["time_steps"]
+            self._episodes = train_dict["episodes"]
+            self._episode_len = train_dict["episode_len"]
+            self._agent.load_state_dict(state_dict["agent"])
+        except:
+            raise AgentLoadError("the loaded agent is not compatible with the current agent")

@@ -58,12 +58,17 @@ class Env(ABC):
     @property
     @abstractmethod
     def obs_shape(self) -> tuple[int, ...]:
-        """Returns the shape of the observation."""
+        """Returns the shape of the observation space."""
         raise NotImplementedError
     
     @property
     @abstractmethod
     def action_spec(self) -> ActionSpec:
+        raise NotImplementedError
+    
+class Renderable(ABC):
+    @abstractmethod
+    def render(self) -> np.ndarray:
         raise NotImplementedError
 
 class GymEnv(Env):
@@ -74,23 +79,23 @@ class GymEnv(Env):
         seed: int | list[int] | None = None
     ) -> None:
         if isinstance(env, gym.vector.VectorEnv):
-            self._env = env
+            self.env = env
         else:
-            self._env: gym.vector.VectorEnv = gym.vector.SyncVectorEnv(iter([lambda: env]))
+            self.env: gym.vector.VectorEnv = gym.vector.SyncVectorEnv(iter([lambda: env]))
         
         self._truncate_episode = truncate_episode
         self._seed = seed
         
-        self._num_envs = self._env.num_envs
+        self._num_envs = self.env.num_envs
         self._action_converter = self._gym_action_converter()
         self._action_spec = self._gym_action_spec()
         
     def reset(self) -> Observation:
-        return self._wrap_obs(self._env.reset(seed=self._seed)[0])
+        return self._wrap_obs(self.env.reset(seed=self._seed)[0])
         
     def step(self, action: Action) -> tuple[Observation, torch.Tensor, torch.Tensor, Observation | None]:
         converted_action = self._action_converter(action)
-        next_obs, reward, terminated, truncated, info = self._env.step(converted_action) # type: ignore
+        next_obs, reward, terminated, truncated, info = self.env.step(converted_action) # type: ignore
         real_final_next_obs = None
         if "final_observation" in info.keys():
             real_final_next_obs = next_obs.copy()
@@ -106,7 +111,7 @@ class GymEnv(Env):
         )
         
     def close(self):
-        self._env.close()
+        self.env.close()
     
     @property
     def num_envs(self) -> int:
@@ -114,7 +119,7 @@ class GymEnv(Env):
     
     @property
     def obs_shape(self) -> tuple[int, ...]:
-        return self._env.single_observation_space.shape # type: ignore
+        return self.env.single_observation_space.shape # type: ignore
     
     @property
     def action_spec(self) -> ActionSpec:
@@ -123,29 +128,29 @@ class GymEnv(Env):
     def _gym_action_spec(self) -> ActionSpec:
         num_discrete_actions = tuple()
         num_continuous_actions = 0
-        match type(self._env.single_action_space):
+        match type(self.env.single_action_space):
             case gym.spaces.Discrete:
-                num_discrete_actions = (self._env.single_action_space.n,) # type: ignore
+                num_discrete_actions = (self.env.single_action_space.n,) # type: ignore
             case gym.spaces.MultiDiscrete:
-                num_discrete_actions = tuple(self._env.single_action_space.nvec) # type: ignore
+                num_discrete_actions = tuple(self.env.single_action_space.nvec) # type: ignore
             case gym.spaces.Box:
-                num_continuous_actions = self._env.single_action_space.shape[0] # type: ignore
+                num_continuous_actions = self.env.single_action_space.shape[0] # type: ignore
             case _:
-                raise NotImplementedError(f"{self._env.single_action_space} action space is not supported yet.")
+                raise NotImplementedError(f"{self.env.single_action_space} action space is not supported yet.")
         return ActionSpec(num_discrete_actions, num_continuous_actions)
     
     def _wrap_obs(self, obs) -> Observation:
         return Observation.from_tensor(torch.from_numpy(obs))
     
     def _gym_action_converter(self) -> Callable[[Action], Any]:
-        action_space_shape: tuple[int, ...] = self._env.action_space.shape # type: ignore
-        match type(self._env.action_space):
+        action_space_shape: tuple[int, ...] = self.env.action_space.shape # type: ignore
+        match type(self.env.action_space):
             case gym.spaces.Discrete | gym.spaces.MultiDiscrete:
                 return lambda a: a.discrete_action.reshape(action_space_shape).detach().cpu().numpy()
             case gym.spaces.Box:
                 return lambda a: a.continuous_action.reshape(action_space_shape).detach().cpu().numpy()
             case _:
-                raise NotImplementedError(f"{self._env.single_action_space} action space is not supported yet.")
+                raise NotImplementedError(f"{self.env.single_action_space} action space is not supported yet.")
             
     @staticmethod
     def from_gym_make(
@@ -167,3 +172,36 @@ class GymEnv(Env):
             **kwargs
         )
         return GymEnv(env, truncate_episode, seed)
+
+class GymRenderableEnv(GymEnv, Renderable):
+    def __init__(
+        self, 
+        env: gym.Env, 
+        truncate_episode: bool = True, 
+        seed: int | list[int] | None = None
+    ) -> None:
+        match env.render_mode:
+            case "human":
+                self._renderer = lambda e: None
+            case "rgb_array":
+                self._renderer = lambda e: e.render()
+            case "rgb_array_list":
+                self._renderer = lambda e: e.render()[0]
+            case _:
+                raise NotImplementedError(f"{env.render_mode} render mode is not supported yet.")
+                
+        self._renderable_env = env
+        super().__init__(env, truncate_episode, seed)
+    
+    def render(self) -> np.ndarray | None:
+        return self._renderer(self._renderable_env)
+    
+    @staticmethod
+    def from_gym_make(
+        id: str, 
+        truncated_episode: bool = True,
+        seed: int | list[int] | None = None,
+        **kwargs
+    ):
+        env = gym.make(id, **kwargs)
+        return GymRenderableEnv(env, truncated_episode, seed)

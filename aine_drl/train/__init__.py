@@ -1,2 +1,8 @@
-from .env import Env, GymEnv
-from .train import Train
+from .env import (
+    Env, 
+    Renderable, 
+    GymEnv, 
+    GymRenderableEnv
+)
+from .train import TrainConfig, Train
+from .inference import InferenceConfig, Inference
