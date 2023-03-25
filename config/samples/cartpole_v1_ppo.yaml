@@ -7,8 +7,8 @@ CartPole-v1_PPO:
     num_envs: 3
     seed: 0
     Config:
-      time_steps: 10000
-      summary_freq: 500
+      time_steps: 20000
+      summary_freq: 1000
   Inference:
     seed: 0
     Config:
