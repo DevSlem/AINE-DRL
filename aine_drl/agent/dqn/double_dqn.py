@@ -1,5 +1,5 @@
 import copy
-from dataclasses import asdict, replace
+from dataclasses import replace
 
 import torch
 import torch.nn.functional as F
@@ -34,24 +34,31 @@ class DoubleDQN(Agent):
         num_envs: int,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:
+        raise NotImplementedError
         if not isinstance(network, DoubleDQNNetwork):
             raise NetworkTypeError(DoubleDQNNetwork)
         if policy.action_type is not ActionType.DISCRETE:
             raise PolicyActionTypeError(ActionType.DISCRETE, policy)
         
-        super().__init__(num_envs, network.device, behavior_type)
+        super().__init__(num_envs, network, behavior_type)
         
         self._config = config
         self._network = network
-        self._target_net = copy.deepcopy(network.update_net)
+        self._target_net = copy.deepcopy(network.model())
         self._trainer = trainer
         self._policy = policy
+        
+        if self._config.replay_buffer_device == "auto":
+            replay_buffer_device = self._network.device
+        else:
+            replay_buffer_device = torch.device(self._config.replay_buffer_device)
+        
         self._trajectory = DQNTrajectory(
             config.n_steps, 
             config.batch_size, 
             config.capacity, 
             num_envs,
-            self.device
+            replay_buffer_device
         )
         
         if self._config.replace_freq is not None:
@@ -70,7 +77,7 @@ class DoubleDQN(Agent):
     
     def _update_train(self, exp: Experience):
         self._trajectory.add(DQNExperience(
-            **asdict(exp)
+            **exp.__dict__
         ))
         
         if self._trajectory.can_sample:
@@ -98,7 +105,7 @@ class DoubleDQN(Agent):
             self._update_target_net()
             
             # compute td loss
-            exp_batch = self._trajectory.sample()
+            exp_batch = self._trajectory.sample(self.device)
             loss = self.compute_td_loss(exp_batch)
             
             # train step
@@ -139,11 +146,11 @@ class DoubleDQN(Agent):
         return td_loss
             
     def _replace_net(self):
-        if util.check_freq(self.clock.training_step, self._config.replace_freq): # type: ignore
-            drl_util.copy_module(self._network.update_net, self._target_net)
+        if self.training_steps % self._config.replace_freq == 0: # type: ignore
+            drl_util.copy_module(self._network.model(), self._target_net)
     
     def _polyak_update(self):
-        drl_util.polyak_update_module(self._network.update_net, self._target_net, self._config.polyak_ratio) # type: ignore
+        drl_util.polyak_update_module(self._network.model(), self._target_net, self._config.polyak_ratio) # type: ignore
 
     @property
     def log_keys(self) -> tuple[str, ...]:

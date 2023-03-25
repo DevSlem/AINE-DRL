@@ -23,3 +23,4 @@ class DoubleDQNConfig:
     gamma: float = 0.99
     replace_freq: int | None = None
     polyak_ratio: float | None = None
+    replay_buffer_device: str = "auto"

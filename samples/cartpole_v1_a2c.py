@@ -13,21 +13,21 @@ from aine_drl.train import Env
 
 
 class CartPoleA2CNet(nn.Module, aine_drl.A2CSharedNetwork):    
-    def __init__(self, obs_shape, discrete_action_count) -> None:
+    def __init__(self, obs_features, num_actions) -> None:
         super().__init__()
         
         self.hidden_feature = 64
     
         # encoding layer for shared network
         self.encoding_layer = nn.Sequential(
-            nn.Linear(obs_shape, 128),
+            nn.Linear(obs_features, 128),
             nn.ReLU(),
             nn.Linear(128, self.hidden_feature),
             nn.ReLU()
         )
         
         # actor-critic layer
-        self.actor_layer = aine_drl.CategoricalLayer(self.hidden_feature, discrete_action_count)
+        self.actor_layer = aine_drl.CategoricalLayer(self.hidden_feature, num_actions)
         self.critic_layer = nn.Linear(self.hidden_feature, 1)
     
     def model(self) -> nn.Module:
@@ -44,8 +44,8 @@ class A2CFactory(AgentFactory):
         config = aine_drl.A2CConfig(**config_dict)
         
         network = CartPoleA2CNet(
-            obs_shape=env.obs_shape[0],
-            discrete_action_count=env.action_spec.num_discrete_actions[0]
+            obs_features=env.obs_shape[0],
+            num_actions=env.action_spec.num_discrete_actions[0]
         )
         
         trainer = aine_drl.Trainer(optim.Adam(

@@ -13,12 +13,6 @@ class DoubleDQNNetwork(Network):
     
     Note that since it allows only discrete action type, only `PolicyDistParam.discrete_pdparams` have to be considered.
     """
-    
-    @property
-    @abstractmethod
-    def update_net(self) -> nn.Module:
-        raise NotImplementedError
-    
     @abstractmethod
     def forward(self, obs: Observation) -> PolicyDistParam:
         """

@@ -14,6 +14,15 @@ class DQNExperience:
     next_obs: Observation
     reward: torch.Tensor
     terminated: torch.Tensor
+    
+    def to(self, device: torch.device) -> "DQNExperience":
+        return DQNExperience(
+            self.obs.transform(lambda o: o.to(device)),
+            self.action.transform(lambda a: a.to(device)),
+            self.next_obs.transform(lambda o: o.to(device)),
+            self.reward.to(device),
+            self.terminated.to(device),
+        )
 
 class DQNTrajectory:
     def __init__(
@@ -55,9 +64,10 @@ class DQNTrajectory:
     def add(self, exp: DQNExperience):
         """Add an experience when you use online learning."""  
         self._n_steps += 1
+        exp = exp.to(self._device)
         
-        discrete_action = torch.split(exp.action.discrete_action, self._num_envs, dim=0)
-        continuous_action = torch.split(exp.action.continuous_action, self._num_envs, dim=0)
+        discrete_action = torch.split(exp.action.discrete_action, 1, dim=0)
+        continuous_action = torch.split(exp.action.continuous_action, 1, dim=0)
         action = [Action(d, c) for d, c in zip(discrete_action, continuous_action)]
         
         for i in range(self._num_envs):
@@ -70,7 +80,7 @@ class DQNTrajectory:
             self._terminated_buffer[self._recent_idx] = exp.terminated[i]
             self._final_next_obs[i] = exp.next_obs[i]
         
-    def sample(self) -> DQNExperience:
+    def sample(self, device: torch.device) -> DQNExperience:
         """Samples experience batch from it. Default sampling distribution is uniform."""
         self._n_steps = 0
         sample_idx = self._sample_idx()
@@ -88,7 +98,7 @@ class DQNTrajectory:
             self._sample_next_obs(sample_idx),
             DQNTrajectory._to_batch(self._reward_buffer, sample_idx),
             DQNTrajectory._to_batch(self._terminated_buffer, sample_idx),
-        )
+        ).to(device)
     
     def _sample_idx(self) -> torch.Tensor:
         batch_idx = torch.randint(self._count, size=(self._sample_batch_size,), device=self._device)
@@ -131,8 +141,9 @@ class DQNTrajectory:
         )
         if do_replace:
             # replace them
+            temp = util.get_batch_list(self._final_next_obs, next_obs_buffer_idxs)
             next_obs[not_exsists_next_obs] = Observation.from_iter(
-                util.get_batch_list(self._final_next_obs, next_obs_buffer_idxs)
+                temp
             )
         return next_obs
 
