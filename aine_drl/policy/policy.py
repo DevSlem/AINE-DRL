@@ -129,7 +129,7 @@ class GaussianPolicy(Policy):
             std_params.append(param[..., 1])
             
         mean = torch.stack(mean_params, dim=-1)
-        std = torch.stack(std_params, dim=-1) + 1e-8
+        std = torch.stack(std_params, dim=-1).abs() + 1e-8
         
         return mean, std
 
