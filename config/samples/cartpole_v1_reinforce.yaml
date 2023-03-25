@@ -1,16 +1,15 @@
 CartPole-v1_REINFORCE:
-  num_envs: 1
-  Gym:
-    env:
-      id: "CartPole-v1"
-    training:
-      total_global_time_steps: 100000
-      summary_freq: 1000
-      agent_save_freq: null
-      inference_freq: 10000
-      inference_render: true
-      generate_new_training_result: false
-      seed: 0
-  REINFORCE:
+  Env:
+    type: Gym
+    Config:
+      id: CartPole-v1
+  Train:
+    Config:
+      time_steps: 200000
+  Inference:
+    Config:
+      episodes: 10
+      export: render_only
+  Agent:
     gamma: 0.99
     entropy_coef: 0.001

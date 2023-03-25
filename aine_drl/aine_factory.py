@@ -37,7 +37,7 @@ class AINEFactory(Generic[T]):
     def make_agent(self, agent_factory: AgentFactory) -> "AINEFactory[T]":
         if self._env is None:
             raise AINEFactoryError("you need to make or set environment first")
-        self._agent = agent_factory.make(self._env, self._config_dict["Agent"])
+        self._agent = agent_factory.make(self._env, self._config_dict.get("Agent", dict()))
         return self
     
     @abstractmethod

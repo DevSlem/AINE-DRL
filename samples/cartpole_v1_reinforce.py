@@ -1,66 +1,75 @@
 import sys
+
 sys.path.append(".")
 
-import aine_drl
-import aine_drl.util as util
-import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class CartPoleREINFORCENet(aine_drl.REINFORCENetwork):    
-    def __init__(self, obs_shape, discrete_action_count) -> None:
+import aine_drl
+import aine_drl.util as util
+from aine_drl.train import Env
+
+
+class CartPoleREINFORCENet(nn.Module, aine_drl.REINFORCENetwork):    
+    def __init__(self, obs_features, num_actions) -> None:
         super().__init__()
         
         # policy layer
         self.policy_net = nn.Sequential(
-            nn.Linear(obs_shape, 128),
+            nn.Linear(obs_features, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
-            aine_drl.DiscreteActionLayer(64, discrete_action_count)
+            aine_drl.CategoricalLayer(64, num_actions)
         )
         
-        # add models
-        self.add_model("policy_net", self.policy_net)
-        
-        # optimizer for this network
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
-        
-        self.ts = aine_drl.TrainStep(self.optimizer)
-        self.ts.enable_grad_clip(self.parameters(), grad_clip_max_norm=5.0)
+    def model(self) -> nn.Module:
+        return self.policy_net
     
-    # override
-    def forward(self, obs: torch.Tensor) -> aine_drl.PolicyDistParam:
-        return self.policy_net(obs)
+    def forward(self, obs: aine_drl.Observation) -> aine_drl.PolicyDistParam:
+        return self.policy_net(obs.items[0])
     
-    # override
-    def train_step(self, loss: torch.Tensor, training_step: int):
-        self.ts.train_step(loss)
+class REINFORCEFactory(aine_drl.AgentFactory):
+    def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
+        config = aine_drl.REINFORCEConfig(**config_dict)
+        
+        network = CartPoleREINFORCENet(
+            obs_features=env.obs_shape[0],
+            num_actions=env.action_spec.num_discrete_actions[0]
+        )
+        
+        trainer = aine_drl.Trainer(optim.Adam(
+            network.parameters(),
+            lr=0.001
+        )).enable_grad_clip(network.parameters(), max_norm=5.0)
+        
+        policy = aine_drl.CategoricalPolicy()
+        
+        return aine_drl.REINFORCE(
+            config,
+            network,
+            trainer,
+            policy,
+        )
     
 if __name__ == "__main__":
     seed = 0 # if you want to get the same results
     util.seed(seed)
     
-    # AINE-DRL configuration manager
-    aine_config = aine_drl.AINEConfig("config/samples/cartpole_v1_reinforce.yaml")
+    config_path = "config/samples/cartpole_v1_reinforce.yaml"
     
-    # make gym training instance
-    gym_training = aine_config.make_gym_training()
-    
-    # create custom network
-    obs_shape = gym_training.observation_space.shape[0]
-    action_count = gym_training.action_space.n
-    device = None #torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = CartPoleREINFORCENet(obs_shape, action_count).to(device)
-    
-    # create policy for discrete action type
-    policy = aine_drl.CategoricalPolicy()
-    
-    # make REINFORCE agent
-    reinforce = aine_config.make_agent(network, policy)
-    
-    # training start!
-    gym_training.train(reinforce)
-    
-    # training close safely
-    gym_training.close()
+    aine_drl.AINETrainFactory \
+        .from_yaml(config_path) \
+        .make_env() \
+        .make_agent(REINFORCEFactory()) \
+        .ready() \
+        .train() \
+        .close()
+        
+    aine_drl.AINEInferenceFactory \
+        .from_yaml(config_path) \
+        .make_env() \
+        .make_agent(REINFORCEFactory()) \
+        .ready() \
+        .inference() \
+        .close()

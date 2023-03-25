@@ -1,5 +1,3 @@
-from dataclasses import asdict
-
 import torch
 
 import aine_drl.rl_loss as L
@@ -36,7 +34,7 @@ class REINFORCE(Agent):
         if not isinstance(network, REINFORCENetwork):
             raise NetworkTypeError(REINFORCENetwork)
         
-        super().__init__(1, network.device, behavior_type)
+        super().__init__(1, network, behavior_type)
                 
         self._config = config
         self._network = network
@@ -56,7 +54,7 @@ class REINFORCE(Agent):
     def _update_train(self, exp: Experience):
         # add the experience        
         self._trajectory.add(REINFORCEExperience(
-            **asdict(exp),
+            **exp.__dict__,
             action_log_prob=self._action_log_prob,
             entropy=self._entropy
         ))
@@ -93,7 +91,7 @@ class REINFORCE(Agent):
         ret = L.true_return(
             exp_batch.reward.squeeze(dim=1), # (episode_len, 1) -> (episode_len,)
             self._config.gamma
-        ).unsqueeze_(dim=1)
+        )
         
         # compute loss
         policy_loss = L.reinforce_loss(
