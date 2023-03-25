@@ -7,7 +7,8 @@ import torch.nn as nn
 import torch.optim as optim
 
 import aine_drl
-import aine_drl.util as util
+from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
+                              AINETrainFactory)
 from aine_drl.train import Env
 
 
@@ -39,18 +40,22 @@ class CartPolePPONet(nn.Module, aine_drl.PPOSharedNetwork):
         state_value = self.critic_layer(encoding)
         return pdparam, state_value
     
-class PPOFactory(aine_drl.AgentFactory):
+class PPOFactory(AgentFactory):
     def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
         config = aine_drl.PPOConfig(**config_dict)
+        
         network = CartPolePPONet(
             obs_features=env.obs_shape[0],
             num_actions=env.action_spec.num_discrete_actions[0]
-        ).to(device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        )
+        
         trainer = aine_drl.Trainer(optim.Adam(
             network.parameters(),
             lr=0.001
         )).enable_grad_clip(network.parameters(), max_norm=5.0)
+        
         policy = aine_drl.CategoricalPolicy()
+        
         return aine_drl.PPO(
             config,
             network,
@@ -59,13 +64,10 @@ class PPOFactory(aine_drl.AgentFactory):
             env.num_envs
         )
     
-if __name__ == "__main__":
-    seed = 0 # if you want to get the same results
-    util.seed(seed)
-    
+if __name__ == "__main__":  
     config_path = "config/samples/cartpole_v1_ppo.yaml"
     
-    aine_drl.AINETrainFactory \
+    AINETrainFactory \
         .from_yaml(config_path) \
         .make_env() \
         .make_agent(PPOFactory()) \
@@ -73,7 +75,7 @@ if __name__ == "__main__":
         .train() \
         .close()
         
-    aine_drl.AINEInferenceFactory \
+    AINEInferenceFactory \
         .from_yaml(config_path) \
         .make_env() \
         .make_agent(PPOFactory()) \
