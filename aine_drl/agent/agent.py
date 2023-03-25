@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
 from enum import Enum
 
 import torch
 
 from aine_drl.exp import Action, Experience, Observation
+from aine_drl.net import Network
 
 
 class BehaviorType(Enum):
@@ -23,12 +23,13 @@ class Agent(ABC):
     def __init__(
         self,
         num_envs: int,
-        device: torch.device | None = None,
+        network: Network,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:
         assert num_envs >= 1, "The number of environments must be greater than or euqal to 1."
-                
-        self._device = device if device is not None else torch.device("cpu")
+        
+        self._device = network.device
+        self._model = network.model()
         self._num_envs = num_envs
         self._behavior_type = behavior_type
         
@@ -109,23 +110,11 @@ class Agent(ABC):
     def behavior_type(self, value: BehaviorType):
         """Set behavior type."""
         self._behavior_type = value
-        
-    @contextmanager
-    def behavior_type_scope(self, behavior_type: BehaviorType):
-        """
-        Context manager for behavior type.
-        
-        Example::
-        
-            with agent.behavior_type_scope(BehaviorType.INFERENCE):
-                # do something
-        """
-        self._using_behavior_type_scope = True
-        old_behavior_type = self.behavior_type
-        self.behavior_type = behavior_type
-        yield
-        self._using_behavior_type_scope = False
-        self.behavior_type = old_behavior_type
+        match self._behavior_type:
+            case BehaviorType.TRAIN:
+                self._model.train()
+            case BehaviorType.INFERENCE:
+                self._model.eval()
     
     @property
     def log_keys(self) -> tuple[str, ...]:
@@ -145,8 +134,24 @@ class Agent(ABC):
     @property
     def state_dict(self) -> dict:
         """Returns the state dict of the agent."""
-        return dict(training_steps=self._training_steps)
+        return dict(
+            training_steps=self._training_steps,
+            model=self._model.state_dict()
+        )
     
     def load_state_dict(self, state_dict: dict):
         """Load the state dict."""
         self._training_steps = state_dict["training_steps"]
+        self._model.load_state_dict(state_dict["model"])
+
+class BehaviorScope:
+    def __init__(self, agent: Agent, behavior_type: BehaviorType) -> None:
+        self._agent = agent
+        self._old_behavior_type = agent.behavior_type
+        self._new_behavior_type = behavior_type
+        
+    def __enter__(self):
+        self._agent.behavior_type = self._new_behavior_type
+        
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._agent._behavior_type = self._old_behavior_type
