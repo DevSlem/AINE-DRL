@@ -63,15 +63,18 @@ class Train:
         if not self._enabled:
             raise RuntimeError("Train is already closed.")
         
-        if not logger.enabled():
-            logger.enable(self._id)
-        
         with BehaviorScope(self._agent, BehaviorType.TRAIN):
+            if not logger.enabled():
+                logger.enable(self._id, enable_log_file=False)
+                
             self._load_train()
             
-            if self._time_steps >= self._config.time_steps:
+            if self._time_steps >= self._config.time_steps:  
                 logger.print(f"train is already finished.")
                 return self
+            
+            logger.disable()
+            logger.enable(self._id)
             
             self._print_train_info()            
             

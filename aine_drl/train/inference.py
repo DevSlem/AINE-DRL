@@ -6,6 +6,7 @@ from PIL import Image
 from aine_drl.agent.agent import Agent, BehaviorScope, BehaviorType
 from aine_drl.exp import Experience
 from aine_drl.util.logger import logger
+from aine_drl.util.util_methods import create_dir
 
 from .env import Env, Renderable
 from .error import AgentLoadError
@@ -49,11 +50,15 @@ class Inference:
         if not self._enabled:
             raise RuntimeError("Inference is already closed.")
         
-        if not logger.enabled():
-            logger.enable(self._id)
-        
         with BehaviorScope(self._agent, BehaviorType.INFERENCE):
+            if not logger.enabled():
+                logger.enable(self._id, enable_log_file=False)
+                
             self._load_inference()
+            
+            logger.disable()
+            logger.enable(self._id, enable_log_file=False)
+            
             for e in range(self._config.episodes):
                 obs = self._env.reset().transform(self._agent_tensor)
                 self._try_render()
@@ -100,7 +105,7 @@ class Inference:
         if (self._config.export is None) or (self._renderable_env is None):
             return
         frame = self._renderable_env.render()
-        if (self._config.export == "render_only") and (frame is not None):
+        if (self._config.export != "render_only") and (frame is not None):
             self._frame_collection.append(frame)
             
     def _export(self, episode: int):
@@ -109,8 +114,10 @@ class Inference:
             case "render_only":
                 pass
             case "gif":
+                exports_dir = f"{logger.log_dir()}/exports/gifs"
+                create_dir(exports_dir)
                 images[0].save(
-                    f"{logger.log_dir()}/exports/gifs/{self._id}-episode{episode}.gif",
+                    f"{exports_dir}/{self._id}-episode{episode}.gif",
                     save_all=True,
                     append_images=images[1:],
                     optimize=False,
@@ -118,8 +125,10 @@ class Inference:
                     loop=0
                 )
             case "picture":
+                exports_dir = f"{logger.log_dir()}/exports/pictures/episode{episode}"
+                create_dir(exports_dir)
                 for i, image in enumerate(images):
-                    image.save(f"{logger.log_dir()}/pictures/episode{episode}/{self._id}-episode{episode}-({i}).png")
+                    image.save(f"{exports_dir}/{self._id}-episode{episode}-({i}).png")
             case "video":
                 raise NotImplementedError("video export is not implemented yet")
             case _:
