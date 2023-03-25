@@ -1,5 +1,3 @@
-from dataclasses import asdict
-
 import torch
 
 import aine_drl.drl_util as drl_util
@@ -37,7 +35,7 @@ class PPO(Agent):
         if not isinstance(network, PPOSharedNetwork):
             raise NetworkTypeError(PPOSharedNetwork)
         
-        super().__init__(num_envs, network.device, behavior_type)
+        super().__init__(num_envs, network, behavior_type)
         
         self._config = config
         self._network = network
@@ -58,7 +56,7 @@ class PPO(Agent):
     def _update_train(self, exp: Experience):
         # add the experience
         self._trajectory.add(PPOExperience(
-            **asdict(exp),
+            **exp.__dict__,
             action_log_prob=self._action_log_prob,
             state_value=self._state_value
         ))
@@ -79,8 +77,8 @@ class PPO(Agent):
         action = dist.sample()
         
         # store data
-        self._action_log_prob = dist.joint_log_prob(action).cpu()
-        self._state_value = v_pred.cpu()
+        self._action_log_prob = dist.joint_log_prob(action)
+        self._state_value = v_pred
         
         return action
     

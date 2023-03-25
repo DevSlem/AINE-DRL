@@ -1,16 +1,19 @@
 CartPole-v1_PPO:
-  num_envs: 3
-  Gym:
-    env:
-      id: "CartPole-v1"
-    training:
-      total_global_time_steps: 100000
-      summary_freq: 1000
-      inference_freq: 10000
-      inference_render: true
-      seed: 0
-  PPO:
-    training_freq: 16
+  Env:
+    type: Gym
+    Config:
+      id: CartPole-v1
+  Train:
+    num_envs: 3
+    Config:
+      time_steps: 10000
+      summary_freq: 500
+  Inference:
+    Config:
+      episodes: 10
+      export: render_only
+  Agent:
+    n_steps: 16
     epoch: 3
     mini_batch_size: 8
     gamma: 0.99
