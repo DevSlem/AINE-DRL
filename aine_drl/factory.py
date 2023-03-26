@@ -57,20 +57,27 @@ class AINEFactory(Generic[T]):
         return self._id
     
     @property
+    @abstractmethod
     def num_envs(self) -> int:
-        return self._config_dict["Train"].get("num_envs", 1)
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def seed(self) -> int | list[int] | None:
+        raise NotImplementedError
 
 class AINETrainFactory(AINEFactory[Train]):
     def make_env(self) -> "AINETrainFactory":
         if self._env is not None:
             raise AINEFactoryError("environment is already set")
         env_dict: dict = self._config_dict["Env"]
-        train_dict: dict = self._config_dict["Train"]
-        num_envs = train_dict.get("num_envs", 1)
-        seed = train_dict.get("seed", None)
-        if seed is not None:
-            util_f.seed(seed)
-        self._env = self._make_train_env(env_dict, num_envs, seed)
+        seed = self.seed
+        match seed:
+            case int():
+                util_f.seed(seed)
+            case list() if len(seed) > 0:
+                util_f.seed(seed[0])
+        self._env = self._make_train_env(env_dict, self.num_envs, seed)
         return self
     
     def set_env(self, env: Env) -> "AINEFactory[Train]":
@@ -78,7 +85,7 @@ class AINETrainFactory(AINEFactory[Train]):
             warnings.warn("the number of environments is different from the configuration. this may cause an unexpected behavior.")
         return super().set_env(env)
     
-    def _make_train_env(self, env_dict: dict, num_envs: int, seed: int | None) -> Env:        
+    def _make_train_env(self, env_dict: dict, num_envs: int, seed: int | list[int] | None) -> Env:        
         config_dict: dict = env_dict["Config"]
         match env_dict["type"]:
             case "Gym":
@@ -99,6 +106,14 @@ class AINETrainFactory(AINEFactory[Train]):
         train_config = TrainConfig(**train_dict["Config"])
         return Train(self.id, train_config, self._env, self._agent)
     
+    @property
+    def num_envs(self) -> int:
+        return self._config_dict["Train"].get("num_envs", 1)
+    
+    @property
+    def seed(self) -> int | list[int] | None:
+        return self._config_dict["Train"].get("seed", None)
+    
     @staticmethod
     def from_yaml(file_path: str) -> "AINETrainFactory":
         with open(file_path) as f:
@@ -111,9 +126,12 @@ class AINEInferenceFactory(AINEFactory[Inference]):
             raise AINEFactoryError("environment is already set")
         env_dict: dict = self._config_dict["Env"]
         inference_dict: dict = self._config_dict["Inference"]
-        seed = inference_dict.get("seed", None)
-        if seed is not None:
-            util_f.seed(seed)
+        seed = self.seed
+        match seed:
+            case int():
+                util_f.seed(seed)
+            case list() if len(seed) > 0:
+                util_f.seed(seed[0])
         inference_config = InferenceConfig(**inference_dict["Config"])
         self._env = self._make_inference_env(env_dict, inference_config.export, seed)
         return self
@@ -127,7 +145,7 @@ class AINEInferenceFactory(AINEFactory[Inference]):
         inference_config = InferenceConfig(**inference_dict["Config"])
         return Inference(self.id, inference_config, self._env, self._agent)
     
-    def _make_inference_env(self, env_dict: dict, export: str | None, seed: int | None) -> Env:
+    def _make_inference_env(self, env_dict: dict, export: str | None, seed: int | list[int] | None) -> Env:
         config_dict: dict = env_dict["Config"]
         match env_dict["type"]:
             case "Gym":
@@ -146,6 +164,14 @@ class AINEInferenceFactory(AINEFactory[Inference]):
                 raise NotImplementedError("ML-Agents environment is not implemented yet")
             case _:
                 raise AINEFactoryError("invalid environment type")
+            
+    @property
+    def num_envs(self) -> int:
+        return 1
+
+    @property
+    def seed(self) -> int | list[int] | None:
+        return self._config_dict["Inference"].get("seed", None)
             
     @staticmethod
     def from_yaml(file_path: str) -> "AINEInferenceFactory":
