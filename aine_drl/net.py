@@ -85,7 +85,6 @@ class RecurrentNetwork(Network):
     """
     Recurrent neural network (RNN) abstract class.
     """
-    @property
     @abstractmethod
     def hidden_state_shape(self) -> tuple[int, int]:
         """
@@ -210,3 +209,47 @@ class GaussianLayer(nn.Module):
     def forward(self, x: torch.Tensor) -> PolicyDistParam:
         out = self.layer(x)
         return PolicyDistParam(continuous_pdparams=torch.split(out, 2, dim=1))
+    
+def wrap_lstm_hidden_state(
+    h: torch.Tensor, 
+    c: torch.Tensor
+) -> torch.Tensor:
+    """
+    Wrap the hidden state of LSTM.
+    
+    Args:
+        h (Tensor): `(D x num_layers, seq_batch_size, H_out)`
+        c (Tensor): `(D x num_layers, seq_batch_size, H_cell)`
+    
+    Returns:
+        hc (Tensor): `(D x num_layers, seq_batch_size, H_out + H_cell)`
+    """
+    return torch.cat((h, c), dim=2)
+
+def unwrap_lstm_hidden_state(
+    hc: torch.Tensor, 
+    h_size: int | None = None, 
+    c_size: int | None = None
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Unwrap the hidden state of LSTM.
+    
+    Note if `H_out` and `H_cell` are different size, you must specify both of them.
+
+    Args:
+        hc (Tensor): `(D x num_layers, seq_batch_size, H_out + H_cell)`
+        h_size (int | None): `H_out`. Defaults to `H_out` = `H_cell`.
+        c_size (int | None): `H_cell`. Defaults to `H_cell` = `H_out`.
+
+    Returns:
+        h (Tensor): `(D x num_layers, seq_batch_size, H_out)`
+        c (Tensor): `(D x num_layers, seq_batch_size, H_cell)`
+    """
+    if (h_size is None) ^ (c_size is None):
+        raise ValueError("if `H_out` and `H_cell` are different size, you must specify both of them.")
+    
+    if (h_size is None) and (c_size is None):
+        h_size = c_size = hc.shape[2] // 2
+    
+    h, c = hc.split([h_size, c_size], dim=2)
+    return h.contiguous(), c.contiguous()
