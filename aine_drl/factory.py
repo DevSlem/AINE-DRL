@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 
 import yaml
 
-import aine_drl.util as util
+import aine_drl.util.func as util_f
 from aine_drl.agent.agent import Agent
 from aine_drl.train.env import Env, GymEnv, GymRenderableEnv
 from aine_drl.train.inference import Inference, InferenceConfig
@@ -69,7 +69,7 @@ class AINETrainFactory(AINEFactory[Train]):
         num_envs = train_dict.get("num_envs", 1)
         seed = train_dict.get("seed", None)
         if seed is not None:
-            util.seed(seed)
+            util_f.seed(seed)
         self._env = self._make_train_env(env_dict, num_envs, seed)
         return self
     
@@ -113,7 +113,7 @@ class AINEInferenceFactory(AINEFactory[Inference]):
         inference_dict: dict = self._config_dict["Inference"]
         seed = inference_dict.get("seed", None)
         if seed is not None:
-            util.seed(seed)
+            util_f.seed(seed)
         inference_config = InferenceConfig(**inference_dict["Config"])
         self._env = self._make_inference_env(env_dict, inference_config.export, seed)
         return self
