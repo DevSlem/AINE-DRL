@@ -70,7 +70,7 @@ class Train:
             self._load_train()
             
             if self._time_steps >= self._config.time_steps:  
-                logger.print(f"train is already finished.")
+                logger.print(f"Training is already finished.")
                 return self
             
             logger.disable()
@@ -78,44 +78,54 @@ class Train:
             
             self._print_train_info()            
             
-            obs = self._env.reset().transform(self._agent_tensor)
-            cumulative_reward = 0.0
-            for _ in range(self._time_steps, self._config.time_steps):
-                # take action and observe
-                action = self._agent.select_action(obs)
-                next_obs, reward, terminated, real_final_next_obs = self._env.step(action)
-                
-                # update the agent
-                next_obs = next_obs.transform(self._agent_tensor)
-                real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs.transform(self._agent_tensor)
-                exp = Experience(
-                    obs,
-                    action,
-                    real_next_obs,
-                    self._agent_tensor(reward),
-                    self._agent_tensor(terminated),
-                )
-                self._agent.update(exp)
-                
-                # take next step
-                obs = next_obs
-                cumulative_reward += reward[self._trace_env].item()
-                self._tick_time_steps()
-                
-                if terminated[self._trace_env].item():
-                    self._cumulative_reward_mean.update(cumulative_reward)
-                    self._episode_len_mean.update(self._episode_len)
+            try:
+                obs = self._env.reset().transform(self._agent_tensor)
+                cumulative_reward = 0.0
+                last_agent_save_t = 0
+                for _ in range(self._time_steps, self._config.time_steps):
+                    # take action and observe
+                    action = self._agent.select_action(obs)
+                    next_obs, reward, terminated, real_final_next_obs = self._env.step(action)
                     
-                    cumulative_reward = 0.0
-                    self._tick_episode()
-                
-                # summary
-                if self._time_steps % self._config.summary_freq == 0:
-                    self._summary_train()
+                    # update the agent
+                    next_obs = next_obs.transform(self._agent_tensor)
+                    real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs.transform(self._agent_tensor)
+                    exp = Experience(
+                        obs,
+                        action,
+                        real_next_obs,
+                        self._agent_tensor(reward),
+                        self._agent_tensor(terminated),
+                    )
+                    self._agent.update(exp)
                     
-                # save the agent
-                if self._time_steps % self._config.agent_save_freq == 0:
+                    # take next step
+                    obs = next_obs
+                    cumulative_reward += reward[self._trace_env].item()
+                    self._tick_time_steps()
+                    
+                    if terminated[self._trace_env].item():
+                        self._cumulative_reward_mean.update(cumulative_reward)
+                        self._episode_len_mean.update(self._episode_len)
+                        
+                        cumulative_reward = 0.0
+                        self._tick_episode()
+                    
+                    # summary
+                    if self._time_steps % self._config.summary_freq == 0:
+                        self._summary_train()
+                        
+                    # save the agent
+                    if self._time_steps % self._config.agent_save_freq == 0:
+                        self._save_train()
+                        last_agent_save_t = self._time_steps
+                logger.print(f"Training is finished.")
+                if self._time_steps > last_agent_save_t:
                     self._save_train()
+                
+            except KeyboardInterrupt:
+                logger.print(f"Training interrupted at the time step {self._time_steps}.")
+                self._save_train()
                     
         return self
     
@@ -145,6 +155,7 @@ class Train:
             .add_text(f"Output Path: {logger.log_dir()}") \
             .add_line() \
             .add_text(f"Training INFO:") \
+            .add_text(f"    number of environments: {self._env.num_envs}") \
             .add_text(f"    total time steps: {self._config.time_steps}") \
             .add_text(f"    summary frequency: {self._config.summary_freq}") \
             .add_text(f"    agent save frequency: {self._config.agent_save_freq}") \
@@ -153,7 +164,6 @@ class Train:
             .add_text(f"    name: {self._agent.name}") \
             .add_text(f"    device: {self._agent.device}") \
             .make()
-        
         logger.print(text_info_box, prefix="")
         logger.print("", prefix="")
         
@@ -181,8 +191,8 @@ class Train:
             train=train_dict,
             agent=self._agent.state_dict,
         )
-        logger.save_agent(state_dict)
-        logger.print(f"the agent is successfully saved: {logger.agent_save_dir()}")
+        logger.save_agent(state_dict, self._time_steps)
+        logger.print(f"Agent is successfully saved: {logger.agent_save_path()}")
     
     def _load_train(self):
         try:

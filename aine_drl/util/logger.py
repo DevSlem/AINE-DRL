@@ -10,7 +10,7 @@ from io import TextIOWrapper
 
 import torch
 
-import aine_drl.util as util
+import aine_drl.util.func as util_f
 
 
 class logger:
@@ -52,6 +52,7 @@ class logger:
     def disable(cls):
         if cls._enabled:
             if cls._log_file is not None:
+                cls._log_file.log_message_file.write("\n")
                 cls._log_file.close()
                 cls._log_file = None   
             cls._log_dir = None
@@ -70,8 +71,8 @@ class logger:
     def numbering_env_id(cls, env_id: str) -> str:
         """Numbering environment id if it already exsits."""
         dir = f"{cls._LOG_BASE_DIR}/{env_id}"
-        if util.exists_dir(dir):
-            dir = util.add_dir_num_suffix(dir, num_left="_")
+        if util_f.exists_dir(dir):
+            dir = util_f.add_dir_num_suffix(dir, num_left="_")
             env_id = dir[len(cls._LOG_BASE_DIR) + 1:]
         return env_id
     
@@ -86,7 +87,7 @@ class logger:
         return cls._log_dir
     
     @classmethod
-    def agent_save_dir(cls) -> str:
+    def agent_save_path(cls) -> str:
         """Returns agent save directory."""
         if cls._log_dir is None:
             raise Exception("you must enable the logger")
@@ -100,12 +101,16 @@ class logger:
         cls._log_file.tb_logger.add_scalar(key, value, t)
         
     @classmethod
-    def load_agent(cls) -> dict:
-        return torch.load(cls.agent_save_dir())
+    def load_agent(cls, path: str | None = None) -> dict:
+        return torch.load(cls.agent_save_path() if path is None else path)
     
     @classmethod
-    def save_agent(cls, state_dict: dict):
-        torch.save(state_dict, cls.agent_save_dir())
+    def save_agent(cls, state_dict: dict, time_steps: int | None = None):
+        torch.save(state_dict, cls.agent_save_path())
+        if time_steps is not None:
+            specific_agent_dir = f"{cls.log_dir()}/agents"
+            util_f.create_dir(specific_agent_dir)
+            torch.save(state_dict, f"{specific_agent_dir}/agent_{time_steps}.pt")
 
 class TextInfoBox:
     def __init__(self, right_margin: int = 10) -> None:
@@ -113,7 +118,9 @@ class TextInfoBox:
         self._right_margin = right_margin
         self._max_text_len = 0
         
-    def add_text(self, text: str) -> "TextInfoBox":
+    def add_text(self, text: str | None) -> "TextInfoBox":
+        if text is None:
+            return self
         self._max_text_len = max(self._max_text_len, len(text))
         self._texts.append((f" {text} ", " "))
         return self

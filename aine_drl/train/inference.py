@@ -16,6 +16,7 @@ from .error import AgentLoadError
 class InferenceConfig:
     episodes: int
     export: str | None = "render_only"
+    agent_file_path: str | None = None
     
 class Inference:
     def __init__(
@@ -59,36 +60,39 @@ class Inference:
             logger.disable()
             logger.enable(self._id, enable_log_file=False)
             
-            for e in range(self._config.episodes):
-                obs = self._env.reset().transform(self._agent_tensor)
-                self._try_render()
-                not_terminated = True
-                cumulative_reward = 0.0
-                while not_terminated:
-                    # take action and observe
-                    action = self._agent.select_action(obs)
-                    next_obs, reward, terminated, real_final_next_obs = self._env.step(action)
+            try:
+                for e in range(self._config.episodes):
+                    obs = self._env.reset().transform(self._agent_tensor)
                     self._try_render()
-                    
-                    # update the agent
-                    next_obs = next_obs.transform(self._agent_tensor)
-                    real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs.transform(self._agent_tensor)
-                    exp = Experience(
-                        obs,
-                        action,
-                        real_next_obs,
-                        self._agent_tensor(reward),
-                        self._agent_tensor(terminated),
-                    )
-                    self._agent.update(exp)
-                    
-                    # take next step
-                    obs = next_obs
-                    not_terminated = not terminated[self._trace_env].item()
-                    cumulative_reward += reward[self._trace_env].item()
+                    not_terminated = True
+                    cumulative_reward = 0.0
+                    while not_terminated:
+                        # take action and observe
+                        action = self._agent.select_action(obs)
+                        next_obs, reward, terminated, real_final_next_obs = self._env.step(action)
+                        self._try_render()
+                        
+                        # update the agent
+                        next_obs = next_obs.transform(self._agent_tensor)
+                        real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs.transform(self._agent_tensor)
+                        exp = Experience(
+                            obs,
+                            action,
+                            real_next_obs,
+                            self._agent_tensor(reward),
+                            self._agent_tensor(terminated),
+                        )
+                        self._agent.update(exp)
+                        
+                        # take next step
+                        obs = next_obs
+                        not_terminated = not terminated[self._trace_env].item()
+                        cumulative_reward += reward[self._trace_env].item()
 
-                logger.print(f"inference - episode: {e}, cumulative reward: {cumulative_reward:.2f}")
-                self._export(e)
+                    logger.print(f"inference - episode: {e}, cumulative reward: {cumulative_reward:.2f}")
+                    self._export(e)
+            except KeyboardInterrupt:
+                logger.print(f"Inference interrupted.")
                 
         return self
     
@@ -138,7 +142,14 @@ class Inference:
         
     def _load_inference(self):
         try:
-            state_dict = logger.load_agent()
+            agent_file_path = self._config.agent_file_path
+            state_dict = logger.load_agent(agent_file_path)
+            
+            if agent_file_path is None:
+                agent_file_path = logger.agent_save_path()
+                
+            logger.print(f"Agent is successfully loaded from: {agent_file_path}")
+                
         except FileNotFoundError:
             raise FileNotFoundError(f"no saved agent found at {logger.log_dir()}")
         try:
