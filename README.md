@@ -9,15 +9,16 @@ A project for the DRL baseline framework. **AINE** means "Agent IN Environment".
 AINE-DRL provides below things.
 
 * deep reinforcement learning agents
-* training in gym environment (vectorized environment also supported) and inference (rendering)
+* train in OpenAI Gym
+* inference (rendering, gif, picture)
 * model save/load
-* YAML configuration format
+* YAML configuration
 
 If you want to know how to use, see details in [sample codes](samples/) and [Wiki](https://github.com/DevSlem/AINE-DRL/wiki).
 
 ### Agent
 
-AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read documentations in [Wiki](https://github.com/DevSlem/AINE-DRL/wiki). 
+AINE-DRL provides deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read documentations in [Wiki](https://github.com/DevSlem/AINE-DRL/wiki). 
 
 |Agent|Source Code|
 |:---:|:---:|
@@ -45,13 +46,11 @@ AINE-DRL provides basic deep reinforcement learning (DRL) agents. If you want to
 
 You can see our experiments (source code and result) in [experiments](experiments/). We show some recent experiments.
 
-### BipedalWalker-v3 with PPO and SAC
+### BipedalWalker-v3 with PPO
 
-Train agents in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) which is continuous action problem.
+Train agents in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) which is continuous action space task.
 
-> Note that SAC is not implemented yet.
-
-Fig 1. BipedalWalker-v3 inference rendering (PPO):
+Fig 1. BipedalWalker-v3 inference (PPO):
 
 ![](images/bipedal-walker-v3-inference.webp)
 
@@ -61,57 +60,54 @@ Fig 1. BipedalWalker-v3 inference rendering (PPO):
 To train the agent, enter the following command:
 
 ```bash
-python experiments/bipedal_walker_v3/train.py
+python experiments/bipedal_walker_v3/run.py
+```
+
+Detail options:
+
+```
+Usage:
+    experiments/bipedal_walker_v3/run.py [options]
+
+Options:
+    -i --inference                Wheter to inference [default: False].
 ```
 
 If paging file error happens, see [Paging File Error](#paging-file-error).
 
-<!-- To inference, use:
-
-```
-python experiments/bipedal_walker_v3/train.py -m=inference
-``` -->
-
-To check graphical experiment results, use:
-
-```bash
-tensorboard --logdir=experiments/bipedal_walker_v3
-```
-
 ### CartPole-v1 with No Velocity
 
-Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, we remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. This experiment shows to require memory ability in POMDP setting.
+Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in OpenAI Gym [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, we remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. This experiment shows to require memory ability in POMDP setting.
 
-Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference rendering (cumulative reward - Recurrent PPO: 500, Naive PPO: 28):
+Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference rendering (cumulative reward - Recurrent PPO: 500, Naive PPO: 56):
 
 |Recurrent PPO|Naive PPO|
 |:---:|:---:|
-|![](images/cartpole-v1-with-no-velocity-inference-recurrent-ppo.webp)|![](images/cartpole-v1-with-no-velocity-inference-naive-ppo.webp)|
+|![](images/CartPole-v1-NoVelocity_RecurrentPPO-episode2.gif)|![](images/CartPole-v1-NoVelocity_NaivePPO-episode2.gif)|
 
-Fig 3. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward (purple: Recurrent PPO, sky: Naive PPO):
+Fig 3. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward (black: Recurrent PPO, cyan: Naive PPO):
 
-![](images/cartpole-v1-with-no-velocity-cumulative-reward.png)
+![](images/cartpole-v1-no-velocity-cumulative-reward.png)
 
 * [experiment](experiments/cartpole_v1_no_velocity/)
 * [Recurrent PPO configuration](config/experiments/cartpole_v1_no_velocity_recurrent_ppo.yaml)
-* [Naive PPO configuration](config/experiments/cartpole_v1_no_velocity_ppo.yaml)
+* [Naive PPO configuration](config/experiments/cartpole_v1_no_velocity_naive_ppo.yaml)
 
-To train the agent, enter the following command:
-
-```bash
-python experiments/cartpole_v1_no_velocity/train.py
-```
-
-<!-- You can inference it using the command:
-
-```
-$ python experiments/cartpole_v1_no_velocity/train.py -m=inference
-``` -->
-
-To check graphical experiment results, use:
+To train the Recurrent PPO agent, enter the following command:
 
 ```bash
-tensorboard --logdir=experiments/cartpole_v1_no_velocity
+python experiments/cartpole_v1_no_velocity/run.py
+```
+
+Detail options:
+
+```
+Usage:
+    experiments/cartpole_v1_no_velocity/train.py [options]
+
+Options:
+    -a --agent <AGENT_NAME>       Agent name (recurrent_ppo, naive_ppo) [default: recurrent_ppo].
+    -i --inference                Wheter to inference [default: False].
 ```
 
 ## Setup
@@ -122,26 +118,16 @@ Follow the instructions.
 
 Required packages:
 
-* [Python](https://www.python.org/) 3.10.9
+* [Python](https://www.python.org/) 3.10.8
 * [Pytorch](https://pytorch.org/) 1.11.0 - CUDA 11.3
 * [Tensorboard](https://github.com/tensorflow/tensorboard) 2.12.0
-* [Gym](https://github.com/openai/gym) 0.26.2
 * [PyYAML](https://pyyaml.org/) 6.0
+* [Gym](https://github.com/openai/gym) 0.26.2
+* [ML-Agents](https://github.com/Unity-Technologies/ml-agents/tree/release_20) 0.30.0
 
 > Note that it's recommended to match the package versions. If not, it may cause API conflicts.
 
-You can easily create an Anaconda environment. Input the command in your Anaconda shell:
-
-```bash
-conda env create -f <CONDA_ENV>.yaml
-conda activate aine-drl
-```
-
-`<CONDA_ENV`> depends on your OS:
-
-* Linux: `conda_env_linux`
-
-If it doesn't work, install the packages manually by entering the command below:
+When you use Anaconda environment, install the packages by entering the command below:
 
 ```bash
 conda create -n aine-drl python=3.10.8 -y
@@ -157,7 +143,7 @@ pip install 'protobuf==3.20.*'
 
 ### Run
 
-Run a sample script in [samples](samples/) directory. Enter the following command in your shell:
+Run a sample script in [samples](samples/) directory. Enter the following command:
 
 ```bash
 python samples/<FILE_NAME>
@@ -169,18 +155,34 @@ Example:
 python samples/cartpole_v1_ppo.py
 ```
 
-Then, you can see the training information in the shell:
+then, you can see the training information in your shell:
 
 ```
-[AINE-DRL] 'CartPole-v1_PPO' training start!
-[AINE-DRL] training time: 1.0, global time step: 1002, cumulative reward: 16.6
-[AINE-DRL] training time: 2.0, global time step: 2001, cumulative reward: 38.3
-[AINE-DRL] training time: 3.1, global time step: 3000, cumulative reward: 45.8
++----------------------------------------------+
+| AINE-DRL Training Start!                     |
+|==============================================|
+| ID: CartPole-v1_PPO                          |
+| Output Path: results/CartPole-v1_PPO         |
+|----------------------------------------------|
+| Training INFO:                               |
+|     number of environments: 3                |
+|     total time steps: 20000                  |
+|     summary frequency: 1000                  |
+|     agent save frequency: 10000              |
+|----------------------------------------------|
+| Agent INFO:                                  |
+|     name: PPO                                |
+|     device: cpu                              |
++----------------------------------------------+
+
+[AINE-DRL] training time: 1.30, time steps: 1000, cumulated reward: 30.00
+[AINE-DRL] training time: 2.57, time steps: 2000, cumulated reward: 115.00
+[AINE-DRL] training time: 3.88, time steps: 3000, cumulated reward: 133.00
 ```
 
-The graphical result file (Tensorboard) is generated in `results` directory. You can interrupt training by `ctrl + c` and you can also retrain at the interrupted time step.
+When the training is finished, you can see the results (tensorboard, log message, agent save file) in `results` directory.
 
-If you want to see the graphical result, input the command:
+Open the tensorboard result by entering the command:
 
 ```bash
 tensorboard --logdir=results
@@ -192,14 +194,15 @@ or
 tensorboard --logdir=results/<sub_directory>
 ```
 
-then, you can open the TensorBoard like below it.
+If you want to change the inference export format like gif, png (default: real-time rendering), you need to change the `Inference` setting in the configuration file. Follow the example:
 
-Fig 4. [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with PPO:
+```yaml
+Inference:
+  Config:
+    export: gif # default: render_only
+```
 
-![](images/cartpole-v1-ppo-cumulative-reward-graph.png) 
-
-* [configuration](config/samples/cartpole_v1_ppo.yaml)
-* [sample code](samples/cartpole_v1_ppo.py)
+`export` detail options: `None`, `render_only`, `gif`, `png`
 
 ### Paging File Error
 
