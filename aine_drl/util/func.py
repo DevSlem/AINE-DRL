@@ -161,29 +161,3 @@ def polyak_update_module(src_module: nn.Module, target_module: nn.Module, src_ra
     for src_param, target_param in zip(src_module.parameters(), target_module.parameters()):
         target_param.data.copy_(src_ratio * src_param.data + (1.0 - src_ratio) * target_param.data)
 
-class IncrementalAverage:
-    """
-    Incremental average calculation implementation. 
-    It uses only two memories: average, n.
-    """
-    def __init__(self) -> None:
-        self.reset()
-        
-    def reset(self):
-        self._average = 0.0
-        self.n = 0
-        
-    def update(self, value):
-        """Update current average."""
-        self.n += 1
-        self._average += (value - self._average) / self.n
-        return self._average
-        
-    @property
-    def average(self):
-        """Returns current average."""
-        return self._average
-    
-    @property
-    def count(self) -> int:
-        return self.n

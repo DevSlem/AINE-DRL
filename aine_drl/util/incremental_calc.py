@@ -1,6 +1,34 @@
 from typing import Optional, Union, Tuple
 import torch
 
+class IncrementalMean:
+    """
+    Incremental mean calculation implementation. 
+    It uses only two memories: mean, n.
+    """
+    def __init__(self) -> None:
+        self.reset()
+        
+    def reset(self):
+        self._mean = 0.0
+        self._n = 0
+        
+    def update(self, value: float) -> float:
+        """Update current average."""
+        self._n += 1
+        self._mean += (value - self._mean) / self._n
+        return self._mean
+        
+    @property
+    def mean(self) -> float:
+        """Returns current average."""
+        return self._mean
+    
+    @property
+    def count(self) -> int:
+        return self._n
+
+
 class IncrementalMeanVarianceFromBatch:
     """
     ## Summary
@@ -91,3 +119,4 @@ class IncrementalMeanVarianceFromBatch:
         self._n = n
         
         return self._mean, self._var
+    

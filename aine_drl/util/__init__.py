@@ -1,4 +1,3 @@
-from .func import *
 from .logger import *
-from .incremental_mean_variance_from_batch import IncrementalMeanVarianceFromBatch
+from .incremental_calc import IncrementalMean, IncrementalMeanVarianceFromBatch
 from .truncated_seq_gen import TruncatedSeqGen
