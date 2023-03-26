@@ -7,12 +7,13 @@ import torch.nn as nn
 import torch.optim as optim
 
 import aine_drl
+import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.train import Env
 
 
-class CartPolePPONet(nn.Module, aine_drl.PPOSharedNetwork):    
+class CartPolePPONet(nn.Module, agent.PPOSharedNetwork):    
     def __init__(self, obs_features, num_actions) -> None:
         super().__init__()
         
@@ -41,8 +42,8 @@ class CartPolePPONet(nn.Module, aine_drl.PPOSharedNetwork):
         return pdparam, state_value
     
 class PPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
-        config = aine_drl.PPOConfig(**config_dict)
+    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+        config = agent.PPOConfig(**config_dict)
         
         network = CartPolePPONet(
             obs_features=env.obs_shape[0],
@@ -56,7 +57,7 @@ class PPOFactory(AgentFactory):
         
         policy = aine_drl.CategoricalPolicy()
         
-        return aine_drl.PPO(
+        return agent.PPO(
             config,
             network,
             trainer,

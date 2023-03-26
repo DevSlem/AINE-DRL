@@ -7,12 +7,13 @@ import torch.nn as nn
 import torch.optim as optim
 
 import aine_drl
+import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.train import Env
 
 
-class CartPoleA2CNet(nn.Module, aine_drl.A2CSharedNetwork):    
+class CartPoleA2CNet(nn.Module, agent.A2CSharedNetwork):    
     def __init__(self, obs_features, num_actions) -> None:
         super().__init__()
         
@@ -40,8 +41,8 @@ class CartPoleA2CNet(nn.Module, aine_drl.A2CSharedNetwork):
         return pdparam, state_value
     
 class A2CFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
-        config = aine_drl.A2CConfig(**config_dict)
+    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+        config = agent.A2CConfig(**config_dict)
         
         network = CartPoleA2CNet(
             obs_features=env.obs_shape[0],
@@ -55,7 +56,7 @@ class A2CFactory(AgentFactory):
         
         policy = aine_drl.CategoricalPolicy()
         
-        return aine_drl.A2C(
+        return agent.A2C(
             config,
             network,
             trainer,

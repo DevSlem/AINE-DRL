@@ -1,3 +1,5 @@
+raise NotImplementedError
+
 import sys
 
 sys.path.append(".")

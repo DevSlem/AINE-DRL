@@ -6,12 +6,13 @@ import torch.nn as nn
 import torch.optim as optim
 
 import aine_drl
+import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.train import Env
 
 
-class CartPoleREINFORCENet(nn.Module, aine_drl.REINFORCENetwork):    
+class CartPoleREINFORCENet(nn.Module, agent.REINFORCENetwork):    
     def __init__(self, obs_features, num_actions) -> None:
         super().__init__()
         
@@ -31,8 +32,8 @@ class CartPoleREINFORCENet(nn.Module, aine_drl.REINFORCENetwork):
         return self.policy_net(obs.items[0])
     
 class REINFORCEFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
-        config = aine_drl.REINFORCEConfig(**config_dict)
+    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+        config = agent.REINFORCEConfig(**config_dict)
         
         network = CartPoleREINFORCENet(
             obs_features=env.obs_shape[0],
@@ -46,7 +47,7 @@ class REINFORCEFactory(AgentFactory):
         
         policy = aine_drl.CategoricalPolicy()
         
-        return aine_drl.REINFORCE(
+        return agent.REINFORCE(
             config,
             network,
             trainer,
