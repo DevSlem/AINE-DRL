@@ -1,0 +1,129 @@
++------------------------------------------------------------------+
+| AINE-DRL Training Start!                                         |
+|==================================================================|
+| ID: CartPole-v1-NoVelocity_RecurrentPPO                          |
+| Output Path: results/CartPole-v1-NoVelocity_RecurrentPPO         |
+|------------------------------------------------------------------|
+| Training INFO:                                                   |
+|     number of environments: 16                                   |
+|     total time steps: 200000                                     |
+|     summary frequency: 2000                                      |
+|     agent save frequency: 20000                                  |
+|------------------------------------------------------------------|
+| Agent INFO:                                                      |
+|     name: Recurrent PPO                                          |
+|     device: cuda:0                                               |
++------------------------------------------------------------------+
+
+[AINE-DRL] training time: 5.24, time steps: 2000, cumulated reward: 20.15
+[AINE-DRL] training time: 11.37, time steps: 4000, cumulated reward: 23.91
+[AINE-DRL] training time: 17.03, time steps: 6000, cumulated reward: 43.09
+[AINE-DRL] training time: 22.61, time steps: 8000, cumulated reward: 49.25
+[AINE-DRL] training time: 27.86, time steps: 10000, cumulated reward: 51.46
+[AINE-DRL] training time: 33.17, time steps: 12000, cumulated reward: 50.28
+[AINE-DRL] training time: 38.81, time steps: 14000, cumulated reward: 67.17
+[AINE-DRL] training time: 44.82, time steps: 16000, cumulated reward: 80.44
+[AINE-DRL] training time: 49.73, time steps: 18000, cumulated reward: 90.77
+[AINE-DRL] training time: 55.05, time steps: 20000, cumulated reward: 102.00
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 60.02, time steps: 22000, cumulated reward: 67.20
+[AINE-DRL] training time: 65.54, time steps: 24000, cumulated reward: 101.42
+[AINE-DRL] training time: 70.97, time steps: 26000, cumulated reward: 84.62
+[AINE-DRL] training time: 76.62, time steps: 28000, cumulated reward: 68.53
+[AINE-DRL] training time: 81.77, time steps: 30000, cumulated reward: 79.88
+[AINE-DRL] training time: 86.74, time steps: 32000, cumulated reward: 96.43
+[AINE-DRL] training time: 91.46, time steps: 34000, cumulated reward: 107.74
+[AINE-DRL] training time: 96.24, time steps: 36000, cumulated reward: 103.32
+[AINE-DRL] training time: 101.23, time steps: 38000, cumulated reward: 82.78
+[AINE-DRL] training time: 106.23, time steps: 40000, cumulated reward: 133.12
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 111.35, time steps: 42000, cumulated reward: 90.67
+[AINE-DRL] training time: 115.90, time steps: 44000, cumulated reward: 87.87
+[AINE-DRL] training time: 120.77, time steps: 46000, cumulated reward: 98.43
+[AINE-DRL] training time: 125.59, time steps: 48000, cumulated reward: 98.80
+[AINE-DRL] training time: 130.45, time steps: 50000, cumulated reward: 126.50
+[AINE-DRL] training time: 135.21, time steps: 52000, cumulated reward: 159.33
+[AINE-DRL] training time: 139.86, time steps: 54000, cumulated reward: 130.44
+[AINE-DRL] training time: 144.84, time steps: 56000, cumulated reward: 117.29
+[AINE-DRL] training time: 151.09, time steps: 58000, cumulated reward: 126.50
+[AINE-DRL] training time: 157.13, time steps: 60000, cumulated reward: 136.86
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 162.87, time steps: 62000, cumulated reward: 168.67
+[AINE-DRL] training time: 168.82, time steps: 64000, cumulated reward: 102.58
+[AINE-DRL] training time: 173.87, time steps: 66000, cumulated reward: 117.28
+[AINE-DRL] training time: 179.44, time steps: 68000, cumulated reward: 165.08
+[AINE-DRL] training time: 184.86, time steps: 70000, cumulated reward: 118.87
+[AINE-DRL] training time: 189.73, time steps: 72000, cumulated reward: 167.17
+[AINE-DRL] training time: 194.65, time steps: 74000, cumulated reward: 160.38
+[AINE-DRL] training time: 199.19, time steps: 76000, cumulated reward: 152.54
+[AINE-DRL] training time: 203.96, time steps: 78000, cumulated reward: 339.83
+[AINE-DRL] training time: 208.83, time steps: 80000, cumulated reward: 153.46
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 213.71, time steps: 82000, cumulated reward: 130.23
+[AINE-DRL] training time: 218.51, time steps: 84000, cumulated reward: 176.23
+[AINE-DRL] training time: 223.34, time steps: 86000, cumulated reward: 211.11
+[AINE-DRL] training time: 228.58, time steps: 88000, cumulated reward: 236.22
+[AINE-DRL] training time: 233.91, time steps: 90000, cumulated reward: 208.11
+[AINE-DRL] training time: 238.87, time steps: 92000, cumulated reward: 226.33
+[AINE-DRL] training time: 243.79, time steps: 94000, cumulated reward: 181.91
+[AINE-DRL] training time: 249.25, time steps: 96000, cumulated reward: 279.00
+[AINE-DRL] training time: 254.24, time steps: 98000, cumulated reward: 171.25
+[AINE-DRL] training time: 259.61, time steps: 100000, cumulated reward: 148.15
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 264.92, time steps: 102000, cumulated reward: 101.90
+[AINE-DRL] training time: 269.82, time steps: 104000, cumulated reward: 161.38
+[AINE-DRL] training time: 275.08, time steps: 106000, cumulated reward: 146.15
+[AINE-DRL] training time: 279.57, time steps: 108000, cumulated reward: 189.91
+[AINE-DRL] training time: 284.88, time steps: 110000, cumulated reward: 161.83
+[AINE-DRL] training time: 290.33, time steps: 112000, cumulated reward: 194.40
+[AINE-DRL] training time: 295.50, time steps: 114000, cumulated reward: 163.31
+[AINE-DRL] training time: 301.14, time steps: 116000, cumulated reward: 178.82
+[AINE-DRL] training time: 306.12, time steps: 118000, cumulated reward: 152.85
+[AINE-DRL] training time: 311.19, time steps: 120000, cumulated reward: 172.82
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 316.20, time steps: 122000, cumulated reward: 132.20
+[AINE-DRL] training time: 321.07, time steps: 124000, cumulated reward: 216.78
+[AINE-DRL] training time: 326.07, time steps: 126000, cumulated reward: 185.17
+[AINE-DRL] training time: 331.24, time steps: 128000, cumulated reward: 146.64
+[AINE-DRL] training time: 336.27, time steps: 130000, cumulated reward: 165.93
+[AINE-DRL] training time: 342.13, time steps: 132000, cumulated reward: 129.13
+[AINE-DRL] training time: 347.49, time steps: 134000, cumulated reward: 201.30
+[AINE-DRL] training time: 352.52, time steps: 136000, cumulated reward: 172.50
+[AINE-DRL] training time: 358.00, time steps: 138000, cumulated reward: 186.36
+[AINE-DRL] training time: 363.51, time steps: 140000, cumulated reward: 201.78
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 368.94, time steps: 142000, cumulated reward: 195.40
+[AINE-DRL] training time: 373.85, time steps: 144000, cumulated reward: 278.38
+[AINE-DRL] training time: 379.08, time steps: 146000, cumulated reward: 195.70
+[AINE-DRL] training time: 384.38, time steps: 148000, cumulated reward: 240.63
+[AINE-DRL] training time: 389.06, time steps: 150000, cumulated reward: 265.50
+[AINE-DRL] training time: 393.82, time steps: 152000, cumulated reward: 207.22
+[AINE-DRL] training time: 398.61, time steps: 154000, cumulated reward: 355.80
+[AINE-DRL] training time: 403.45, time steps: 156000, cumulated reward: 277.62
+[AINE-DRL] training time: 408.22, time steps: 158000, cumulated reward: 268.86
+[AINE-DRL] training time: 414.21, time steps: 160000, cumulated reward: 251.75
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 419.43, time steps: 162000, cumulated reward: 358.60
+[AINE-DRL] training time: 424.38, time steps: 164000, cumulated reward: 356.67
+[AINE-DRL] training time: 429.56, time steps: 166000, cumulated reward: 318.33
+[AINE-DRL] training time: 434.44, time steps: 168000, cumulated reward: 336.29
+[AINE-DRL] training time: 439.65, time steps: 170000, cumulated reward: 384.40
+[AINE-DRL] training time: 444.84, time steps: 172000, cumulated reward: 234.33
+[AINE-DRL] training time: 450.16, time steps: 174000, cumulated reward: 257.83
+[AINE-DRL] training time: 455.24, time steps: 176000, cumulated reward: 250.13
+[AINE-DRL] training time: 460.71, time steps: 178000, cumulated reward: 343.14
+[AINE-DRL] training time: 465.47, time steps: 180000, cumulated reward: 256.38
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] training time: 470.24, time steps: 182000, cumulated reward: 277.57
+[AINE-DRL] training time: 475.07, time steps: 184000, cumulated reward: 289.50
+[AINE-DRL] training time: 480.14, time steps: 186000, cumulated reward: 435.80
+[AINE-DRL] training time: 485.45, time steps: 188000, cumulated reward: 297.29
+[AINE-DRL] training time: 490.65, time steps: 190000, cumulated reward: 275.57
+[AINE-DRL] training time: 495.90, time steps: 192000, cumulated reward: 276.71
+[AINE-DRL] training time: 501.03, time steps: 194000, cumulated reward: 297.33
+[AINE-DRL] training time: 505.93, time steps: 196000, cumulated reward: 269.44
+[AINE-DRL] training time: 511.14, time steps: 198000, cumulated reward: 181.82
+[AINE-DRL] training time: 515.96, time steps: 200000, cumulated reward: 293.67
+[AINE-DRL] Agent is successfully saved: results/CartPole-v1-NoVelocity_RecurrentPPO/agent.pt
+[AINE-DRL] Training is finished.
+
