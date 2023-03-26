@@ -5,8 +5,8 @@ from PIL import Image
 
 from aine_drl.agent.agent import Agent, BehaviorScope, BehaviorType
 from aine_drl.exp import Experience
+from aine_drl.util.func import create_dir
 from aine_drl.util.logger import logger
-from aine_drl.util.util_methods import create_dir
 
 from .env import Env, Renderable
 from .error import AgentLoadError

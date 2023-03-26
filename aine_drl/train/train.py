@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 import torch
 
+import aine_drl.util as util
 from aine_drl.agent.agent import Agent, BehaviorScope, BehaviorType
 from aine_drl.exp import Experience
 from aine_drl.util.logger import TextInfoBox, logger
-from aine_drl.util.util_methods import IncrementalAverage
 
 from .env import Env
 from .error import AgentLoadError
@@ -54,8 +54,8 @@ class Train:
         self._real_start_time = time.time()
         self._real_time = 0.0
         
-        self._cumulative_reward_mean = IncrementalAverage()
-        self._episode_len_mean = IncrementalAverage()
+        self._cumulative_reward_mean = util.IncrementalMean()
+        self._episode_len_mean = util.IncrementalMean()
         
         self._enabled = True
         
@@ -161,9 +161,9 @@ class Train:
         if self._cumulative_reward_mean.count == 0:
             reward_info = "episode has not terminated yet"
         else:
-            reward_info = f"cumulated reward: {self._cumulative_reward_mean.average:.2f}"
-            logger.log("Environment/Cumulative Reward", self._cumulative_reward_mean.average, self._time_steps)
-            logger.log("Environment/Episode Length", self._episode_len_mean.average, self._time_steps)
+            reward_info = f"cumulated reward: {self._cumulative_reward_mean.mean:.2f}"
+            logger.log("Environment/Cumulative Reward", self._cumulative_reward_mean.mean, self._time_steps)
+            logger.log("Environment/Episode Length", self._episode_len_mean.mean, self._time_steps)
             self._cumulative_reward_mean.reset()
             self._episode_len_mean.reset()
         logger.print(f"training time: {self._real_time:.2f}, time steps: {self._time_steps}, {reward_info}")
