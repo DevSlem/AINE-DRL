@@ -6,7 +6,7 @@ from typing import Callable
 import torch
 
 import aine_drl.policy.policy_dist as pd
-from aine_drl.drl_util import Clock, Decay, ILogable, NoDecay
+from aine_drl.util.decay import Decay, NoDecay
 
 
 @dataclass(frozen=True)
@@ -170,7 +170,7 @@ class EpsilonGreedyPolicy(Policy):
             epsilon_decay = NoDecay(epsilon_decay)
         
         self.epsilon_decay: Decay = epsilon_decay # type: ignore
-        self.clock: Clock = None # type: ignore
+        # self.clock: Clock = None # type: ignore
         
     @property
     def action_type(self) -> ActionType:
