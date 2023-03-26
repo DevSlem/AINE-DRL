@@ -11,6 +11,8 @@ from aine_drl.util.logger import logger
 from .env import Env, Renderable
 from .error import AgentLoadError
 
+class InferenceError(Exception):
+    pass
 
 @dataclass
 class InferenceConfig:
@@ -91,6 +93,7 @@ class Inference:
 
                     logger.print(f"inference - episode: {e}, cumulative reward: {cumulative_reward:.2f}")
                     self._export(e)
+                logger.print(f"Inference is finished.")
             except KeyboardInterrupt:
                 logger.print(f"Inference interrupted.")
                 
@@ -118,6 +121,8 @@ class Inference:
             case "render_only":
                 pass
             case "gif":
+                if self._renderable_env is None:
+                    raise InferenceError("renderable environment is required for gif export")
                 exports_dir = f"{logger.log_dir()}/exports/gifs"
                 create_dir(exports_dir)
                 images[0].save(
@@ -129,6 +134,8 @@ class Inference:
                     loop=0
                 )
             case "picture":
+                if self._renderable_env is None:
+                    raise InferenceError("renderable environment is required for picture export")
                 exports_dir = f"{logger.log_dir()}/exports/pictures/episode{episode}"
                 create_dir(exports_dir)
                 for i, image in enumerate(images):
