@@ -1,0 +1,20 @@
+BipedalWalker-v3_PPO:
+  Env:
+    type: Gym
+    Config:
+      id: BipedalWalker-v3
+  Train:
+    num_envs: 32
+    seed: 0
+    Config:
+      time_steps: 40000
+      summary_freq: 2000
+  Inference:
+    seed: 0
+    Config:
+      episodes: 3
+      export: gif
+  Agent:
+    n_steps: 64
+    epoch: 10
+    mini_batch_size: 64

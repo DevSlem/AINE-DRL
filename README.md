@@ -50,9 +50,9 @@ You can see our experiments (source code and result) in [experiments](experiment
 
 Train agents in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) which is continuous action space task.
 
-Fig 1. BipedalWalker-v3 inference (PPO):
+Fig 1. BipedalWalker-v3 inference (cumulative reward - PPO: 240):
 
-![](images/bipedal-walker-v3-inference.webp)
+![](images/BipedalWalker-v3_PPO-episode0.gif)
 
 * [experiment](experiments/bipedal_walker_v3/)
 * [PPO configuration](config/experiments/bipedal_walker_v3_ppo.yaml)
@@ -79,7 +79,7 @@ If paging file error happens, see [Paging File Error](#paging-file-error).
 
 Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in OpenAI Gym [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, we remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. This experiment shows to require memory ability in POMDP setting.
 
-Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference rendering (cumulative reward - Recurrent PPO: 500, Naive PPO: 56):
+Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference (cumulative reward - Recurrent PPO: 500, Naive PPO: 56):
 
 |Recurrent PPO|Naive PPO|
 |:---:|:---:|
@@ -124,15 +124,21 @@ Required packages:
 * [PyYAML](https://pyyaml.org/) 6.0
 * [Gym](https://github.com/openai/gym) 0.26.2
 * [ML-Agents](https://github.com/Unity-Technologies/ml-agents/tree/release_20) 0.30.0
+* [Protocol Buffer](https://protobuf.dev/getting-started/pythontutorial/) 3.20
 
 > Note that it's recommended to match the package versions. If not, it may cause API conflicts.
 
-When you use Anaconda environment, install the packages by entering the command below:
+If you use Anaconda, create an anaconda environment first by entering the command below:
 
 ```bash
 conda create -n aine-drl python=3.10.8 -y
 conda activate aine-drl
-conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch -y
+```
+
+Install the packages by entering the command below:
+
+```bash
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
 pip install tensorboard==2.12.0
 pip install PyYAML==6.0
 pip install gym==0.26.2
@@ -191,7 +197,7 @@ tensorboard --logdir=results
 or
 
 ```bash
-tensorboard --logdir=results/<sub_directory>
+tensorboard --logdir=results/<SUB_DIRECTORY>
 ```
 
 If you want to change the inference export format like gif, png (default: real-time rendering), you need to change the `Inference` setting in the configuration file. Follow the example:
