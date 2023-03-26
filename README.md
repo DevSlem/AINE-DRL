@@ -126,8 +126,6 @@ Required packages:
 * [ML-Agents](https://github.com/Unity-Technologies/ml-agents/tree/release_20) 0.30.0
 * [Protocol Buffer](https://protobuf.dev/getting-started/pythontutorial/) 3.20
 
-> Note that it's recommended to match the package versions. If not, it may cause API conflicts.
-
 If you use Anaconda, create an anaconda environment first by entering the command below:
 
 ```bash
@@ -146,6 +144,8 @@ pip install 'gym[all]'
 pip install mlagents==0.30.0
 pip install 'protobuf==3.20.*'
 ```
+
+> This installation guide is based on Anaconda environment. Please give me a pull request if you have a better installation guide.
 
 ### Run
 
