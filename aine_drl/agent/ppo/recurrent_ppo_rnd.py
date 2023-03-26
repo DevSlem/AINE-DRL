@@ -2,17 +2,17 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent.agent import Agent, BehaviorType
+from aine_drl.agent.ppo.config import RecurrentPPORNDConfig
+from aine_drl.agent.ppo.net import RecurrentPPORNDNetwork
+from aine_drl.agent.ppo.trajectory import (RecurrentPPORNDExperience,
+                                           RecurrentPPORNDTrajectory)
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
-
-from .config import RecurrentPPORNDConfig
-from .net import RecurrentPPORNDNetwork
-from .trajectory import RecurrentPPORNDExperience, RecurrentPPORNDTrajectory
+from aine_drl.util.func import batch2perenv, perenv2batch
 
 
 class RecurrentPPORND(Agent):
@@ -51,7 +51,7 @@ class RecurrentPPORND(Agent):
         self._ext_state_value: torch.Tensor = None # type: ignore
         self._int_state_value: torch.Tensor = None # type: ignore
         self._prev_discounted_int_return = 0.0
-        hidden_state_shape = (network.hidden_state_shape[0], self._num_envs, network.hidden_state_shape[1])
+        hidden_state_shape = (network.hidden_state_shape()[0], self._num_envs, network.hidden_state_shape()[1])
         self._hidden_state = torch.zeros(hidden_state_shape, device=self.device)
         self._next_hidden_state = torch.zeros(hidden_state_shape, device=self.device)
         self._prev_terminated = torch.zeros((self._num_envs, 1), device=self.device)
@@ -63,14 +63,14 @@ class RecurrentPPORND(Agent):
         self._next_hidden_state_feature_mean_var = util.IncrementalMeanVarianceFromBatch(dim=0, device=self.device) 
         self._current_init_norm_steps = 0
         
-        self._actor_loss_mean = util.IncrementalAverage()
-        self._ext_critic_loss_mean = util.IncrementalAverage()
-        self._int_critic_loss_mean = util.IncrementalAverage()
-        self._rnd_loss_mean = util.IncrementalAverage()
-        self._int_reward_mean = util.IncrementalAverage()
+        self._actor_loss_mean = util.IncrementalMean()
+        self._ext_critic_loss_mean = util.IncrementalMean()
+        self._int_critic_loss_mean = util.IncrementalMean()
+        self._rnd_loss_mean = util.IncrementalMean()
+        self._int_reward_mean = util.IncrementalMean()
         
         # for inference mode
-        infer_hidden_state_shape = (network.hidden_state_shape[0], 1, network.hidden_state_shape[1])
+        infer_hidden_state_shape = (network.hidden_state_shape()[0], 1, network.hidden_state_shape()[1])
         self._infer_current_hidden_state = torch.zeros(infer_hidden_state_shape, device=self.device)
         self._infer_next_hidden_state = torch.zeros(infer_hidden_state_shape, device=self.device)
         self._infer_prev_terminated = torch.zeros((1, 1), device=self.device)
@@ -171,7 +171,7 @@ class RecurrentPPORND(Agent):
         advantage, ext_target_state_value, int_target_state_value = self._compute_adv_target(exp_batch)
         
         # convert batch to truncated sequence
-        seq_generator = drl_util.TruncatedSequenceGenerator(
+        seq_generator = util.TruncatedSeqGen(
             self._config.seq_len, 
             self._num_envs,
             self._config.n_steps, 
@@ -179,7 +179,7 @@ class RecurrentPPORND(Agent):
         )
         
         def add_to_seq_gen(batch, start_idx = 0, seq_len = 0):
-            seq_generator.add(drl_util.batch2perenv(batch, self._num_envs), start_idx=start_idx, seq_len=seq_len)
+            seq_generator.add(batch2perenv(batch, self._num_envs), start_idx=start_idx, seq_len=seq_len)
             
         add_to_seq_gen(exp_batch.hidden_state.swapaxes(0, 1), seq_len=1)
         add_to_seq_gen(next_hidden_state.swapaxes(0, 1))
@@ -200,7 +200,7 @@ class RecurrentPPORND(Agent):
         add_to_seq_gen(ext_target_state_value)
         add_to_seq_gen(int_target_state_value)
         
-        sequences = seq_generator.generate(drl_util.batch2perenv(exp_batch.terminated, self._num_envs).unsqueeze_(-1))
+        sequences = seq_generator.generate(batch2perenv(exp_batch.terminated, self._num_envs).unsqueeze_(-1))
         
         mask = sequences[0]
         seq_init_hidden_state, next_hidden_state_seq = sequences[1:3]
@@ -320,7 +320,7 @@ class RecurrentPPORND(Agent):
         entire_int_state_value = torch.cat([exp_batch.int_state_value, final_int_next_state_value])
                 
         # (num_envs x k, 1) -> (num_envs, k, 1) -> (num_envs, k)
-        b2e = lambda x: drl_util.batch2perenv(x, self._num_envs).squeeze_(-1) 
+        b2e = lambda x: batch2perenv(x, self._num_envs).squeeze_(-1) 
         entire_ext_state_value = b2e(entire_ext_state_value)
         entire_int_state_value = b2e(entire_int_state_value)
         reward = b2e(exp_batch.ext_reward)
@@ -341,14 +341,14 @@ class RecurrentPPORND(Agent):
         self._int_reward_mean.update(int_reward.mean().item())
         
         # compute advantage (num_envs, n_steps) using GAE
-        ext_advantage = drl_util.compute_gae(
+        ext_advantage = L.gae(
             entire_ext_state_value,
             reward,
             terminated,
             self._config.ext_gamma,
             self._config.lam
         )
-        int_advantage = drl_util.compute_gae(
+        int_advantage = L.gae(
             entire_int_state_value,
             int_reward,
             torch.zeros_like(terminated), # non-episodic
@@ -362,7 +362,7 @@ class RecurrentPPORND(Agent):
         int_target_state_value = int_advantage + entire_int_state_value[:, :-1]
         
         # (num_envs, n_steps) -> (num_envs x n_steps, 1)
-        e2b = lambda x: drl_util.perenv2batch(x.unsqueeze_(-1))
+        e2b = lambda x: perenv2batch(x.unsqueeze_(-1))
         advantage = e2b(advantage)
         ext_target_state_value = e2b(ext_target_state_value)
         int_target_state_value = e2b(int_target_state_value)
@@ -416,15 +416,15 @@ class RecurrentPPORND(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self._actor_loss_mean.count > 0:
-            ld["Network/Actor Loss"] = (self._actor_loss_mean.average, self.training_steps)
-            ld["Network/Extrinsic Critic Loss"] = (self._ext_critic_loss_mean.average, self.training_steps)
-            ld["Network/Intrinsic Critic Loss"] = (self._int_critic_loss_mean.average, self.training_steps)
-            ld["Network/RND Loss"] = (self._rnd_loss_mean.average, self.training_steps)
+            ld["Network/Actor Loss"] = (self._actor_loss_mean.mean, self.training_steps)
+            ld["Network/Extrinsic Critic Loss"] = (self._ext_critic_loss_mean.mean, self.training_steps)
+            ld["Network/Intrinsic Critic Loss"] = (self._int_critic_loss_mean.mean, self.training_steps)
+            ld["Network/RND Loss"] = (self._rnd_loss_mean.mean, self.training_steps)
             self._actor_loss_mean.reset()
             self._ext_critic_loss_mean.reset()
             self._int_critic_loss_mean.reset()
             self._rnd_loss_mean.reset()
         if self._int_reward_mean.count > 0:
-            ld["RND/Intrinsic Reward"] = (self._int_reward_mean.average, self.training_steps)
+            ld["RND/Intrinsic Reward"] = (self._int_reward_mean.mean, self.training_steps)
             self._int_reward_mean.reset()
         return ld

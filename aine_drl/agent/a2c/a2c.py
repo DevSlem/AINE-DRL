@@ -1,16 +1,15 @@
 import torch
 
-import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
+from aine_drl.agent.a2c.config import A2CConfig
+from aine_drl.agent.a2c.net import A2CSharedNetwork
+from aine_drl.agent.a2c.trajectory import A2CExperience, A2CTrajectory
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
-
-from .config import A2CConfig
-from .net import A2CSharedNetwork
-from .trajectory import A2CExperience, A2CTrajectory
+from aine_drl.util.func import batch2perenv, perenv2batch
 
 
 class A2C(Agent):
@@ -47,8 +46,8 @@ class A2C(Agent):
         self._state_value: torch.Tensor = None # type: ignore
         self._entropy: torch.Tensor = None # type: ignore
         
-        self.actor_average_loss = util.IncrementalAverage()
-        self.critic_average_loss = util.IncrementalAverage()    
+        self.actor_average_loss = util.IncrementalMean()
+        self.critic_average_loss = util.IncrementalMean()    
         
     @property
     def name(self) -> str:
@@ -128,7 +127,7 @@ class A2C(Agent):
         entire_state_value = torch.cat((exp_batch.state_value.detach(), final_next_state_value))
         
         # (num_envs * k, 1) -> (num_envs, k)
-        b2e = lambda x: drl_util.batch2perenv(x, self.num_envs).squeeze_(-1)
+        b2e = lambda x: batch2perenv(x, self.num_envs).squeeze_(-1)
         entire_state_value = b2e(entire_state_value)
         reward = b2e(exp_batch.reward)
         terminated = b2e(exp_batch.terminated)
@@ -146,7 +145,7 @@ class A2C(Agent):
         target_state_value = advantage + entire_state_value[:, :-1]
         
         # (num_envs, k) -> (num_envs * k, 1)
-        e2b = lambda x: drl_util.perenv2batch(x.unsqueeze_(-1))
+        e2b = lambda x: perenv2batch(x.unsqueeze_(-1))
         advantage = e2b(advantage)
         target_state_value = e2b(target_state_value)
         
@@ -160,8 +159,8 @@ class A2C(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self.actor_average_loss.count > 0:
-            ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.training_steps)
-            ld["Network/Critic Loss"] = (self.critic_average_loss.average, self.training_steps)
+            ld["Network/Actor Loss"] = (self.actor_average_loss.mean, self.training_steps)
+            ld["Network/Critic Loss"] = (self.critic_average_loss.mean, self.training_steps)
             self.actor_average_loss.reset()
             self.critic_average_loss.reset()
         return ld

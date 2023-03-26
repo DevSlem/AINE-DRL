@@ -1,16 +1,16 @@
 import torch
 
-import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent.agent import Agent, BehaviorType
+from aine_drl.agent.ppo.config import RecurrentPPOConfig
+from aine_drl.agent.ppo.net import RecurrentPPOSharedNetwork
+from aine_drl.agent.ppo.trajectory import (RecurrentPPOExperience,
+                                           RecurrentPPOTrajectory)
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
-
-from .config import RecurrentPPOConfig
-from .net import RecurrentPPOSharedNetwork
-from .trajectory import RecurrentPPOExperience, RecurrentPPOTrajectory
+from aine_drl.util.func import batch2perenv, perenv2batch
 
 
 class RecurrentPPO(Agent):
@@ -45,16 +45,16 @@ class RecurrentPPO(Agent):
         
         self._action_log_prob: torch.Tensor = None # type: ignore
         self._state_value: torch.Tensor = None # type: ignore
-        hidden_state_shape = (network.hidden_state_shape[0], self._num_envs, network.hidden_state_shape[1])
+        hidden_state_shape = (network.hidden_state_shape()[0], self._num_envs, network.hidden_state_shape()[1])
         self._hidden_state = torch.zeros(hidden_state_shape, device=self.device)
         self._next_hidden_state = torch.zeros(hidden_state_shape, device=self.device)
         self._prev_terminated = torch.zeros((self._num_envs, 1), device=self.device)
         
-        self._actor_loss_mean = util.IncrementalAverage()
-        self._critic_loss_mean = util.IncrementalAverage()
+        self._actor_loss_mean = util.IncrementalMean()
+        self._critic_loss_mean = util.IncrementalMean()
         
         # for inference mode
-        infer_hidden_state_shape = (network.hidden_state_shape[0], 1, network.hidden_state_shape[1])
+        infer_hidden_state_shape = (network.hidden_state_shape()[0], 1, network.hidden_state_shape()[1])
         self._infer_hidden_state = torch.zeros(infer_hidden_state_shape, device=self.device)
         self._infer_next_hidden_state = torch.zeros(infer_hidden_state_shape, device=self.device)
         self._infer_prev_terminated = torch.zeros((1, 1), device=self.device)
@@ -124,7 +124,7 @@ class RecurrentPPO(Agent):
         advantage, target_state_value = self._compute_adv_target(exp_batch)
         
         # convert batch to truncated sequence
-        seq_generator = drl_util.TruncatedSequenceGenerator(
+        seq_generator = util.TruncatedSeqGen(
             self._config.seq_len, 
             self._num_envs, 
             self._config.n_steps, 
@@ -132,7 +132,7 @@ class RecurrentPPO(Agent):
         )
         
         def add_to_seq_gen(batch, start_idx = 0, seq_len = 0):
-            seq_generator.add(drl_util.batch2perenv(batch, self._num_envs), start_idx=start_idx, seq_len=seq_len)
+            seq_generator.add(batch2perenv(batch, self._num_envs), start_idx=start_idx, seq_len=seq_len)
             
         add_to_seq_gen(exp_batch.hidden_state.swapaxes(0, 1), seq_len=1)
         for obs_tensor in exp_batch.obs.items:
@@ -149,7 +149,7 @@ class RecurrentPPO(Agent):
         add_to_seq_gen(advantage)
         add_to_seq_gen(target_state_value)
         
-        sequences = seq_generator.generate(drl_util.batch2perenv(exp_batch.terminated, self._num_envs).unsqueeze_(-1))
+        sequences = seq_generator.generate(batch2perenv(exp_batch.terminated, self._num_envs).unsqueeze_(-1))
         mask = sequences[0]
         seq_init_hidden_state = sequences[1]
         obs_seq = Observation(sequences[2:2 + exp_batch.obs.num_items])
@@ -233,7 +233,7 @@ class RecurrentPPO(Agent):
         entire_state_value = torch.cat((exp_batch.state_value, final_next_state_value))
         
         # (num_envs x k, 1) -> (num_envs, k, 1) -> (num_envs, k)
-        b2e = lambda x: drl_util.batch2perenv(x, self._num_envs).squeeze_(dim=-1)
+        b2e = lambda x: batch2perenv(x, self._num_envs).squeeze_(dim=-1)
         entire_state_value = b2e(entire_state_value)
         reward = b2e(exp_batch.reward)
         terminated = b2e(exp_batch.terminated)
@@ -251,7 +251,7 @@ class RecurrentPPO(Agent):
         target_state_value = advantage + entire_state_value[:, :-1]
         
         # (num_envs, n_steps) -> (num_envs x n_steps, 1)
-        e2b = lambda x: drl_util.perenv2batch(x.unsqueeze_(dim=-1))
+        e2b = lambda x: perenv2batch(x.unsqueeze_(dim=-1))
         advantage = e2b(advantage)
         target_state_value = e2b(target_state_value)
         
@@ -265,8 +265,8 @@ class RecurrentPPO(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self._actor_loss_mean.count > 0:
-            ld["Network/Actor Loss"] = (self._actor_loss_mean.average, self.training_steps)
-            ld["Network/Critic Loss"] = (self._critic_loss_mean.average, self.training_steps)
+            ld["Network/Actor Loss"] = (self._actor_loss_mean.mean, self.training_steps)
+            ld["Network/Critic Loss"] = (self._critic_loss_mean.mean, self.training_steps)
             self._actor_loss_mean.reset()
             self._critic_loss_mean.reset()
         return ld

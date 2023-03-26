@@ -4,16 +4,14 @@ from dataclasses import replace
 import torch
 import torch.nn.functional as F
 
-import aine_drl.drl_util as drl_util
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
+from aine_drl.agent.dqn.config import DoubleDQNConfig
+from aine_drl.agent.dqn.net import DoubleDQNNetwork
+from aine_drl.agent.dqn.trajectory import DQNExperience, DQNTrajectory
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import ActionType, Policy, PolicyActionTypeError
-
-from .config import DoubleDQNConfig
-from .net import DoubleDQNNetwork
-from .trajectory import DQNExperience, DQNTrajectory
 
 
 class DoubleDQN(Agent):
@@ -69,7 +67,7 @@ class DoubleDQN(Agent):
             self._config = replace(self._config, replace_freq=1)
             self._update_target_net = self._replace_net
             
-        self.td_loss_mean = util.IncrementalAverage()
+        self.td_loss_mean = util.IncrementalMean()
         
     @property
     def name(self) -> str:

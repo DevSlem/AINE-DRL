@@ -3,13 +3,13 @@ import torch
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent import Agent, BehaviorType
+from aine_drl.agent.reinforce.config import REINFORCEConfig
+from aine_drl.agent.reinforce.net import REINFORCENetwork
+from aine_drl.agent.reinforce.trajectory import (REINFORCEExperience,
+                                                 REINFORCETrajectory)
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
-
-from .config import REINFORCEConfig
-from .net import REINFORCENetwork
-from .trajectory import REINFORCEExperience, REINFORCETrajectory
 
 
 class REINFORCE(Agent):
@@ -45,7 +45,7 @@ class REINFORCE(Agent):
         self._action_log_prob: torch.Tensor = None # type: ignore
         self._entropy: torch.Tensor = None # type: ignore
         
-        self._policy_loss_mean = util.IncrementalAverage()
+        self._policy_loss_mean = util.IncrementalMean()
     
     @property
     def name(self) -> str:
@@ -116,6 +116,6 @@ class REINFORCE(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self._policy_loss_mean.count > 0:
-            ld["Network/Policy Loss"] = (self._policy_loss_mean.average, self.training_steps)
+            ld["Network/Policy Loss"] = (self._policy_loss_mean.mean, self.training_steps)
             self._policy_loss_mean.reset()
         return ld

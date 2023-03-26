@@ -1,16 +1,15 @@
 import torch
 
-import aine_drl.drl_util as drl_util
 import aine_drl.rl_loss as L
 import aine_drl.util as util
 from aine_drl.agent.agent import Agent, BehaviorType
+from aine_drl.agent.ppo.config import PPOConfig
+from aine_drl.agent.ppo.net import PPOSharedNetwork
+from aine_drl.agent.ppo.trajectory import PPOExperience, PPOTrajectory
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
 from aine_drl.policy.policy import Policy
-
-from .config import PPOConfig
-from .net import PPOSharedNetwork
-from .trajectory import PPOExperience, PPOTrajectory
+from aine_drl.util.func import batch2perenv, perenv2batch
 
 
 class PPO(Agent):
@@ -46,8 +45,8 @@ class PPO(Agent):
         self._action_log_prob: torch.Tensor = None # type: ignore
         self._state_value: torch.Tensor = None # type: ignore
         
-        self._actor_loss_mean = util.IncrementalAverage()
-        self._critic_loss_mean = util.IncrementalAverage()
+        self._actor_loss_mean = util.IncrementalMean()
+        self._critic_loss_mean = util.IncrementalMean()
         
     @property
     def name(self) -> str:
@@ -105,7 +104,7 @@ class PPO(Agent):
                 # compute actor loss
                 dist = self._policy.policy_dist(pdparam)
                 new_action_log_prob = dist.joint_log_prob(exp_batch.action[sample_batch_idx])
-                normalized_advantage = drl_util.normalize(advantage[sample_batch_idx]) if self._config.advantage_normalization else advantage[sample_batch_idx]
+                normalized_advantage = self._normalize(advantage[sample_batch_idx]) if self._config.advantage_normalization else advantage[sample_batch_idx]
                 actor_loss = L.ppo_clipped_loss(
                     normalized_advantage,
                     old_action_log_prob[sample_batch_idx],
@@ -144,7 +143,7 @@ class PPO(Agent):
         entire_state_value = torch.cat([exp_batch.state_value, final_next_v_pred])
         
         # (num_envs * n + 1, 1) -> (num_envs, n, 1) -> (num_envs, n)
-        b2e = lambda x: drl_util.batch2perenv(x, self._num_envs).squeeze_(-1)
+        b2e = lambda x: batch2perenv(x, self._num_envs).squeeze_(-1)
         entire_state_value = b2e(entire_state_value)
         reward = b2e(exp_batch.reward)
         terminated = b2e(exp_batch.terminated)
@@ -161,11 +160,15 @@ class PPO(Agent):
         # compute target state value
         target_state_value = advantage + entire_state_value[:, :-1]
         
-        e2b = lambda x: drl_util.perenv2batch(x.unsqueeze_(-1))
+        e2b = lambda x: perenv2batch(x.unsqueeze_(-1))
         advantage = e2b(advantage)
         target_state_value = e2b(target_state_value)
         
         return advantage, target_state_value
+
+
+    def _normalize(self, x: torch.Tensor, mask: bool | torch.Tensor = True) -> torch.Tensor:
+        return (x - x[mask].mean()) / (x[mask].std() + 1e-8)
 
     @property
     def log_keys(self) -> tuple[str, ...]:
@@ -175,8 +178,8 @@ class PPO(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self._actor_loss_mean.count > 0:
-            ld["Network/Actor Loss"] = (self._actor_loss_mean.average, self.training_steps)
-            ld["Network/Critic Loss"] = (self._critic_loss_mean.average, self.training_steps)
+            ld["Network/Actor Loss"] = (self._actor_loss_mean.mean, self.training_steps)
+            ld["Network/Critic Loss"] = (self._critic_loss_mean.mean, self.training_steps)
             self._actor_loss_mean.reset()
             self._critic_loss_mean.reset()
         return ld

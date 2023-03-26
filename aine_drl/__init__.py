@@ -11,4 +11,3 @@ from .net import (
     CategoricalLayer,
     GaussianLayer,
 )
-from .agent import *
