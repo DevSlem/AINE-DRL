@@ -103,10 +103,10 @@ Detail options:
 
 ```
 Usage:
-    experiments/cartpole_v1_no_velocity/train.py [options]
+    experiments/cartpole_v1_no_velocity/run.py [options]
 
 Options:
-    -a --agent <AGENT_NAME>       Agent name (recurrent_ppo, naive_ppo) [default: recurrent_ppo].
+    -a --agent=<AGENT_NAME>       Agent name (recurrent_ppo, naive_ppo) [default: recurrent_ppo].
     -i --inference                Wheter to inference [default: False].
 ```
 
