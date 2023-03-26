@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
@@ -35,6 +36,12 @@ class AINEFactory(Generic[T]):
     def make_env(self) -> "AINEFactory[T]":
         raise NotImplementedError
     
+    def set_env(self, env: Env) -> "AINEFactory[T]":
+        if self._env is not None:
+            raise AINEFactoryError("environment is already set")
+        self._env = env
+        return self
+    
     def make_agent(self, agent_factory: AgentFactory) -> "AINEFactory[T]":
         if self._env is None:
             raise AINEFactoryError("you need to make or set environment first")
@@ -48,9 +55,15 @@ class AINEFactory(Generic[T]):
     @property
     def id(self) -> str:
         return self._id
+    
+    @property
+    def num_envs(self) -> int:
+        return self._config_dict["Train"].get("num_envs", 1)
 
 class AINETrainFactory(AINEFactory[Train]):
     def make_env(self) -> "AINETrainFactory":
+        if self._env is not None:
+            raise AINEFactoryError("environment is already set")
         env_dict: dict = self._config_dict["Env"]
         train_dict: dict = self._config_dict["Train"]
         num_envs = train_dict.get("num_envs", 1)
@@ -59,6 +72,11 @@ class AINETrainFactory(AINEFactory[Train]):
             util.seed(seed)
         self._env = self._make_train_env(env_dict, num_envs, seed)
         return self
+    
+    def set_env(self, env: Env) -> "AINEFactory[Train]":
+        if env.num_envs != self.num_envs:
+            warnings.warn("the number of environments is different from the configuration. this may cause an unexpected behavior.")
+        return super().set_env(env)
     
     def _make_train_env(self, env_dict: dict, num_envs: int, seed: int | None) -> Env:        
         config_dict: dict = env_dict["Config"]
@@ -89,6 +107,8 @@ class AINETrainFactory(AINEFactory[Train]):
     
 class AINEInferenceFactory(AINEFactory[Inference]):
     def make_env(self) -> "AINEInferenceFactory":
+        if self._env is not None:
+            raise AINEFactoryError("environment is already set")
         env_dict: dict = self._config_dict["Env"]
         inference_dict: dict = self._config_dict["Inference"]
         seed = inference_dict.get("seed", None)
