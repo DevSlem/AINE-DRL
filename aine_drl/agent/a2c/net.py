@@ -1,28 +1,28 @@
 from abc import abstractmethod
-from aine_drl.network import Network
-from aine_drl.policy.policy_distribution import PolicyDistParam
+
 import torch
 
-class A2CSharedNetwork(Network[torch.Tensor]):
+from aine_drl.exp import Observation
+from aine_drl.net import Network
+from aine_drl.policy.policy import PolicyDistParam
+
+
+class A2CSharedNetwork(Network):
     """
     Advantage Actor Critic (A2C) shared network. 
     
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
-    the encoding layer must be shared between Actor and Critic. 
-    Therefore, single loss that is the sum of the actor and critic losses will be input.
-    
-    Generic type `T` is `Tensor`.
+    the encoding layer must be shared between Actor and Critic.
     """
-    
     @abstractmethod
-    def forward(self, obs: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: Observation) -> tuple[PolicyDistParam, torch.Tensor]:
         """
         ## Summary
         
         Feed forward method to compute policy distribution parameter (pdparam) and state value.
 
         Args:
-            obs (Tensor): observation batch
+            obs (Observation): observation batch
 
         Returns:
             pdparam (PolicyDistParam): policy distribution parameter
@@ -34,7 +34,7 @@ class A2CSharedNetwork(Network[torch.Tensor]):
         
         |Input|Shape|
         |:---|:---|
-        |obs|`(batch_size, *obs_shape)`|
+        |obs|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
         
         Output:
         

@@ -1,0 +1,41 @@
++---------------------------------------------------+
+| AINE-DRL Training Start!                          |
+|===================================================|
+| ID: BipedalWalker-v3_PPO                          |
+| Output Path: results/BipedalWalker-v3_PPO         |
+|---------------------------------------------------|
+| Training INFO:                                    |
+|     number of environments: 32                    |
+|     total time steps: 40000                       |
+|     summary frequency: 2000                       |
+|     agent save frequency: 20000                   |
+|---------------------------------------------------|
+| Agent INFO:                                       |
+|     name: PPO                                     |
+|     device: cuda:0                                |
++---------------------------------------------------+
+
+[AINE-DRL] training time: 23.79, time steps: 2000, cumulated reward: -118.12
+[AINE-DRL] training time: 47.13, time steps: 4000, cumulated reward: -97.81
+[AINE-DRL] training time: 70.59, time steps: 6000, cumulated reward: 5.16
+[AINE-DRL] training time: 93.81, time steps: 8000, cumulated reward: -50.37
+[AINE-DRL] training time: 117.53, time steps: 10000, cumulated reward: 117.15
+[AINE-DRL] training time: 140.63, time steps: 12000, cumulated reward: 184.73
+[AINE-DRL] training time: 165.34, time steps: 14000, cumulated reward: 155.16
+[AINE-DRL] training time: 189.50, time steps: 16000, cumulated reward: 116.20
+[AINE-DRL] training time: 211.89, time steps: 18000, cumulated reward: 174.66
+[AINE-DRL] training time: 236.49, time steps: 20000, cumulated reward: 195.93
+[AINE-DRL] Agent is successfully saved: results/BipedalWalker-v3_PPO/agent.pt
+[AINE-DRL] training time: 261.03, time steps: 22000, cumulated reward: 68.76
+[AINE-DRL] training time: 286.52, time steps: 24000, cumulated reward: 167.24
+[AINE-DRL] training time: 311.18, time steps: 26000, cumulated reward: 70.78
+[AINE-DRL] training time: 336.95, time steps: 28000, cumulated reward: 225.33
+[AINE-DRL] training time: 361.69, time steps: 30000, cumulated reward: 231.52
+[AINE-DRL] training time: 385.72, time steps: 32000, cumulated reward: 239.47
+[AINE-DRL] training time: 410.31, time steps: 34000, cumulated reward: 238.76
+[AINE-DRL] training time: 432.99, time steps: 36000, cumulated reward: 238.36
+[AINE-DRL] training time: 456.40, time steps: 38000, cumulated reward: 234.54
+[AINE-DRL] training time: 479.72, time steps: 40000, cumulated reward: 242.77
+[AINE-DRL] Agent is successfully saved: results/BipedalWalker-v3_PPO/agent.pt
+[AINE-DRL] Training is finished.
+

@@ -1,6 +1,13 @@
-from .experience import *
+from .exp import (
+    Observation,
+    Action,
+    Experience,
+)
 from .policy import *
-from .network import *
-from .agent import *
-from .aine_config import AINEConfig
-from .util.util_methods import TrainStep
+from .net import (
+    Trainer,
+    Network,
+    RecurrentNetwork,
+    CategoricalLayer,
+    GaussianLayer,
+)

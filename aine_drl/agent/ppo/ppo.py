@@ -1,204 +1,170 @@
-from aine_drl.agent import Agent
-from aine_drl.experience import ActionTensor, Experience
-from aine_drl.network import NetworkTypeError
-from aine_drl.policy.policy import Policy
-from .config import PPOConfig
-from .net import PPOSharedNetwork
-from .ppo_trajectory import PPOExperienceBatch, PPOTrajectory
-import aine_drl.drl_util as drl_util
-import aine_drl.util as util
 import torch
-import torch.nn.functional as F
+
+import aine_drl.rl_loss as L
+import aine_drl.util as util
+from aine_drl.agent.agent import Agent, BehaviorType
+from aine_drl.agent.ppo.config import PPOConfig
+from aine_drl.agent.ppo.net import PPOSharedNetwork
+from aine_drl.agent.ppo.trajectory import PPOExperience, PPOTrajectory
+from aine_drl.exp import Action, Experience, Observation
+from aine_drl.net import NetworkTypeError, Trainer
+from aine_drl.policy.policy import Policy
+from aine_drl.util.func import batch2perenv, perenv2batch
+
 
 class PPO(Agent):
     """
-    Proximal Policy Optimization (PPO). See details in https://arxiv.org/abs/1707.06347.
-
-    Args:
-        config (PPOConfig): PPO configuration
-        network (ActorCriticSharedNetwork): standard actor critic network
-        policy (Policy): policy
-        num_envs (int): number of environments
+    Proximal Policy Optimization (PPO). 
+    
+    Paper: https://arxiv.org/abs/1707.06347
     """
-    def __init__(self, 
-                 config: PPOConfig,
-                 network: PPOSharedNetwork,
-                 policy: Policy,
-                 num_envs: int) -> None:        
+    def __init__(
+        self, 
+        config: PPOConfig,
+        network: PPOSharedNetwork,
+        trainer: Trainer,
+        policy: Policy,
+        num_envs: int,
+        behavior_type: BehaviorType = BehaviorType.TRAIN,
+    ) -> None:        
         if not isinstance(network, PPOSharedNetwork):
             raise NetworkTypeError(PPOSharedNetwork)
         
-        super().__init__(network, policy, num_envs)
+        super().__init__(num_envs, network, behavior_type)
         
-        self.config = config
-        self.network = network
-        self.trajectory = PPOTrajectory(self.config.training_freq)
+        self._config = config
+        self._network = network
+        self._trainer = trainer
+        self._policy = policy
+        self._trajectory = PPOTrajectory(self._config.n_steps)
         
-        self.current_action_log_prob = None
-        self.v_pred = None
+        self._action_log_prob: torch.Tensor = None # type: ignore
+        self._state_value: torch.Tensor = None # type: ignore
         
-        self.actor_average_loss = util.IncrementalAverage()
-        self.critic_average_loss = util.IncrementalAverage()
+        self._actor_loss_mean = util.IncrementalMean()
+        self._critic_loss_mean = util.IncrementalMean()
         
     @property
     def name(self) -> str:
         return "PPO"
-        
-    def update(self, experience: Experience):
-        super().update(experience)
-        
-        # add the experience
-        self.trajectory.add(
-            experience,
-            self.current_action_log_prob,
-            self.v_pred,
-        )
-        
-        # if training frequency is reached, start training
-        if self.trajectory.count == self.config.training_freq:
-            self.train()
-            
-    def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
-        with torch.no_grad():
-            # feed forward 
-            pdparam, v_pred = self.network.forward(obs)
-            
-            # action sampling
-            dist = self.policy.get_policy_distribution(pdparam)
-            action = dist.sample()
-            
-            # store data
-            self.current_action_log_prob = dist.joint_log_prob(action).cpu()
-            self.v_pred = v_pred.cpu()
-            
-            return action
     
-    def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
-        pdparam, _ = self.network.forward(obs)
-        dist = self.policy.get_policy_distribution(pdparam)
-        return dist.sample()
+    def _update_train(self, exp: Experience):
+        # add the experience
+        self._trajectory.add(PPOExperience(
+            **exp.__dict__,
+            action_log_prob=self._action_log_prob,
+            state_value=self._state_value
+        ))
+        
+        if self._trajectory.reached_n_steps:
+            self._train()
+    
+    def _update_inference(self, _: Experience):
+        pass
+    
+    @torch.no_grad()
+    def _select_action_train(self, obs: Observation) -> Action:
+        # feed forward 
+        pdparam, v_pred = self._network.forward(obs)
+        
+        # action sampling
+        dist = self._policy.policy_dist(pdparam)
+        action = dist.sample()
+        
+        # store data
+        self._action_log_prob = dist.joint_log_prob(action)
+        self._state_value = v_pred
+        
+        return action
+    
+    @torch.no_grad()
+    def _select_action_inference(self, obs: Observation) -> Action:
+        pdparam, _ = self._network.forward(obs)
+        return self._policy.policy_dist(pdparam).sample()
             
-    def train(self):
-        exp_batch = self.trajectory.sample(self.device)
-        batch_size = len(exp_batch.obs)
+    def _train(self):
+        exp_batch = self._trajectory.sample()
+        batch_size = self.num_envs * self._config.n_steps
         
         old_action_log_prob = exp_batch.action_log_prob
-        advantage, v_target = self.compute_adavantage_v_target(exp_batch)
+        advantage, target_state_value = self._compute_adv_target(exp_batch)
         
-        for _ in range(self.config.epoch):
-            sample_idxes = torch.randperm(batch_size)
-            for i in range(batch_size // self.config.mini_batch_size):
-                sample_idx = sample_idxes[self.config.mini_batch_size * i : self.config.mini_batch_size * (i + 1)]
+        for _ in range(self._config.epoch):
+            shuffled_batch_idx = torch.randperm(batch_size)
+            for i in range(batch_size // self._config.mini_batch_size):
+                sample_batch_idx = shuffled_batch_idx[self._config.mini_batch_size * i : self._config.mini_batch_size * (i + 1)]
                 
                 # feed forward
-                pdparam, v_pred = self.network.forward(exp_batch.obs[sample_idx])
+                pdparam, state_value = self._network.forward(exp_batch.obs[sample_batch_idx])
                 
                 # compute actor loss
-                dist = self.policy.get_policy_distribution(pdparam)
-                new_action_log_prob = dist.joint_log_prob(exp_batch.action[sample_idx])
-                adv = drl_util.normalize(advantage[sample_idx]) if self.config.advantage_normalization else advantage[sample_idx]
-                actor_loss = PPO.compute_actor_loss(
-                    adv,
-                    old_action_log_prob[sample_idx],
+                dist = self._policy.policy_dist(pdparam)
+                new_action_log_prob = dist.joint_log_prob(exp_batch.action[sample_batch_idx])
+                normalized_advantage = self._normalize(advantage[sample_batch_idx]) if self._config.advantage_normalization else advantage[sample_batch_idx]
+                actor_loss = L.ppo_clipped_loss(
+                    normalized_advantage,
+                    old_action_log_prob[sample_batch_idx],
                     new_action_log_prob,
-                    self.config.epsilon_clip
+                    self._config.epsilon_clip
                 )
                 entropy = dist.joint_entropy().mean()
                 
                 # compute critic loss
-                critic_loss = PPO.compute_critic_loss(v_pred, v_target[sample_idx])
+                critic_loss = L.bellman_value_loss(state_value, target_state_value[sample_batch_idx])
                 
                 # train step
-                loss = actor_loss + self.config.value_loss_coef * critic_loss - self.config.entropy_coef * entropy
-                self.network.train_step(loss, self.clock.training_step)
-                
-                self.clock.tick_training_step()
+                loss = actor_loss + self._config.value_loss_coef * critic_loss - self._config.entropy_coef * entropy
+                self._trainer.step(loss, self.training_steps)
+                self._tick_training_steps()
                 
                 # log data
-                self.actor_average_loss.update(actor_loss.item())
-                self.critic_average_loss.update(critic_loss.item())
+                self._actor_loss_mean.update(actor_loss.item())
+                self._critic_loss_mean.update(critic_loss.item())
 
         
-    def compute_adavantage_v_target(self, exp_batch: PPOExperienceBatch) -> tuple[torch.Tensor, torch.Tensor]:
+    def _compute_adv_target(self, exp_batch: PPOExperience) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute advantage, v_target. `batch_size` is `num_evns` x `n_steps`.
 
         Args:
-            exp_batch (PPOExperienceBatch): experience batch
+            exp_batch (PPOExperience): experience batch
 
         Returns:
             tuple[Tensor, Tensor]: advantage, v_target whose each shape is `(batch_size, 1)`
         """
         with torch.no_grad():
-            final_next_obs = exp_batch.next_obs[-self.num_envs:]
-            _, final_next_v_pred = self.network.forward(final_next_obs)
+            final_next_obs = exp_batch.next_obs[-self._num_envs:]
+            _, final_next_v_pred = self._network.forward(final_next_obs)
         
-        v_pred = torch.cat([exp_batch.v_pred, final_next_v_pred])
+        entire_state_value = torch.cat([exp_batch.state_value, final_next_v_pred])
         
         # (num_envs * n + 1, 1) -> (num_envs, n, 1) -> (num_envs, n)
-        v_pred = drl_util.batch2perenv(v_pred, self.num_envs).squeeze_(-1)
-        reward = drl_util.batch2perenv(exp_batch.reward, self.num_envs).squeeze_(-1)
-        terminated = drl_util.batch2perenv(exp_batch.terminated, self.num_envs).squeeze_(-1)
+        b2e = lambda x: batch2perenv(x, self._num_envs).squeeze_(-1)
+        entire_state_value = b2e(entire_state_value)
+        reward = b2e(exp_batch.reward)
+        terminated = b2e(exp_batch.terminated)
         
         # compute advantage using GAE
-        advantage = drl_util.compute_gae(
-            v_pred,
+        advantage = L.gae(
+            entire_state_value,
             reward,
             terminated,
-            self.config.gamma,
-            self.config.lam
+            self._config.gamma,
+            self._config.lam
         )
         
-        # compute v_target
-        v_target = advantage + v_pred[:, :-1]
+        # compute target state value
+        target_state_value = advantage + entire_state_value[:, :-1]
         
-        advantage = drl_util.perenv2batch(advantage.unsqueeze_(-1))
-        v_target = drl_util.perenv2batch(v_target.unsqueeze_(-1))
+        e2b = lambda x: perenv2batch(x.unsqueeze_(-1))
+        advantage = e2b(advantage)
+        target_state_value = e2b(target_state_value)
         
-        return advantage, v_target
-    
-    @staticmethod
-    def compute_actor_loss(advantage: torch.Tensor, 
-                           old_action_log_prob: torch.Tensor,
-                           new_action_log_prob: torch.Tensor,
-                           epsilon_clip: float = 0.2) -> torch.Tensor:
-        """
-        Compute actor loss using PPO. It uses mean loss not sum loss.
+        return advantage, target_state_value
 
-        Args:
-            advantage (Tensor): whose shape is `(batch_size, 1)`
-            old_action_log_prob (Tensor): log(pi_theta_old) whose gradient never flows and shape is `(batch_size, 1)`
-            new_action_log_prob (Tensor): log(pi_theta_new) whose gradient flows and shape is `(batch_size, 1)`
-            epsilon_clip (float, optional): clipped range is [1 - epsilon, 1 + epsilon]. Defaults to 0.2.
 
-        Returns:
-            Tensor: PPO actor loss
-        """
-        assert not old_action_log_prob.requires_grad, "gradients of new_action_log_prob only flows."
-        # pi_theta / pi_theta_old
-        ratios = torch.exp(new_action_log_prob - old_action_log_prob)
-        
-        # surrogate loss
-        sur1 = ratios * advantage
-        sur2 = torch.clamp(ratios, 1 - epsilon_clip, 1 + epsilon_clip) * advantage
-        
-        # compute actor loss
-        loss = -torch.min(sur1, sur2).mean()
-        return loss
-    
-    @staticmethod
-    def compute_critic_loss(v_pred: torch.Tensor, v_target: torch.Tensor) -> torch.Tensor:
-        """
-        Compute critic loss using MSE.
-
-        Args:
-            v_pred (Tensor): predicted state value whose gradient flows and shape is `(batch_size, 1)`
-            v_target (Tensor): target state value whose gradient never flows and shape is `(batch_size, 1)`
-
-        Returns:
-            Tensor: critic loss
-        """
-        return F.mse_loss(v_target, v_pred)
+    def _normalize(self, x: torch.Tensor, mask: bool | torch.Tensor = True) -> torch.Tensor:
+        return (x - x[mask].mean()) / (x[mask].std() + 1e-8)
 
     @property
     def log_keys(self) -> tuple[str, ...]:
@@ -207,9 +173,9 @@ class PPO(Agent):
     @property
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
-        if self.actor_average_loss.count > 0:
-            ld["Network/Actor Loss"] = (self.actor_average_loss.average, self.clock.training_step)
-            ld["Network/Critic Loss"] = (self.critic_average_loss.average, self.clock.training_step)
-            self.actor_average_loss.reset()
-            self.critic_average_loss.reset()
+        if self._actor_loss_mean.count > 0:
+            ld["Network/Actor Loss"] = (self._actor_loss_mean.mean, self.training_steps)
+            ld["Network/Critic Loss"] = (self._critic_loss_mean.mean, self.training_steps)
+            self._actor_loss_mean.reset()
+            self._critic_loss_mean.reset()
         return ld

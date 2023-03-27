@@ -1,28 +1,29 @@
 from abc import abstractmethod
-from aine_drl.network import Network, RecurrentNetwork
-from aine_drl.policy.policy_distribution import PolicyDistParam
+
 import torch
 
-class PPOSharedNetwork(Network[torch.Tensor]):
+from aine_drl.exp import Observation
+from aine_drl.net import Network, RecurrentNetwork
+from aine_drl.policy.policy import PolicyDistParam
+
+
+class PPOSharedNetwork(Network):
     """
     Proximal Policy Optimization (PPO) shared network. 
     
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
-    Therefore, single loss that is the sum of the actor and critic losses will be input.
-    
-    Generic type `T` is `Tensor`.
     """
     
     @abstractmethod
-    def forward(self, obs: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: Observation) -> tuple[PolicyDistParam, torch.Tensor]:
         """
         ## Summary
         
         Feed forward method to compute policy distribution parameter (pdparam) and state value.
 
         Args:
-            obs (Tensor): observation batch
+            obs (Observation): observation batch
 
         Returns:
             pdparam (PolicyDistParam): policy distribution parameter
@@ -34,7 +35,7 @@ class PPOSharedNetwork(Network[torch.Tensor]):
         
         |Input|Shape|
         |:---|:---|
-        |obs|`(batch_size, *obs_shape)`|
+        |obs|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
         
         Output:
         
@@ -45,7 +46,7 @@ class PPOSharedNetwork(Network[torch.Tensor]):
         """
         raise NotImplementedError
 
-class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
+class RecurrentPPOSharedNetwork(RecurrentNetwork):
     """
     Recurrent Proximal Policy Optimization (PPO) shared network.
     
@@ -54,14 +55,10 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
     
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
-    Therefore, single loss that is the sum of the actor and critic losses will be input.
-    
-    
-    Generic type `T` is `Tensor`.
     """
         
     @abstractmethod
-    def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
+    def forward(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -71,7 +68,7 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
         It's recommended to set your recurrent network to `batch_first=True`.
 
         Args:
-            obs_seq (Tensor): observation sequences
+            obs_seq (Observation): observation sequences
             hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
@@ -85,61 +82,31 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork[torch.Tensor]):
         
         |Input|Shape|
         |:---|:---|
-        |obs_seq|`(num_seq, seq_len, *obs_shape)`|
-        |hidden_state|`(D x num_layers, num_seq, H)`|
+        |obs_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `Observation` docs|
+        |hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Output:
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistParam` docs|
-        |state_value_seq|`(num_seq, seq_len, 1)`|
-        |next_seq_hidden_state|`(D x num_layers, num_seq, H)`|
+        |pdparam_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDistParam` docs|
+        |state_value_seq|`(seq_batch_size, seq_len, 1)`|
+        |next_seq_hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Refer to the following explanation:
         
-        * `num_seq`: the number of independent sequences
+        * `seq_batch_size`: the number of independent sequences
         * `seq_len`: the length of each sequence
         * `num_layers`: the number of recurrent layers
         * `D`: 2 if bidirectional otherwise 1
         * `H`: the value depends on the type of the recurrent network
         
-        When you use LSTM, `H` = `H_out x 2`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use LSTM, `H` = `H_cell` + `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
         When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
-            
-        ## Examples
-        
-        `forward()` method example when using LSTM::
-        
-            def forward(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
-                # feed forward to the encoding layer
-                # (num_seq, seq_len, *obs_shape) -> (num_seq * seq_len, *obs_shape)
-                _, seq_len, _ = self.unpack_seq_shape(obs_seq)
-                obs_batch = obs_seq.flatten(0, 1)
-                encoded_batch = self.encoding_layer(obs_batch)
-                
-                # LSTM layer
-                unpacked_hidden_state = self.unpack_lstm_hidden_state(hidden_state)
-                # (num_seq * seq_len, lstm_in_features) -> (num_seq, seq_len, lstm_in_features)
-                encoded_seq = encoded_batch.reshape(-1, seq_len, self.lstm_in_features)
-                encoded_seq, unpacked_next_seq_hidden_state = self.lstm_layer(encoded_seq, unpacked_hidden_state)
-                next_seq_hidden_state = self.pack_lstm_hidden_state(unpacked_next_seq_hidden_state)
-                
-                # actor-critic layer
-                # (num_seq, seq_len, D x H_out) -> (num_seq * seq_len, D x H_out)
-                encoded_batch = encoded_seq.flatten(0, 1)
-                pdparam_batch = self.actor_layer(encoded_batch)
-                state_value_batch = self.critic_layer(encoded_batch)
-                
-                # (num_seq * seq_len, *shape) -> (num_seq, seq_len, *shape)
-                pdparam_seq = pdparam_batch.transform(lambda x: x.reshape(-1, seq_len, *x.shape[1:]))
-                state_value_seq = state_value_batch.reshape(-1, seq_len, 1)
-                
-                return pdparam_seq, state_value_seq, next_seq_hidden_state
         """
         raise NotImplementedError
     
-class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
+class RecurrentPPORNDNetwork(RecurrentNetwork):
     """
     Recurrent Proximal Policy Optimization (PPO) shared network with Random Network Distillation (RND).
     
@@ -147,7 +114,6 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
     
     Note that since PPO uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
-    Therefore, single loss that is the sum of the actor and critic losses will be input. 
     Be careful not to share parameters between PPO and RND networks.
     
     RND uses extrinsic and intrinsic reward streams. 
@@ -155,12 +121,10 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
     RND constitutes of the predictor and target networks. 
     Both of them must have the same architectures but their initial parameters should not be the same.
     The target network is determinsitic, which means it will be never updated. 
-    
-    Generic type `T` is `Tensor`.
     """
         
     @abstractmethod
-    def forward_actor_critic(self, obs_seq: torch.Tensor, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward_actor_critic(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -170,7 +134,7 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
         It's recommended to set your recurrent network to `batch_first=True`.
         
         Args:
-            obs_seq (Tensor): observation sequences
+            obs_seq (Observation): observation sequences
             hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
@@ -185,42 +149,44 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
         
         |Input|Shape|
         |:---|:---|
-        |obs_seq|`(num_seq, seq_len, *obs_shape)`|
-        |hidden_state|`(D x num_layers, num_seq, H)`|
+        |obs_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `Observation` docs|
+        |hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Output:
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(num_seq, seq_len)`, details in `PolicyDistParam` docs|
-        |ext_state_value_seq|`(num_seq, seq_len, 1)`|
-        |int_state_value_seq|`(num_seq, seq_len, 1)`|
-        |next_seq_hidden_state|`(D x num_layers, num_seq, H)`|
+        |pdparam_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDistParam` docs|
+        |ext_state_value_seq|`(seq_batch_size, seq_len, 1)`|
+        |int_state_value_seq|`(seq_batch_size, seq_len, 1)`|
+        |next_seq_hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
         Refer to the following explanation:
         
-        * `num_seq`: the number of independent sequences
+        * `seq_batch_size`: the size of sequence batch
         * `seq_len`: the length of each sequence
         * `num_layers`: the number of recurrent layers
         * `D`: 2 if bidirectional otherwise 1
         * `H`: the value depends on the type of the recurrent network
         
-        When you use LSTM, `H` = `H_out x 2`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
+        When you use LSTM, `H` = `H_cell` + `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html. 
         When you use GRU, `H` = `H_out`. See details in https://pytorch.org/docs/stable/generated/torch.nn.GRU.html.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def forward_rnd(self, next_obs: torch.Tensor, next_hidden_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward_rnd(self, obs: Observation, hidden_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
-        Feed forward method tp to compute both predicted feature and target feature. 
-        You can use the hidden state by concatenating the next observation or the feature extracted from it with the hidden state. 
+        Feed forward method to compute both predicted feature and target feature. 
+        You can use the hidden state by concatenating it with the observation or the feature of the observation. 
 
+        Note that `hidden_state` is from the Actor-Critic network.
+        
         Args:
-            next_obs (Tensor): next observation batch
-            next_hidden_state (Tensor): next hidden state batch with flattened features
+            obs (Observation): observation batch
+            hidden_state (Tensor): hidden state batch with flattened features
 
         Returns:
             predicted_feature (Tensor): predicted feature whose gradient flows
@@ -234,8 +200,8 @@ class RecurrentPPORNDNetwork(RecurrentNetwork[torch.Tensor]):
         
         |Input|Shape|
         |:---|:---|
-        |next_obs|`(batch_size, *obs_shape)`|
-        |next_hidden_state|`(batch_size, D x num_layers x H)`|
+        |obs|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+        |hidden_state|`(batch_size, D x num_layers x H)`|
         
         Output:
         

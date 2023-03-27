@@ -1,133 +1,112 @@
-from aine_drl.agent import Agent
-from aine_drl.experience import ActionTensor, Experience
-from aine_drl.policy.policy import Policy
-from aine_drl.network import NetworkTypeError
-from .config import REINFORCEConfig
-from .net import REINFORCENetwork
-from .reinforce_trajectory import REINFORCEExperienceBatch, REINFORCETrajectory
-import aine_drl.drl_util as drl_util
-import aine_drl.util as util
 import torch
+
+import aine_drl.rl_loss as L
+import aine_drl.util as util
+from aine_drl.agent import Agent, BehaviorType
+from aine_drl.agent.reinforce.config import REINFORCEConfig
+from aine_drl.agent.reinforce.net import REINFORCENetwork
+from aine_drl.agent.reinforce.trajectory import (REINFORCEExperience,
+                                                 REINFORCETrajectory)
+from aine_drl.exp import Action, Experience, Observation
+from aine_drl.net import NetworkTypeError, Trainer
+from aine_drl.policy.policy import Policy
+
 
 class REINFORCE(Agent):
     """
-    REINFORCE with baseline. It works to only one environment. See details in https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf.
+    REINFORCE with baseline. It works to only one environment. 
+    
+    Paper: https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf
 
     Args:
         config (REINFORCEConfig): REINFORCE configuration
         network (PolicyGradientNetwork): standard policy gradient network
         policy (Policy): policy
     """
-    def __init__(self, 
-                 config: REINFORCEConfig,
-                 network: REINFORCENetwork,
-                 policy: Policy) -> None:        
+    def __init__(
+        self, 
+        config: REINFORCEConfig,
+        network: REINFORCENetwork,
+        trainer: Trainer,
+        policy: Policy,
+        behavior_type: BehaviorType = BehaviorType.TRAIN
+    ) -> None:        
         if not isinstance(network, REINFORCENetwork):
             raise NetworkTypeError(REINFORCENetwork)
         
-        super().__init__(network, policy, num_envs=1)
+        super().__init__(1, network, behavior_type)
+                
+        self._config = config
+        self._network = network
+        self._trainer = trainer
+        self._policy = policy
+        self._trajectory = REINFORCETrajectory()
         
-        self.config = config
-        self.network = network
-        self.trajectory = REINFORCETrajectory()
+        self._action_log_prob: torch.Tensor = None # type: ignore
+        self._entropy: torch.Tensor = None # type: ignore
         
-        self.current_action_log_prob = None
-        self.entropy = None
-        
-        self.policy_average_loss = util.IncrementalAverage()
+        self._policy_loss_mean = util.IncrementalMean()
     
     @property
     def name(self) -> str:
         return "REINFORCE"
+          
+    def _update_train(self, exp: Experience):
+        # add the experience        
+        self._trajectory.add(REINFORCEExperience(
+            **exp.__dict__,
+            action_log_prob=self._action_log_prob,
+            entropy=self._entropy
+        ))
+        
+        if self._trajectory.terminated:
+            self._train()
     
-    def update(self, experience: Experience):
-        super().update(experience)
-        
-        # add the experience
-        self.trajectory.add(
-            experience,
-            self.current_action_log_prob,
-            self.entropy
-        )
-        
-        # if the environment is terminated
-        if experience.terminated.item() > 0.5:
-            self.train()
-            
-    def select_action_train(self, obs: torch.Tensor) -> ActionTensor:
-        # feed forward 
-        pdparam = self.network.forward(obs)
+    def _update_inference(self, _: Experience):
+        pass
+    
+    def _select_action_train(self, obs: Observation) -> Action:
+        # feed forward
+        pdparam = self._network.forward(obs)
         
         # action sampling
-        dist = self.policy.get_policy_distribution(pdparam)
+        dist = self._policy.policy_dist(pdparam)
         action = dist.sample()
         
-        # store data
-        self.current_action_log_prob = dist.joint_log_prob(action).cpu()
-        self.entropy = dist.joint_entropy().cpu()
+        self._action_log_prob = dist.joint_log_prob(action)
+        self._entropy = dist.joint_entropy()
         
         return action
     
-    def select_action_inference(self, obs: torch.Tensor) -> ActionTensor:
-        pdparam = self.network.forward(obs)
-        dist = self.policy.get_policy_distribution(pdparam)
-        return dist.sample()
+    @torch.no_grad()
+    def _select_action_inference(self, obs: Observation) -> Action:
+        pdparam = self._network.forward(obs)
+        return self._policy.policy_dist(pdparam).sample()
             
-    def train(self):
+    def _train(self):
         # batch sampling
-        exp_batch = self.trajectory.sample(self.device)
+        exp_batch = self._trajectory.sample()
         
-        # compute policy loss
-        returns = self.compute_return(exp_batch)
-        policy_loss = REINFORCE.compute_policy_loss(returns, exp_batch.action_log_prob)
+        # compute return
+        ret = L.true_return(
+            exp_batch.reward.squeeze(dim=1), # (episode_len, 1) -> (episode_len,)
+            self._config.gamma
+        )
+        
+        # compute loss
+        policy_loss = L.reinforce_loss(
+            ret,
+            exp_batch.action_log_prob.squeeze(dim=1), # (episode_len, 1) -> (episode_len,)
+        )
         entropy = exp_batch.entropy.mean()
         
         # train step
-        loss = policy_loss - self.config.entropy_coef * entropy
-        self.network.train_step(loss, self.clock.training_step)
-        self.clock.tick_training_step()
+        loss = policy_loss - self._config.entropy_coef * entropy
+        self._trainer.step(loss, self.training_steps)
+        self._tick_training_steps()
         
         # log data
-        self.policy_average_loss.update(policy_loss.item())
-
-        
-    def compute_return(self, exp_batch: REINFORCEExperienceBatch) -> torch.Tensor:
-        """
-        Compute return.
-
-        Args:
-            exp_batch (REINFORCEExperienceBatch): experience batch
-
-        Returns:
-            Tensor: return whose shape is `(episode_len, 1)`
-        """        
-        # compute advantage using GAE
-        returns = drl_util.compute_return(
-            exp_batch.reward.squeeze(dim=1), # (episode_len, 1) -> (episode_len,)
-            self.config.gamma
-        )
-          
-        # (episode_len,) -> (episode_len, 1)
-        return returns.unsqueeze_(dim=1)
-    
-    @staticmethod
-    def compute_policy_loss(returns: torch.Tensor, 
-                           action_log_prob: torch.Tensor) -> torch.Tensor:
-        """
-        Compute policy loss using REINFORCE. It uses mean loss not sum loss.
-
-        Args:
-            returns (Tensor): whose shape is `(batch_size, 1)`
-            action_log_prob (Tensor): log(pi) whose shape is `(batch_size, 1)`
-
-        Returns:
-            Tensor: REINFORCE policy loss
-        """        
-        # compute policy loss
-        eps = torch.finfo(torch.float32).eps
-        returns = (returns - returns.mean()) / (returns.std() + eps)
-        loss = -(returns * action_log_prob).mean()
-        return loss
+        self._policy_loss_mean.update(policy_loss.item())
 
     @property
     def log_keys(self) -> tuple[str, ...]:
@@ -136,7 +115,7 @@ class REINFORCE(Agent):
     @property
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
-        if self.policy_average_loss.count > 0:
-            ld["Network/Policy Loss"] = (self.policy_average_loss.average, self.clock.training_step)
-            self.policy_average_loss.reset()
+        if self._policy_loss_mean.count > 0:
+            ld["Network/Policy Loss"] = (self._policy_loss_mean.mean, self.training_steps)
+            self._policy_loss_mean.reset()
         return ld

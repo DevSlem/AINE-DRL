@@ -1,17 +1,17 @@
 CartPole-v1-NoVelocity_RecurrentPPO:
-  num_envs: 16
-  Gym:
-    training:
-      total_global_time_steps: 5000000
-      summary_freq: 50000
-      seed: 0
-  RecurrentPPO:
-    training_freq: 256
+  Train:
+    num_envs: 16
+    seed: 0
+    Config:
+      time_steps: 200000
+      summary_freq: 2000
+  Inference:
+    seed: 0
+    Config:
+      episodes: 3
+      export: gif
+  Agent:
+    n_steps: 256
     epoch: 4
-    sequence_length: 8
-    num_sequences_per_step: 16
-    gamma: 0.99
-    lam: 0.95
-    epsilon_clip: 0.2
-    value_loss_coef: 0.2
-    entropy_coef: 0.001
+    seq_len: 8
+    seq_mini_batch_size: 16
