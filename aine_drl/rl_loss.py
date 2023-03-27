@@ -32,7 +32,7 @@ def gae(
     """
     Compute Generalized Advantage Estimation (GAE) during n-step transitions. 
     
-    See details in https://arxiv.org/abs/1506.02438.
+    Paper: https://arxiv.org/abs/1506.02438.
 
     Args:
         state_value (Tensor): state value `(num_envs, n_steps + 1)`, 
@@ -143,3 +143,24 @@ def ppo_clipped_loss(
     sur1 = ratio * advantage
     sur2 = torch.clamp(ratio, 1 - epsilon, 1 + epsilon) * advantage
     return -torch.min(sur1, sur2).mean()
+
+def rnd_loss(
+    input: torch.Tensor,
+    target: torch.Tensor,
+    proportion: float = 1.0
+) -> torch.Tensor:
+    """
+    MSE loss with random samples.
+
+    Args:
+        input (Tensor): predicted value `(batch_size, num_features)`
+        target (Tensor): target value `(batch_size, num_features)`
+        proportion (float, optional): the proportion of randomly selected samples. Defaults to 1.0.
+
+    Returns:
+        loss (Tensor): scalar value
+    """
+    loss = F.mse_loss(input, target, reduction='none').mean(dim=-1)
+    mask = torch.rand(len(loss), device=loss.device)
+    mask = (mask < proportion).to(dtype=loss.dtype)
+    return (loss * mask).sum() / torch.max(mask.sum(), torch.tensor(1.0, device=loss.device))

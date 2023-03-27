@@ -1,6 +1,4 @@
-import numpy as np
 import torch
-import torch.nn.functional as F
 
 import aine_drl.rl_loss as L
 import aine_drl.util as util
@@ -269,11 +267,11 @@ class RecurrentPPORND(Agent):
                 critic_loss = ext_critic_loss + int_critic_loss
                 
                 # compute RND loss
-                rnd_loss = F.mse_loss(sample_predicted_feature, sample_target_feature, reduction="none").mean(dim=-1)
-                # proportion of exp used for predictor update
-                rnd_loss_mask = torch.rand(len(rnd_loss), device=rnd_loss.device)
-                rnd_loss_mask = (rnd_loss_mask < self._config.rnd_pred_exp_proportion).to(dtype=rnd_loss.dtype)
-                rnd_loss = (rnd_loss * rnd_loss_mask).sum() / torch.max(rnd_loss_mask.sum(), torch.tensor(1.0, device=rnd_loss.device))
+                rnd_loss = L.rnd_loss(
+                    sample_predicted_feature, 
+                    sample_target_feature,
+                    proportion=self._config.rnd_pred_exp_proportion
+                )
                 
                 # train step
                 loss = actor_loss + self._config.value_loss_coef * critic_loss - self._config.entropy_coef * entropy + rnd_loss
@@ -297,7 +295,7 @@ class RecurrentPPORND(Agent):
         """
         # (num_envs, *obs_shape)
         final_next_obs = exp_batch.next_obs[-self._num_envs:]
-        final_next_hidden_state = torch.from_numpy(self._next_hidden_state).to(device=self.device)
+        final_next_hidden_state = self._next_hidden_state
         
         # feed forward without gradient calculation
         with torch.no_grad():
@@ -329,10 +327,10 @@ class RecurrentPPORND(Agent):
             discounted_int_return[:, t] = self._prev_discounted_int_return
         
         # update intrinic reward normalization parameters
-        self._int_reward_mean_var.update(discounted_int_return.cpu().numpy())
+        self._int_reward_mean_var.update(discounted_int_return)
         
         # normalize intinrisc reward
-        int_reward /= torch.from_numpy(np.sqrt(self._int_reward_mean_var.variance)[..., np.newaxis]).to(device=self.device)
+        int_reward /= torch.sqrt(self._int_reward_mean_var.variance).unsqueeze(dim=-1)
         self._int_reward_mean.update(int_reward.mean().item())
         
         # compute advantage (num_envs, n_steps) using GAE
@@ -398,8 +396,8 @@ class RecurrentPPORND(Agent):
         """
         if self._config.init_norm_steps is None:
             return next_hidden_state
-        hidden_state_feature_mean = torch.from_numpy(self._next_hidden_state_feature_mean_var.mean).to(dtype=torch.float32, device=next_hidden_state.device)
-        hidden_state_feature_std = torch.from_numpy(np.sqrt(self._next_hidden_state_feature_mean_var.variance)).to(dtype=torch.float32, device=next_hidden_state.device)
+        hidden_state_feature_mean = self._next_hidden_state_feature_mean_var.mean
+        hidden_state_feature_std = torch.sqrt(self._next_hidden_state_feature_mean_var.variance)
         normalized_next_hidden_state = (next_hidden_state - hidden_state_feature_mean) / hidden_state_feature_std
         return normalized_next_hidden_state.clip(self._config.hidden_state_norm_clip_range[0], self._config.hidden_state_norm_clip_range[1])
     
