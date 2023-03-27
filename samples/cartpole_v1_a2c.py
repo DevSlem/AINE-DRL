@@ -45,8 +45,8 @@ class A2CFactory(AgentFactory):
         config = agent.A2CConfig(**config_dict)
         
         network = CartPoleA2CNet(
-            obs_features=env.obs_shape[0],
-            num_actions=env.action_spec.num_discrete_actions[0]
+            obs_features=env.obs_spaces[0][0],
+            num_actions=env.action_space.discrete[0]
         )
         
         trainer = aine_drl.Trainer(optim.Adam(
@@ -67,16 +67,14 @@ class A2CFactory(AgentFactory):
 if __name__ == "__main__":
     config_path = "config/samples/cartpole_v1_a2c.yaml"
     
-    AINETrainFactory \
-        .from_yaml(config_path) \
+    AINETrainFactory.from_yaml(config_path) \
         .make_env() \
         .make_agent(A2CFactory()) \
         .ready() \
         .train() \
         .close()
         
-    AINEInferenceFactory \
-        .from_yaml(config_path) \
+    AINEInferenceFactory.from_yaml(config_path) \
         .make_env() \
         .make_agent(A2CFactory()) \
         .ready() \

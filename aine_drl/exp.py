@@ -15,6 +15,9 @@ class Observation:
     * simple batch: `*batch_shape` = `(batch_size,)`
     * sequence batch: `*batch_shape` = `(seq_batch_size, seq_len)`
     
+    You can subscript the `Observation` instance to get a batch of `Observation`.
+    Note that it works to all observation `Tensor` instances.
+    
     Args:
         items (tuple[Tensor, ...]): tuple of observation tensors
     """

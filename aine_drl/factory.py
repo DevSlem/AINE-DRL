@@ -12,6 +12,7 @@ from aine_drl.train.train import Train, TrainConfig
 
 
 class AgentFactory(ABC):
+    """When you use `AINEFactory`, you need to implement this class."""
     @abstractmethod
     def make(self, env: Env, config_dict: dict) -> Agent:
         raise NotImplementedError
@@ -34,15 +35,18 @@ class AINEFactory(Generic[T]):
     
     @abstractmethod
     def make_env(self) -> "AINEFactory[T]":
+        """Make an environment from the configuration."""
         raise NotImplementedError
     
     def set_env(self, env: Env) -> "AINEFactory[T]":
+        """Set an environment manually."""
         if self._env is not None:
             raise AINEFactoryError("environment is already set")
         self._env = env
         return self
     
     def make_agent(self, agent_factory: AgentFactory) -> "AINEFactory[T]":
+        """Make an agent from the configuration."""
         if self._env is None:
             raise AINEFactoryError("you need to make or set environment first")
         self._agent = agent_factory.make(self._env, self._config_dict.get("Agent", dict()))
@@ -50,23 +54,48 @@ class AINEFactory(Generic[T]):
     
     @abstractmethod
     def ready(self) -> T:
+        """Get ready to train or inference."""
         raise NotImplementedError
         
     @property
     def id(self) -> str:
+        """Get the id of the configuration."""
         return self._id
     
     @property
     @abstractmethod
     def num_envs(self) -> int:
+        """Get the number of environments from the configuration."""
         raise NotImplementedError
     
     @property
     @abstractmethod
     def seed(self) -> int | list[int] | None:
+        """Get the seed from the configuration."""
         raise NotImplementedError
 
 class AINETrainFactory(AINEFactory[Train]):
+    """
+    A factory class to make `Train` instance from a configuration.
+    
+    Refer to the following steps:
+    
+    1. Make a `AINETrainFactory` instance from a configuration file.
+    2. Make or set an environment.
+    3. Make an agent.
+    4. Get ready to train.
+    5. Start training.
+    6. Close the process.
+    
+    Example::
+
+        AINETrainFactory.from_yaml("config.yaml") \\
+            .make_env() \\
+            .make_agent(AgentFactory()) \\
+            .ready() \\
+            .train() \\
+            .close()
+    """
     def make_env(self) -> "AINETrainFactory":
         if self._env is not None:
             raise AINEFactoryError("environment is already set")
@@ -121,6 +150,27 @@ class AINETrainFactory(AINEFactory[Train]):
         return AINETrainFactory(config)
     
 class AINEInferenceFactory(AINEFactory[Inference]):
+    """
+    A factory class to make `Inference` instance from a configuration.
+    
+    Refer to the following steps:
+    
+    1. Make a `AINEInferenceFactory` instance from a configuration file.
+    2. Make or set an environment.
+    3. Make an agent.
+    4. Get ready to inference.
+    5. Start inference.
+    6. Close the process.
+    
+    Example::
+
+        AINEInferenceFactory.from_yaml("config.yaml") \\
+            .make_env() \\
+            .make_agent(AgentFactory()) \\
+            .ready() \\
+            .inference() \\
+            .close()
+    """
     def make_env(self) -> "AINEInferenceFactory":
         if self._env is not None:
             raise AINEFactoryError("environment is already set")

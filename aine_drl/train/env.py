@@ -10,13 +10,28 @@ import torch
 
 from aine_drl.exp import Action, Observation
 
+class ObservationSpace(tuple[int, ...]):
+    """
+    Observation space (shape tuple) of the environment.
+    
+    * vector space: `(num_features,)`
+    * image space: `(height, width, num_channels)`
+    """
+    pass
 
 @dataclass(frozen=True)
-class ActionSpec:
-    num_discrete_actions: tuple[int, ...]
-    num_continuous_actions: int
+class ActionSpace:
+    """
+    Action space of the environment.
+    
+    * discrete action space: each element of the tuple is the number of actions in each action branch
+    * continuous action space: the number of continuous actions
+    """
+    discrete: tuple[int, ...]
+    continuous: int
 
 class Env(ABC):
+    """AINE-DRL compatiable reinforcement learning environmnet inferface."""
     @abstractmethod
     def reset(self) -> Observation:
         """
@@ -57,13 +72,14 @@ class Env(ABC):
     
     @property
     @abstractmethod
-    def obs_shape(self) -> tuple[int, ...]:
+    def obs_spaces(self) -> tuple[ObservationSpace, ...]:
         """Returns the shape of the observation space."""
         raise NotImplementedError
     
     @property
     @abstractmethod
-    def action_spec(self) -> ActionSpec:
+    def action_space(self) -> ActionSpace:
+        """Returns action space of the environment."""
         raise NotImplementedError
     
 class Renderable(ABC):
@@ -88,7 +104,7 @@ class GymEnv(Env):
         
         self._num_envs = self.env.num_envs
         self._action_converter = self._gym_action_converter()
-        self._action_spec = self._gym_action_spec()
+        self._action_space = self._gym_action_space()
         
     def reset(self) -> Observation:
         return self._wrap_obs(self.env.reset(seed=self._seed)[0])
@@ -118,14 +134,17 @@ class GymEnv(Env):
         return self._num_envs
     
     @property
-    def obs_shape(self) -> tuple[int, ...]:
-        return self.env.single_observation_space.shape # type: ignore
+    def obs_spaces(self) -> tuple[ObservationSpace, ...]:
+        obs_shape = self.env.single_observation_space.shape
+        if obs_shape is None:
+            return tuple()
+        return (ObservationSpace(obs_shape),)
     
     @property
-    def action_spec(self) -> ActionSpec:
-        return self._action_spec
+    def action_space(self) -> ActionSpace:
+        return self._action_space
     
-    def _gym_action_spec(self) -> ActionSpec:
+    def _gym_action_space(self) -> ActionSpace:
         num_discrete_actions = tuple()
         num_continuous_actions = 0
         match type(self.env.single_action_space):
@@ -137,7 +156,7 @@ class GymEnv(Env):
                 num_continuous_actions = self.env.single_action_space.shape[0] # type: ignore
             case _:
                 raise NotImplementedError(f"{self.env.single_action_space} action space is not supported yet.")
-        return ActionSpec(num_discrete_actions, num_continuous_actions)
+        return ActionSpace(num_discrete_actions, num_continuous_actions)
     
     def _wrap_obs(self, obs) -> Observation:
         return Observation.from_tensor(torch.from_numpy(obs))
