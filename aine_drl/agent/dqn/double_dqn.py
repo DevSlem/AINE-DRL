@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 
 import aine_drl.util as util
+import aine_drl.util.func as util_f
 from aine_drl.agent import Agent, BehaviorType
 from aine_drl.agent.dqn.config import DoubleDQNConfig
 from aine_drl.agent.dqn.net import DoubleDQNNetwork
@@ -16,12 +17,9 @@ from aine_drl.policy.policy import ActionType, Policy, PolicyActionTypeError
 
 class DoubleDQN(Agent):
     """
-    Double DQN with target network.
+    Double DQN with target network. 
     
-    Args:
-        config (DoubleDQNConfig): Double DQN configuration
-        network (QValueNetwork): Q value network
-        policy (Policy): discrete action policy
+    Paper: https://arxiv.org/abs/1509.06461
     """
     def __init__(
         self,
@@ -32,7 +30,6 @@ class DoubleDQN(Agent):
         num_envs: int,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:
-        raise NotImplementedError
         if not isinstance(network, DoubleDQNNetwork):
             raise NetworkTypeError(DoubleDQNNetwork)
         if policy.action_type is not ActionType.DISCRETE:
@@ -42,7 +39,7 @@ class DoubleDQN(Agent):
         
         self._config = config
         self._network = network
-        self._target_net = copy.deepcopy(network.model())
+        self._target_net = copy.deepcopy(network)
         self._trainer = trainer
         self._policy = policy
         
@@ -104,7 +101,7 @@ class DoubleDQN(Agent):
             
             # compute td loss
             exp_batch = self._trajectory.sample(self.device)
-            loss = self.compute_td_loss(exp_batch)
+            loss = self._compute_td_loss(exp_batch)
             
             # train step
             self._trainer.step(loss, self.training_steps)
@@ -113,7 +110,7 @@ class DoubleDQN(Agent):
             # update log data
             self.td_loss_mean.update(loss.item())
     
-    def compute_td_loss(self, exp_batch: DQNExperience) -> torch.Tensor:
+    def _compute_td_loss(self, exp_batch: DQNExperience) -> torch.Tensor:
         # Q values for all actions are from the Q network
         q_values = self._network.forward(exp_batch.obs).discrete_pdparams
         with torch.no_grad():
@@ -145,10 +142,10 @@ class DoubleDQN(Agent):
             
     def _replace_net(self):
         if self.training_steps % self._config.replace_freq == 0: # type: ignore
-            drl_util.copy_module(self._network.model(), self._target_net)
+            util_f.copy_module(self._network.model(), self._target_net.model())
     
     def _polyak_update(self):
-        drl_util.polyak_update_module(self._network.model(), self._target_net, self._config.polyak_ratio) # type: ignore
+        util_f.polyak_update_module(self._network.model(), self._target_net.model(), self._config.polyak_ratio) # type: ignore
 
     @property
     def log_keys(self) -> tuple[str, ...]:
@@ -158,6 +155,6 @@ class DoubleDQN(Agent):
     def log_data(self) -> dict[str, tuple]:
         ld = super().log_data
         if self.td_loss_mean.count > 0:
-            ld["Network/TD Loss"] = (self.td_loss_mean.average, self.training_steps)
+            ld["Network/TD Loss"] = (self.td_loss_mean.mean, self.training_steps)
             self.td_loss_mean.reset()
         return ld

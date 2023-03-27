@@ -14,13 +14,9 @@ from aine_drl.util.func import batch2perenv, perenv2batch
 
 class PPO(Agent):
     """
-    Proximal Policy Optimization (PPO). See details in https://arxiv.org/abs/1707.06347.
-
-    Args:
-        config (PPOConfig): PPO configuration
-        network (ActorCriticSharedNetwork): standard actor critic network
-        policy (Policy): policy
-        num_envs (int): number of environments
+    Proximal Policy Optimization (PPO). 
+    
+    Paper: https://arxiv.org/abs/1707.06347
     """
     def __init__(
         self, 

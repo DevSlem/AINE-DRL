@@ -1,19 +1,18 @@
-raise NotImplementedError
-
 import sys
 
 sys.path.append(".")
 
-import torch
 import torch.nn as nn
 import torch.optim as optim
 
 import aine_drl
-from aine_drl.drl_util import LinearDecay
-from aine_drl.factory import AgentFactory, AINEInferenceFactory, AINETrainFactory
+import aine_drl.agent as agent
+from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
+                              AINETrainFactory)
 from aine_drl.train import Env
 
-class CartPoleDoubleDQNNet(nn.Module, aine_drl.DoubleDQNNetwork):    
+
+class CartPoleDoubleDQNNet(nn.Module, agent.DoubleDQNNetwork):    
     def __init__(self, obs_features, num_actions) -> None:
         super().__init__()
         
@@ -33,12 +32,12 @@ class CartPoleDoubleDQNNet(nn.Module, aine_drl.DoubleDQNNetwork):
         return self.q_value_net(obs.items[0])
     
 class DoubleDQNFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> aine_drl.Agent:
-        config = aine_drl.DoubleDQNConfig(**config_dict)
+    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+        config = agent.DoubleDQNConfig(**config_dict)
         
         network = CartPoleDoubleDQNNet(
-            obs_features=env.obs_shape[0],
-            num_actions=env.action_spec.num_discrete_actions[0]
+            obs_features=env.obs_spaces[0][0],
+            num_actions=env.action_space.discrete[0]
         )
         
         trainer = aine_drl.Trainer(optim.Adam(
@@ -48,7 +47,7 @@ class DoubleDQNFactory(AgentFactory):
         
         policy = aine_drl.EpsilonGreedyPolicy(0.01)
         
-        return aine_drl.DoubleDQN(
+        return agent.DoubleDQN(
             config,
             network,
             trainer,

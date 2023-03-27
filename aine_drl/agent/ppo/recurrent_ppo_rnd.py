@@ -17,15 +17,10 @@ from aine_drl.util.func import batch2perenv, perenv2batch
 
 class RecurrentPPORND(Agent):
     """
-    Recurrent Proximal Policy Optimization (PPO) with Random Network Distillation (RND). \\
+    Recurrent Proximal Policy Optimization (PPO) with Random Network Distillation (RND).
+    
     PPO paper: https://arxiv.org/abs/1707.06347 \\
     RND paper: https://arxiv.org/abs/1810.12894
-
-    Args:
-        config (RecurrentPPORNDConfig): Recurrent PPO with RND configuration
-        network (RecurrentActorCriticSharedRNDNetwork): Recurrent (e.g., LSTM, GRU) Actor Critic Shared RND Network
-        policy (Policy): policy
-        num_envs (int): number of environments
     """
     def __init__(
         self, 

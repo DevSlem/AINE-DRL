@@ -2,7 +2,7 @@ import datetime
 import operator
 import os
 import random
-from typing import Iterator
+from typing import Iterable, TypeVar
 
 import numpy as np
 import torch
@@ -10,6 +10,8 @@ import torch.backends.cudnn as cudnn
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 from torch.nn.utils.clip_grad import clip_grad_norm_
+
+T = TypeVar("T")
 
 _random_seed = None
 
@@ -28,8 +30,8 @@ def get_seed() -> int | None:
     global _random_seed
     return _random_seed
 
-def get_batch_list(arr, idxs) -> list:
-    return list(operator.itemgetter(*idxs)(arr))
+def get_items(arr: Iterable[T], idx: Iterable) -> tuple[T]:
+    return operator.itemgetter(*idx)(tuple(arr))
 
 def get_batch(arr, idxs) -> np.ndarray:
     """

@@ -15,13 +15,9 @@ from aine_drl.util.func import batch2perenv, perenv2batch
 
 class RecurrentPPO(Agent):
     """
-    Recurrent Proximal Policy Optimization (PPO) using RNN. See details in https://arxiv.org/abs/1707.06347.
-
-    Args:
-        config (RecurrentPPOConfig): Recurrent PPO configuration
-        network (RecurrentActorCriticNetwork): recurrent actor critic network (e.g., LSTM, GRU)
-        policy (Policy): policy
-        num_envs (int): number of environments
+    Recurrent Proximal Policy Optimization (PPO).
+    
+    Paper: https://arxiv.org/abs/1707.06347
     """
     def __init__(
         self, 

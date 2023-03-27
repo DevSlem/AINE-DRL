@@ -15,12 +15,6 @@ from aine_drl.util.func import batch2perenv, perenv2batch
 class A2C(Agent):
     """
     Advantage Actor Critic (A2C).
-
-    Args:
-        config (A2CConfig): A2C configuration
-        network (ActorCriticSharedNetwork): standard actor critic network
-        policy (Policy): policy
-        num_envs (int): number of environments
     """
     def __init__(
         self, 

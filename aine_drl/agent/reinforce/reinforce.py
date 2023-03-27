@@ -16,7 +16,7 @@ class REINFORCE(Agent):
     """
     REINFORCE with baseline. It works to only one environment. 
     
-    See details in https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf.
+    Paper: https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf
 
     Args:
         config (REINFORCEConfig): REINFORCE configuration
