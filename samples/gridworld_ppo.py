@@ -2,6 +2,8 @@ import sys
 
 sys.path.append(".")
 
+from math import floor
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,9 +11,9 @@ import torch.optim as optim
 import aine_drl
 import aine_drl.agent as agent
 from aine_drl.factory import AgentFactory, AINETrainFactory
+from aine_drl.policy import CategoricalPolicy
 from aine_drl.train import Env
 
-from math import floor
 
 class GridWorldPPONet(nn.Module, agent.PPOSharedNetwork):
     def __init__(self, obs_shape, num_actions) -> None:
@@ -33,18 +35,18 @@ class GridWorldPPONet(nn.Module, agent.PPOSharedNetwork):
             nn.Flatten(),
         )
         
-        self.actor = aine_drl.CategoricalLayer(hidden_features, num_actions)
+        self.actor = CategoricalPolicy(hidden_features, num_actions)
         self.critic = nn.Linear(hidden_features, 1)
         
     def model(self) -> nn.Module:
         return self
         
-    def forward(self, obs: aine_drl.Observation) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: aine_drl.Observation) -> tuple[aine_drl.PolicyDist, torch.Tensor]:
         image_obs = obs.items[0].permute(0, 3, 1, 2)
         encoding = self.encoding_layer(image_obs)
-        pdparam = self.actor(encoding)
+        policy_dist = self.actor(encoding)
         state_value = self.critic(encoding)
-        return pdparam, state_value
+        return policy_dist, state_value
     
     @staticmethod
     def conv_output_shape(
@@ -78,14 +80,11 @@ class PPOFactory(AgentFactory):
             network.parameters(),
             lr=3e-4
         )).enable_grad_clip(network.parameters(), max_norm=5.0)
-        
-        policy = aine_drl.CategoricalPolicy()
-        
+                
         return agent.PPO(
             config,
             network,
             trainer,
-            policy,
             env.num_envs
         )
 

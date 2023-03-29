@@ -1,30 +1,30 @@
 from abc import abstractmethod
 
-import torch.nn as nn
+import torch
 
 from aine_drl.exp import Observation
 from aine_drl.net import Network
-from aine_drl.policy.policy import PolicyDistParam
+from aine_drl.policy_dist import PolicyDist
 
+ActionValue = tuple[torch.Tensor, ...]
 
 class DoubleDQNNetwork(Network):
     """
-    Double Deep Q Network. 
-    
-    Note that since it allows only discrete action type, only `PolicyDistParam.discrete_pdparams` have to be considered.
+    Double Deep Q Network.     
     """
     @abstractmethod
-    def forward(self, obs: Observation) -> PolicyDistParam:
+    def forward(self, obs: Observation) -> tuple[PolicyDist, ActionValue]:
         """
         ## Summary
         
-        Feed forward method to compute policy distribution parameter (pdparam) consisting of discrete action values.
+        Feed forward method to compute policy distribution according to discrete action values.
         
         Args:
             obs (Observation): observation batch
             
         Returns:
-            pdparam (PolicyDistParam): policy distribution parameter consisting of discrete action values Q(s, a)
+            policy_dist (PolicyDist): policy distribution
+            action_value (ActionValue): discrete action values (tuple of Tensors)
             
         ## Example
         
@@ -38,6 +38,7 @@ class DoubleDQNNetwork(Network):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam|`*batch_shape` = `(batch_size,)` and `*discrete_pdparam_shape` = `(num_discrete_actions,)`, details in `PolicyDistParam` docs|
+        |policy_dist|`*batch_shape` = `(batch_size,)`, details in `PolicyDist` docs|
+        |action_value|`(batch_size, num_discrete_actions)` x `num_discrete_branches`|
         """
         raise NotImplementedError

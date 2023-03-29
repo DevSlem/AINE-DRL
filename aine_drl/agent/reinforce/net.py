@@ -2,7 +2,7 @@ from abc import abstractmethod
 
 from aine_drl.exp import Observation
 from aine_drl.net import Network
-from aine_drl.policy.policy import PolicyDistParam
+from aine_drl.policy_dist import PolicyDist
 
 
 class REINFORCENetwork(Network):
@@ -10,17 +10,17 @@ class REINFORCENetwork(Network):
     REINFORCE policy network.    
     """
     @abstractmethod
-    def forward(self, obs: Observation) -> PolicyDistParam:
+    def forward(self, obs: Observation) -> PolicyDist:
         """
         ## Summary
         
-        Feed forward method to compute policy distribution parameter (pdparam).
+        Feed forward method to compute policy distribution.
 
         Args:
             obs (Observation): observation batch
 
         Returns:
-            pdparam (PolicyDistParam): policy distribution parameter
+            policy_dist (PolicyDist): policy distribution
             
         ## Input/Output Details
         
@@ -34,6 +34,6 @@ class REINFORCENetwork(Network):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam|`*batch_shape` = `(batch_size,)`, details in `PolicyDistParam` docs|
+        |policy_dist|`*batch_shape` = `(batch_size,)`, details in `PolicyDist` docs|
         """
         raise NotImplementedError

@@ -9,7 +9,6 @@ from aine_drl.agent.reinforce.trajectory import (REINFORCEExperience,
                                                  REINFORCETrajectory)
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
-from aine_drl.policy.policy import Policy
 
 
 class REINFORCE(Agent):
@@ -28,7 +27,6 @@ class REINFORCE(Agent):
         config: REINFORCEConfig,
         network: REINFORCENetwork,
         trainer: Trainer,
-        policy: Policy,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:        
         if not isinstance(network, REINFORCENetwork):
@@ -39,7 +37,6 @@ class REINFORCE(Agent):
         self._config = config
         self._network = network
         self._trainer = trainer
-        self._policy = policy
         self._trajectory = REINFORCETrajectory()
         
         self._action_log_prob: torch.Tensor = None # type: ignore
@@ -67,21 +64,20 @@ class REINFORCE(Agent):
     
     def _select_action_train(self, obs: Observation) -> Action:
         # feed forward
-        pdparam = self._network.forward(obs)
+        policy_dist = self._network.forward(obs)
         
         # action sampling
-        dist = self._policy.policy_dist(pdparam)
-        action = dist.sample()
+        action = policy_dist.sample()
         
-        self._action_log_prob = dist.joint_log_prob(action)
-        self._entropy = dist.joint_entropy()
+        self._action_log_prob = policy_dist.joint_log_prob(action)
+        self._entropy = policy_dist.joint_entropy()
         
         return action
     
     @torch.no_grad()
     def _select_action_inference(self, obs: Observation) -> Action:
-        pdparam = self._network.forward(obs)
-        return self._policy.policy_dist(pdparam).sample()
+        policy_dist = self._network.forward(obs)
+        return policy_dist.sample()
             
     def _train(self):
         # batch sampling

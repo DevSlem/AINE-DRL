@@ -8,7 +8,6 @@ from aine_drl.agent.a2c.net import A2CSharedNetwork
 from aine_drl.agent.a2c.trajectory import A2CExperience, A2CTrajectory
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
-from aine_drl.policy.policy import Policy
 from aine_drl.util.func import batch2perenv, perenv2batch
 
 
@@ -21,7 +20,6 @@ class A2C(Agent):
         config: A2CConfig,
         network: A2CSharedNetwork,
         trainer: Trainer,
-        policy: Policy,
         num_envs: int,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:        
@@ -33,7 +31,6 @@ class A2C(Agent):
         self._config = config
         self._network = network
         self._trainer = trainer
-        self._policy = policy
         self._trajectory = A2CTrajectory(self._config.n_steps)
         
         self._action_log_prob: torch.Tensor = None # type: ignore
@@ -63,22 +60,21 @@ class A2C(Agent):
     
     def _select_action_train(self, obs: Observation) -> Action:
         # feed forward
-        pdparam, state_value = self._network.forward(obs)
+        policy_dist, state_value = self._network.forward(obs)
         
         # action sampling
-        dist = self._policy.policy_dist(pdparam)
-        action = dist.sample()
+        action = policy_dist.sample()
         
-        self._action_log_prob = dist.joint_log_prob(action)
+        self._action_log_prob = policy_dist.joint_log_prob(action)
         self._state_value = state_value
-        self._entropy = dist.joint_entropy()
+        self._entropy = policy_dist.joint_entropy()
         
         return action
     
     @torch.no_grad()
     def _select_action_inference(self, obs: Observation) -> Action:
-        pdparam, _ = self._network.forward(obs)
-        return self._policy.policy_dist(pdparam).sample()
+        policy_dist, _ = self._network.forward(obs)
+        return policy_dist.sample()
             
     def _train(self):
         # batch sampling

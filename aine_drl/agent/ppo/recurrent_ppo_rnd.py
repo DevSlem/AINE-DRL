@@ -9,7 +9,6 @@ from aine_drl.agent.ppo.trajectory import (RecurrentPPORNDExperience,
                                            RecurrentPPORNDTrajectory)
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
-from aine_drl.policy.policy import Policy
 from aine_drl.util.func import batch2perenv, perenv2batch
 
 
@@ -25,7 +24,6 @@ class RecurrentPPORND(Agent):
         config: RecurrentPPORNDConfig,
         network: RecurrentPPORNDNetwork,
         trainer: Trainer,
-        policy: Policy,
         num_envs: int,
         behavior_type: BehaviorType = BehaviorType.TRAIN,
     ) -> None:        
@@ -37,7 +35,6 @@ class RecurrentPPORND(Agent):
         self._config = config
         self._network = network
         self._trainer = trainer
-        self._policy = policy
         self._trajectory = RecurrentPPORNDTrajectory(self._config.n_steps)
         
         self._action_log_prob: torch.Tensor = None # type: ignore
@@ -122,18 +119,17 @@ class RecurrentPPORND(Agent):
         # feed forward
         # when interacting with environment, sequence_length must be 1
         # *batch_shape = (seq_batch_size, seq_len) = (num_envs, 1)
-        pdparam_seq, ext_state_value_seq, int_state_value_seq, next_hidden_state = self._network.forward_actor_critic(
+        policy_dist_seq, ext_state_value_seq, int_state_value_seq, next_hidden_state = self._network.forward_actor_critic(
             obs.transform(lambda o: o.unsqueeze(dim=1)),
             self._hidden_state
         )
         
         # action sampling
-        seq_dist = self._policy.policy_dist(pdparam_seq)
-        action_seq = seq_dist.sample()
+        action_seq = policy_dist_seq.sample()
         
         # (num_envs, 1, *shape) -> (num_envs, *shape)
         action = action_seq.transform(lambda a: a.squeeze(dim=1))
-        self._action_log_prob = seq_dist.joint_log_prob(action_seq).squeeze_(dim=1)
+        self._action_log_prob = policy_dist_seq.joint_log_prob(action_seq).squeeze_(dim=1)
         self._ext_state_value = ext_state_value_seq.squeeze_(dim=1)
         self._int_state_value = int_state_value_seq.squeeze_(dim=1)
         
@@ -144,12 +140,11 @@ class RecurrentPPORND(Agent):
     @torch.no_grad()
     def _select_action_inference(self, obs: Observation) -> Action:
         self._infer_hidden_state = self._infer_next_hidden_state * (1.0 - self._infer_prev_terminated)
-        pdparam_seq, _, _, next_hidden_state = self._network.forward_actor_critic(
+        policy_dist_seq, _, _, next_hidden_state = self._network.forward_actor_critic(
             obs.transform(lambda o: o.unsqueeze(dim=1)),
             self._infer_hidden_state
         )
-        seq_dist = self._policy.policy_dist(pdparam_seq)
-        action_seq = seq_dist.sample()
+        action_seq = policy_dist_seq.sample()
         self._infer_next_hidden_state = next_hidden_state
         return action_seq.transform(lambda a: a.squeeze(dim=1))
             
@@ -235,7 +230,7 @@ class RecurrentPPORND(Agent):
                 sample_mask = mask[sample_seq_idx]
                 
                 # feed forward
-                sample_pdparam_seq, sample_ext_state_value_seq, sample_int_state_value_seq, _ = self._network.forward_actor_critic(
+                sample_policy_dist_seq, sample_ext_state_value_seq, sample_int_state_value_seq, _ = self._network.forward_actor_critic(
                     obs_seq[sample_seq_idx], 
                     seq_init_hidden_state[:, sample_seq_idx]
                 )
@@ -245,15 +240,14 @@ class RecurrentPPORND(Agent):
                 )
                 
                 # compute actor loss
-                seq_dist = self._policy.policy_dist(sample_pdparam_seq)
-                sample_new_action_log_prob_seq = seq_dist.joint_log_prob(action_seq[sample_seq_idx])
+                sample_new_action_log_prob_seq = sample_policy_dist_seq.joint_log_prob(action_seq[sample_seq_idx])
                 actor_loss = L.ppo_clipped_loss(
                     advantage_seq[sample_seq_idx][sample_mask],
                     old_action_log_prob_seq[sample_seq_idx][sample_mask],
                     sample_new_action_log_prob_seq[sample_mask],
                     self._config.epsilon_clip
                 )
-                entropy = seq_dist.joint_entropy()[sample_mask].mean()
+                entropy = sample_policy_dist_seq.joint_entropy()[sample_mask].mean()
                 
                 # compute critic loss
                 ext_critic_loss = L.bellman_value_loss(
