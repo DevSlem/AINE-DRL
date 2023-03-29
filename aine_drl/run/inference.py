@@ -18,6 +18,7 @@ class InferenceError(Exception):
 class InferenceConfig:
     episodes: int
     export: str | None = "render_only"
+    gif_duration_per_frame: float = 33.0
     agent_file_path: str | None = None
     
 class Inference:
@@ -130,7 +131,7 @@ class Inference:
                     save_all=True,
                     append_images=images[1:],
                     optimize=False,
-                    duration=33,
+                    duration=self._config.gif_duration_per_frame,
                     loop=0
                 )
             case "picture":
