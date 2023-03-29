@@ -156,9 +156,17 @@ class GymEnv(Env):
     
     @property
     def obs_spaces(self) -> tuple[ObservationSpace, ...]:
+        if type(self._env.single_observation_space) == gym.spaces.Tuple:
+            obs_shapes = []
+            for obs_space in self._env.single_observation_space.spaces:
+                if obs_space.shape is None:
+                    raise ValueError("Observation space must be a tuple of Box or Discrete.")
+                obs_shapes.append(ObservationSpace(obs_space.shape))
+            return tuple(obs_shapes)
+        
         obs_shape = self._env.single_observation_space.shape
         if obs_shape is None:
-            return tuple()
+            raise ValueError("Observation space must be a tuple of Box or Discrete.")
         return (ObservationSpace(obs_shape),)
     
     @property
@@ -180,7 +188,7 @@ class GymEnv(Env):
                 if type(action_space[0]) == gym.spaces.Discrete: # type: ignore
                     num_discrete_actions = (action_space[0],) # type: ignore
                 elif type(action_space[0]) == gym.spaces.MultiDiscrete: # type: ignore
-                    num_discrete_actions = tuple(action_space[0].nvec) # type: ignore
+                    num_discrete_actions = tuple(action_space[0].nvec.tolist()) # type: ignore
                 else:
                     raise RuntimeError(f"unsupported action space: {action_space[0]}") # type: ignore
                 if type(action_space[1]) == gym.spaces.Box: # type: ignore
