@@ -10,7 +10,6 @@ import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.policy import CategoricalPolicy
-from aine_drl.train import Env
 
 
 class CartPoleREINFORCENet(nn.Module, agent.REINFORCENetwork):    
@@ -33,7 +32,7 @@ class CartPoleREINFORCENet(nn.Module, agent.REINFORCENetwork):
         return self.policy_net(obs.items[0])
     
 class REINFORCEFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.REINFORCEConfig(**config_dict)
         
         network = CartPoleREINFORCENet(

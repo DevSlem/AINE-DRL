@@ -8,8 +8,8 @@ from aine_drl.exp import Experience
 from aine_drl.util.func import create_dir
 from aine_drl.util.logger import logger
 
-from .env import Env, Renderable
-from .error import AgentLoadError
+from aine_drl.env import Env, Renderable
+from aine_drl.run.error import AgentLoadError
 
 class InferenceError(Exception):
     pass

@@ -9,7 +9,6 @@ import aine_drl
 import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
-from aine_drl.train import Env
 from aine_drl.policy import EpsilonGreedyPolicy
 from aine_drl.agent.dqn.net import ActionValue
 
@@ -36,7 +35,7 @@ class CartPoleDoubleDQNNet(nn.Module, agent.DoubleDQNNetwork):
         return policy_dist, self.policy.pop_action_values()
     
 class DoubleDQNFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.DoubleDQNConfig(**config_dict)
         
         network = CartPoleDoubleDQNNet(

@@ -8,8 +8,8 @@ from aine_drl.agent.agent import Agent, BehaviorScope, BehaviorType
 from aine_drl.exp import Experience
 from aine_drl.util.logger import TextInfoBox, logger
 
-from .env import Env
-from .error import AgentLoadError
+from aine_drl.env import Env
+from aine_drl.run.error import AgentLoadError
 
 
 @dataclass(frozen=True)

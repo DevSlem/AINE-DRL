@@ -16,10 +16,10 @@ from gym.core import ObservationWrapper
 import aine_drl
 import aine_drl.agent as agent
 import aine_drl.net as net
+from aine_drl.env import GymEnv, GymRenderableEnv
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.policy import CategoricalPolicy
-from aine_drl.train import Env, GymEnv, GymRenderableEnv
 
 LEARNING_RATE = 0.001
 GRAD_CLIP_MAX_NORM = 5.0
@@ -121,7 +121,7 @@ class CartPoleNoVelNaivePPO(nn.Module, agent.PPOSharedNetwork):
         return policy_dist, state_value
     
 class RecurrentPPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.RecurrentPPOConfig(**config_dict)
         
         network = CartPoleNoVelRecurrentPPONet(
@@ -142,7 +142,7 @@ class RecurrentPPOFactory(AgentFactory):
         )
         
 class NaivePPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.PPOConfig(**config_dict)
         
         network = CartPoleNoVelNaivePPO(

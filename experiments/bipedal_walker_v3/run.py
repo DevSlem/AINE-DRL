@@ -13,7 +13,6 @@ import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.policy import GaussianPolicy
-from aine_drl.train import Env
 
 LEARNING_RATE = 3e-4
 
@@ -44,7 +43,7 @@ class BipedalWalkerPPONet(nn.Module, agent.PPOSharedNetwork):
         return policy_dist, state_value
         
 class PPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.PPOConfig(**config_dict)
         
         network = BipedalWalkerPPONet(

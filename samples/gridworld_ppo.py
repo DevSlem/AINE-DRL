@@ -12,7 +12,6 @@ import aine_drl
 import aine_drl.agent as agent
 from aine_drl.factory import AgentFactory, AINETrainFactory
 from aine_drl.policy import CategoricalPolicy
-from aine_drl.train import Env
 
 
 class GridWorldPPONet(nn.Module, agent.PPOSharedNetwork):
@@ -68,7 +67,7 @@ class GridWorldPPONet(nn.Module, agent.PPOSharedNetwork):
         return h, w
 
 class PPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.PPOConfig(**config_dict)
         
         network = GridWorldPPONet(

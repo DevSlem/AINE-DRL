@@ -11,7 +11,6 @@ import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.policy import CategoricalPolicy
-from aine_drl.train import Env
 
 
 class CartPoleA2CNet(nn.Module, agent.A2CSharedNetwork):    
@@ -42,7 +41,7 @@ class CartPoleA2CNet(nn.Module, agent.A2CSharedNetwork):
         return policy_dist, state_value
     
 class A2CFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.A2CConfig(**config_dict)
         
         network = CartPoleA2CNet(
