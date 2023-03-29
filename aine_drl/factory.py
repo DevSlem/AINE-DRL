@@ -6,9 +6,9 @@ import yaml
 
 import aine_drl.util.func as util_f
 from aine_drl.agent.agent import Agent
-from aine_drl.train.env import Env, GymEnv, GymRenderableEnv, MLAgentsEnv
-from aine_drl.train.inference import Inference, InferenceConfig
-from aine_drl.train.train import Train, TrainConfig
+from aine_drl.env import Env, GymEnv, GymRenderableEnv, MLAgentsEnv
+from aine_drl.run.inference import Inference, InferenceConfig
+from aine_drl.run.train import Train, TrainConfig
 
 
 class AgentFactory(ABC):

@@ -4,7 +4,7 @@ import torch
 
 from aine_drl.exp import Observation
 from aine_drl.net import Network, RecurrentNetwork
-from aine_drl.policy.policy import PolicyDistParam
+from aine_drl.policy_dist import PolicyDist
 
 
 class PPOSharedNetwork(Network):
@@ -14,19 +14,18 @@ class PPOSharedNetwork(Network):
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
     """
-    
     @abstractmethod
-    def forward(self, obs: Observation) -> tuple[PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: Observation) -> tuple[PolicyDist, torch.Tensor]:
         """
         ## Summary
         
-        Feed forward method to compute policy distribution parameter (pdparam) and state value.
+        Feed forward method to compute policy distribution and state value.
 
         Args:
             obs (Observation): observation batch
 
         Returns:
-            pdparam (PolicyDistParam): policy distribution parameter
+            policy_dist (PolicyDist): policy distribution
             state_value (Tensor): state value V(s)
             
         ## Input/Output Details
@@ -41,7 +40,7 @@ class PPOSharedNetwork(Network):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam|`*batch_shape` = `(batch_size,)`, details in `PolicyDistParam` docs|
+        |policy_dist|`*batch_shape` = `(batch_size,)`, details in `PolicyDist` docs|
         |state_value|`(batch_size, 1)`|
         """
         raise NotImplementedError
@@ -56,13 +55,12 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
     Note that since it uses the Actor-Critic architecure and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic. 
     """
-        
     @abstractmethod
-    def forward(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor]:
+    def forward(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDist, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
-        Feed forward method to compute policy distribution parameter (pdparam) 
+        Feed forward method to compute policy distribution 
         and state value using the recurrent network.
         
         It's recommended to set your recurrent network to `batch_first=True`.
@@ -72,7 +70,7 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
             hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
-            pdparam_seq (PolicyDistParam): policy distribution parameter sequences
+            policy_dist_seq (PolicyDist): policy distribution sequences
             state_value_seq (Tensor): state value sequences
             next_seq_hidden_state (Tensor): hidden state which will be used for the next sequence
             
@@ -89,7 +87,7 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDistParam` docs|
+        |policy_dist_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDist` docs|
         |state_value_seq|`(seq_batch_size, seq_len, 1)`|
         |next_seq_hidden_state|`(D x num_layers, seq_batch_size, H)`|
         
@@ -122,13 +120,12 @@ class RecurrentPPORNDNetwork(RecurrentNetwork):
     Both of them must have the same architectures but their initial parameters should not be the same.
     The target network is determinsitic, which means it will be never updated. 
     """
-        
     @abstractmethod
-    def forward_actor_critic(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDistParam, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward_actor_critic(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDist, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
-        Feed forward method to compute policy distribution parameter (pdparam), 
+        Feed forward method to compute policy distribution, 
         extinrisc state value and intrinsic state value using the recurrent network.
                 
         It's recommended to set your recurrent network to `batch_first=True`.
@@ -138,7 +135,7 @@ class RecurrentPPORNDNetwork(RecurrentNetwork):
             hidden_state (Tensor): hidden states at the beginning of each sequence
 
         Returns:
-            pdparam_seq (PolicyDistParam): policy distribution parameter sequences
+            policy_dist_seq (PolicyDist): policy distribution sequences
             ext_state_value_seq (Tensor): extrinsic state value sequences
             int_state_value_seq (Tensor): intrinsic state value sequences
             next_seq_hidden_state (Tensor): hidden state which will be used for the next sequence
@@ -156,7 +153,7 @@ class RecurrentPPORNDNetwork(RecurrentNetwork):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDistParam` docs|
+        |policy_dist_seq|`*batch_shape` = `(seq_batch_size, seq_len)`, details in `PolicyDist` docs|
         |ext_state_value_seq|`(seq_batch_size, seq_len, 1)`|
         |int_state_value_seq|`(seq_batch_size, seq_len, 1)`|
         |next_seq_hidden_state|`(D x num_layers, seq_batch_size, H)`|

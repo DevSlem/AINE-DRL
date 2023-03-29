@@ -9,7 +9,7 @@ import aine_drl
 import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
-from aine_drl.train import Env
+from aine_drl.policy import CategoricalPolicy
 
 
 class CartPoleREINFORCENet(nn.Module, agent.REINFORCENetwork):    
@@ -22,17 +22,17 @@ class CartPoleREINFORCENet(nn.Module, agent.REINFORCENetwork):
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
-            aine_drl.CategoricalLayer(64, num_actions)
+            CategoricalPolicy(64, num_actions)
         )
         
     def model(self) -> nn.Module:
         return self.policy_net
     
-    def forward(self, obs: aine_drl.Observation) -> aine_drl.PolicyDistParam:
+    def forward(self, obs: aine_drl.Observation) -> aine_drl.PolicyDist:
         return self.policy_net(obs.items[0])
     
 class REINFORCEFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.REINFORCEConfig(**config_dict)
         
         network = CartPoleREINFORCENet(
@@ -45,13 +45,10 @@ class REINFORCEFactory(AgentFactory):
             lr=0.001
         )).enable_grad_clip(network.parameters(), max_norm=5.0)
         
-        policy = aine_drl.CategoricalPolicy()
-        
         return agent.REINFORCE(
             config,
             network,
             trainer,
-            policy,
         )
     
 if __name__ == "__main__": 

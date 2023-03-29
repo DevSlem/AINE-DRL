@@ -8,7 +8,6 @@ from aine_drl.agent.ppo.net import PPOSharedNetwork
 from aine_drl.agent.ppo.trajectory import PPOExperience, PPOTrajectory
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
-from aine_drl.policy.policy import Policy
 from aine_drl.util.func import batch2perenv, perenv2batch
 
 
@@ -23,7 +22,6 @@ class PPO(Agent):
         config: PPOConfig,
         network: PPOSharedNetwork,
         trainer: Trainer,
-        policy: Policy,
         num_envs: int,
         behavior_type: BehaviorType = BehaviorType.TRAIN,
     ) -> None:        
@@ -35,7 +33,6 @@ class PPO(Agent):
         self._config = config
         self._network = network
         self._trainer = trainer
-        self._policy = policy
         self._trajectory = PPOTrajectory(self._config.n_steps)
         
         self._action_log_prob: torch.Tensor = None # type: ignore
@@ -65,22 +62,21 @@ class PPO(Agent):
     @torch.no_grad()
     def _select_action_train(self, obs: Observation) -> Action:
         # feed forward 
-        pdparam, v_pred = self._network.forward(obs)
+        policy_dist, v_pred = self._network.forward(obs)
         
         # action sampling
-        dist = self._policy.policy_dist(pdparam)
-        action = dist.sample()
+        action = policy_dist.sample()
         
         # store data
-        self._action_log_prob = dist.joint_log_prob(action)
+        self._action_log_prob = policy_dist.joint_log_prob(action)
         self._state_value = v_pred
         
         return action
     
     @torch.no_grad()
     def _select_action_inference(self, obs: Observation) -> Action:
-        pdparam, _ = self._network.forward(obs)
-        return self._policy.policy_dist(pdparam).sample()
+        policy_dist, _ = self._network.forward(obs)
+        return policy_dist.sample()
             
     def _train(self):
         exp_batch = self._trajectory.sample()
@@ -95,11 +91,10 @@ class PPO(Agent):
                 sample_batch_idx = shuffled_batch_idx[self._config.mini_batch_size * i : self._config.mini_batch_size * (i + 1)]
                 
                 # feed forward
-                pdparam, state_value = self._network.forward(exp_batch.obs[sample_batch_idx])
+                policy_dist, state_value = self._network.forward(exp_batch.obs[sample_batch_idx])
                 
                 # compute actor loss
-                dist = self._policy.policy_dist(pdparam)
-                new_action_log_prob = dist.joint_log_prob(exp_batch.action[sample_batch_idx])
+                new_action_log_prob = policy_dist.joint_log_prob(exp_batch.action[sample_batch_idx])
                 normalized_advantage = self._normalize(advantage[sample_batch_idx]) if self._config.advantage_normalization else advantage[sample_batch_idx]
                 actor_loss = L.ppo_clipped_loss(
                     normalized_advantage,
@@ -107,7 +102,7 @@ class PPO(Agent):
                     new_action_log_prob,
                     self._config.epsilon_clip
                 )
-                entropy = dist.joint_entropy().mean()
+                entropy = policy_dist.joint_entropy().mean()
                 
                 # compute critic loss
                 critic_loss = L.bellman_value_loss(state_value, target_state_value[sample_batch_idx])

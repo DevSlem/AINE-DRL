@@ -16,9 +16,10 @@ from gym.core import ObservationWrapper
 import aine_drl
 import aine_drl.agent as agent
 import aine_drl.net as net
+from aine_drl.env import GymEnv, GymRenderableEnv
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
-from aine_drl.train import Env, GymEnv, GymRenderableEnv
+from aine_drl.policy import CategoricalPolicy
 
 LEARNING_RATE = 0.001
 GRAD_CLIP_MAX_NORM = 5.0
@@ -64,8 +65,8 @@ class CartPoleNoVelRecurrentPPONet(nn.Module, agent.RecurrentPPOSharedNetwork):
         )
         
         # actor-critic layer
-        self.actor_layer = aine_drl.CategoricalLayer(self.hiddeen_features, num_actions)
-        self.critic_layer = nn.Linear(self.hiddeen_features, 1)
+        self.actor = CategoricalPolicy(self.hiddeen_features, num_actions)
+        self.critic = nn.Linear(self.hiddeen_features, 1)
         
     def hidden_state_shape(self) -> tuple[int, int]:
         return (self.num_recurrent_layers, self.hiddeen_features * 2)
@@ -73,42 +74,21 @@ class CartPoleNoVelRecurrentPPONet(nn.Module, agent.RecurrentPPOSharedNetwork):
     def model(self) -> nn.Module:
         return self
         
-    def forward(self, obs_seq: aine_drl.Observation, hidden_state: torch.Tensor) -> tuple[aine_drl.PolicyDistParam, torch.Tensor, torch.Tensor]:
-        vector_obs_seq = obs_seq.items[0]
-        seq_batch_size, seq_len, _ = self.unpack_seq_shape(vector_obs_seq)
-        
+    def forward(self, obs_seq: aine_drl.Observation, hidden_state: torch.Tensor) -> tuple[aine_drl.PolicyDist, torch.Tensor, torch.Tensor]:
+        vector_obs_seq = obs_seq.items[0]        
         # feed forward to encoding linear layer
-        vector_obs = vector_obs_seq.reshape(seq_batch_size * seq_len, -1)
-        encoding = self.encoding_layer(vector_obs)
+        encoding_seq = self.encoding_layer(vector_obs_seq)
         
         # feed forward to recurrent layer
         h, c = net.unwrap_lstm_hidden_state(hidden_state)
-        encoding_seq = encoding.reshape(seq_batch_size, seq_len, -1)
         encoding_seq, (h_n, c_n) = self.recurrent_layer(encoding_seq, (h, c))
         next_seq_hidden_state = net.wrap_lstm_hidden_state(h_n, c_n)
         
         # feed forward to actor-critic layer
-        # (seq_batch_size, seq_len, hiddeen_features) -> (seq_batch_size * seq_len, hiddeen_features)
-        encoding = encoding_seq.reshape(seq_batch_size * seq_len, -1)
-        pdparam = self.actor_layer(encoding)
-        state_value = self.critic_layer(encoding)
+        policy_dist_seq = self.actor(encoding_seq)
+        state_value_seq = self.critic(encoding_seq)
         
-        # (seq_batch_size * seq_len, hiddeen_features) -> (seq_batch_size, seq_len, hiddeen_features)
-        pdparam_seq = pdparam.transform(lambda x: x.reshape(seq_batch_size, seq_len, *x.shape[1:]))
-        state_value_seq = state_value.reshape(seq_batch_size, seq_len, -1)
-        
-        return pdparam_seq, state_value_seq, next_seq_hidden_state
-        
-    @staticmethod
-    def pack_lstm_hidden_state(h: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
-        """`(D x num_layers, num_seq, H_out) x 2` -> `(D x num_layers, num_seq, H_out x 2)`"""
-        return torch.cat((h, c), dim=2)
-    
-    @staticmethod
-    def unpack_lstm_hidden_state(lstm_hidden_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """`(D x num_layers, num_seq, H_out x 2)` -> `(D x num_layers, num_seq, H_out) x 2`"""
-        lstm_hidden_state = lstm_hidden_state.split(lstm_hidden_state.shape[2] // 2, dim=2)  # type: ignore
-        return (lstm_hidden_state[0].contiguous(), lstm_hidden_state[1].contiguous())
+        return policy_dist_seq, state_value_seq, next_seq_hidden_state
     
 class CartPoleNoVelNaivePPO(nn.Module, agent.PPOSharedNetwork):
     def __init__(self, obs_features, num_actions) -> None:
@@ -127,21 +107,21 @@ class CartPoleNoVelNaivePPO(nn.Module, agent.PPOSharedNetwork):
         )
         
         # actor-critic layer
-        self.actor_layer = aine_drl.CategoricalLayer(self.hidden_features, num_actions)
-        self.crictic_layer = nn.Linear(self.hidden_features, 1)
+        self.actor = CategoricalPolicy(self.hidden_features, num_actions)
+        self.critic = nn.Linear(self.hidden_features, 1)
         
     def model(self) -> nn.Module:
         return self
     
-    def forward(self, obs: aine_drl.Observation) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: aine_drl.Observation) -> tuple[aine_drl.PolicyDist, torch.Tensor]:
         vector_obs = obs.items[0]
         encoding = self.encoding_layer(vector_obs)
-        pdparam = self.actor_layer(encoding)
-        state_value = self.crictic_layer(encoding)
-        return pdparam, state_value
+        policy_dist = self.actor(encoding)
+        state_value = self.critic(encoding)
+        return policy_dist, state_value
     
 class RecurrentPPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.RecurrentPPOConfig(**config_dict)
         
         network = CartPoleNoVelRecurrentPPONet(
@@ -153,19 +133,16 @@ class RecurrentPPOFactory(AgentFactory):
             network.parameters(),
             lr=LEARNING_RATE
         )).enable_grad_clip(network.parameters(), max_norm=GRAD_CLIP_MAX_NORM)
-        
-        policy = aine_drl.CategoricalPolicy()
-        
+            
         return agent.RecurrentPPO(
             config,
             network,
             trainer,
-            policy,
             env.num_envs
         )
         
 class NaivePPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.PPOConfig(**config_dict)
         
         network = CartPoleNoVelNaivePPO(
@@ -177,14 +154,11 @@ class NaivePPOFactory(AgentFactory):
             network.parameters(),
             lr=LEARNING_RATE
         )).enable_grad_clip(network.parameters(), max_norm=GRAD_CLIP_MAX_NORM)
-        
-        policy = aine_drl.CategoricalPolicy()
-        
+                
         return agent.PPO(
             config,
             network,
             trainer,
-            policy,
             env.num_envs
         )
     

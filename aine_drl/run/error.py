@@ -1,0 +1,2 @@
+class AgentLoadError(Exception):
+    pass

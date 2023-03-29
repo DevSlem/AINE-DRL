@@ -12,7 +12,6 @@ from aine_drl.agent.dqn.net import DoubleDQNNetwork
 from aine_drl.agent.dqn.trajectory import DQNExperience, DQNTrajectory
 from aine_drl.exp import Action, Experience, Observation
 from aine_drl.net import NetworkTypeError, Trainer
-from aine_drl.policy.policy import ActionType, Policy, PolicyActionTypeError
 
 
 class DoubleDQN(Agent):
@@ -26,14 +25,11 @@ class DoubleDQN(Agent):
         config: DoubleDQNConfig,
         network: DoubleDQNNetwork,
         trainer: Trainer,
-        policy: Policy,
         num_envs: int,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:
         if not isinstance(network, DoubleDQNNetwork):
             raise NetworkTypeError(DoubleDQNNetwork)
-        if policy.action_type is not ActionType.DISCRETE:
-            raise PolicyActionTypeError(ActionType.DISCRETE, policy)
         
         super().__init__(num_envs, network, behavior_type)
         
@@ -41,7 +37,6 @@ class DoubleDQN(Agent):
         self._network = network
         self._target_net = copy.deepcopy(network)
         self._trainer = trainer
-        self._policy = policy
         
         if self._config.replay_buffer_device == "auto":
             replay_buffer_device = self._network.device
@@ -84,15 +79,15 @@ class DoubleDQN(Agent):
     @torch.no_grad()
     def _select_action_train(self, obs: Observation) -> Action:
         # feed forward
-        pdparam = self._network.forward(obs)
+        policy_dist, _ = self._network.forward(obs)
         
         # action sampling
-        return self._policy.policy_dist(pdparam).sample()
+        return policy_dist.sample()
     
     @torch.no_grad()
     def _select_action_inference(self, obs: Observation) -> Action:
-        pdparam = self._network.forward(obs)
-        return self._policy.policy_dist(pdparam).sample()
+        policy_dist, _ = self._network.forward(obs)
+        return policy_dist.sample()
     
     def _train(self):
         for _ in range(self._config.epoch):
@@ -112,12 +107,12 @@ class DoubleDQN(Agent):
     
     def _compute_td_loss(self, exp_batch: DQNExperience) -> torch.Tensor:
         # Q values for all actions are from the Q network
-        q_values = self._network.forward(exp_batch.obs).discrete_pdparams
+        _, q_values = self._network.forward(exp_batch.obs)
         with torch.no_grad():
             # next Q values for all actions are from the Q network
-            next_q_values = self._network.forward(exp_batch.next_obs).discrete_pdparams
+            _, next_q_values = self._network.forward(exp_batch.next_obs)
             # next Q values for all actions are from the target network
-            next_q_target_values = self._target_net.forward(exp_batch.next_obs).discrete_pdparams
+            _, next_q_target_values = self._target_net.forward(exp_batch.next_obs)
             
         actions = exp_batch.action.discrete_action.split(1, dim=1)
         

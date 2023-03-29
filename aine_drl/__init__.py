@@ -3,11 +3,10 @@ from .exp import (
     Action,
     Experience,
 )
-from .policy import *
+from .policy_dist import PolicyDist
 from .net import (
     Trainer,
     Network,
-    RecurrentNetwork,
-    CategoricalLayer,
-    GaussianLayer,
+    RecurrentNetwork
 )
+from .env import Env

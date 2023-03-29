@@ -10,7 +10,7 @@ import aine_drl
 import aine_drl.agent as agent
 from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
-from aine_drl.train import Env
+from aine_drl.policy import CategoricalPolicy
 
 
 class CartPolePPONet(nn.Module, agent.PPOSharedNetwork):    
@@ -28,21 +28,21 @@ class CartPolePPONet(nn.Module, agent.PPOSharedNetwork):
         )
         
         # actor-critic layer
-        self.actor_layer = aine_drl.CategoricalLayer(self.hidden_feature, num_actions)
-        self.critic_layer = nn.Linear(self.hidden_feature, 1)
+        self.actor = CategoricalPolicy(self.hidden_feature, num_actions)
+        self.critic = nn.Linear(self.hidden_feature, 1)
     
     def model(self) -> nn.Module:
         return self
     
     # override
-    def forward(self, obs: aine_drl.Observation) -> tuple[aine_drl.PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: aine_drl.Observation) -> tuple[aine_drl.PolicyDist, torch.Tensor]:
         encoding = self.encoding_layer(obs.items[0])
-        pdparam = self.actor_layer(encoding)
-        state_value = self.critic_layer(encoding)
-        return pdparam, state_value
+        policy_dist = self.actor(encoding)
+        state_value = self.critic(encoding)
+        return policy_dist, state_value
     
 class PPOFactory(AgentFactory):
-    def make(self, env: Env, config_dict: dict) -> agent.Agent:
+    def make(self, env: aine_drl.Env, config_dict: dict) -> agent.Agent:
         config = agent.PPOConfig(**config_dict)
         
         network = CartPolePPONet(
@@ -54,14 +54,11 @@ class PPOFactory(AgentFactory):
             network.parameters(),
             lr=0.001
         )).enable_grad_clip(network.parameters(), max_norm=5.0)
-        
-        policy = aine_drl.CategoricalPolicy()
-        
+                
         return agent.PPO(
             config,
             network,
             trainer,
-            policy,
             env.num_envs
         )
     

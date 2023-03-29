@@ -4,7 +4,7 @@ import torch
 
 from aine_drl.exp import Observation
 from aine_drl.net import Network
-from aine_drl.policy.policy import PolicyDistParam
+from aine_drl.policy_dist import PolicyDist
 
 
 class A2CSharedNetwork(Network):
@@ -15,17 +15,17 @@ class A2CSharedNetwork(Network):
     the encoding layer must be shared between Actor and Critic.
     """
     @abstractmethod
-    def forward(self, obs: Observation) -> tuple[PolicyDistParam, torch.Tensor]:
+    def forward(self, obs: Observation) -> tuple[PolicyDist, torch.Tensor]:
         """
         ## Summary
         
-        Feed forward method to compute policy distribution parameter (pdparam) and state value.
+        Feed forward method to compute policy distribution and state value.
 
         Args:
             obs (Observation): observation batch
 
         Returns:
-            pdparam (PolicyDistParam): policy distribution parameter
+            policy_dist (PolicyDist): policy distribution
             state_value (Tensor): state value V(s)
             
         ## Input/Output Details
@@ -40,7 +40,7 @@ class A2CSharedNetwork(Network):
         
         |Output|Shape|
         |:---|:---|
-        |pdparam|`*batch_shape` = `(batch_size,)`, details in `PolicyDistParam` docs|
+        |policy_dist|`*batch_shape` = `(batch_size,)`, details in `PolicyDist` docs|
         |state_value|`(batch_size, 1)`|
         """
         raise NotImplementedError
