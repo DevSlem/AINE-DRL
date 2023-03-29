@@ -9,7 +9,8 @@ A project for the DRL baseline framework. **AINE** means "Agent IN Environment".
 AINE-DRL provides below things.
 
 * deep reinforcement learning agents
-* train in OpenAI Gym
+* compatible with [OpenAI Gym](https://github.com/openai/gym)
+* compatible with [Unity ML-Agents](https://github.com/Unity-Technologies/ml-agents)
 * inference (rendering, gif, picture)
 * model save/load
 * YAML configuration
@@ -33,7 +34,6 @@ AINE-DRL provides deep reinforcement learning (DRL) agents. If you want to use t
 <details>
 <summary><h3>TODO</h3></summary>
 
-- [ ] Unity ML-Agents Training
 - [ ] DDPG
 - [ ] Prioritized Experience Replay 
 - [ ] SAC
