@@ -1,0 +1,19 @@
+GridWorld_PPO:
+  Env:
+    type: ML-Agents
+    Config:
+      id: GridWorld
+  Train:
+    num_envs: 8
+    Config:
+      time_steps: 20000
+      summary_freq: 1000
+  # Inference:
+  #   seed: 0
+  #   Config:
+  #     episodes: 3
+  #     export: render_only
+  Agent:
+    n_steps: 16
+    epoch: 3
+    mini_batch_size: 8

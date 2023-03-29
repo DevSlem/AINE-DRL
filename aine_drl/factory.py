@@ -6,7 +6,7 @@ import yaml
 
 import aine_drl.util.func as util_f
 from aine_drl.agent.agent import Agent
-from aine_drl.train.env import Env, GymEnv, GymRenderableEnv
+from aine_drl.train.env import Env, GymEnv, GymRenderableEnv, MLAgentsEnv
 from aine_drl.train.inference import Inference, InferenceConfig
 from aine_drl.train.train import Train, TrainConfig
 
@@ -116,13 +116,18 @@ class AINETrainFactory(AINEFactory[Train]):
     
     def _make_train_env(self, env_dict: dict, num_envs: int, seed: int | list[int] | None) -> Env:        
         config_dict: dict = env_dict["Config"]
+        if "seed" not in config_dict.keys():
+            config_dict["seed"] = seed
         match env_dict["type"]:
             case "Gym":
-                if "seed" not in config_dict.keys():
-                    config_dict["seed"] = seed
                 return GymEnv.from_gym_make(num_envs=num_envs, **config_dict)
             case "ML-Agents":
-                raise NotImplementedError("ML-Agents environment is not implemented yet")
+                if "id" in config_dict.keys():
+                    return MLAgentsEnv.from_registry(num_envs=num_envs, **config_dict)
+                elif "file_name" in config_dict.keys():
+                    return MLAgentsEnv.from_unity_env(num_envs=num_envs, **config_dict)
+                else:
+                    raise AINEFactoryError("you must specify either `id` or `file_name` in the configuration")
             case _:
                 raise AINEFactoryError("invalid environment type")
     
