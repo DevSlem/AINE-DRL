@@ -50,9 +50,9 @@ You can see our experiments (source code and result) in [experiments](experiment
 
 Train agents in OpenAI Gym [BipedalWalker-v3](https://github.com/openai/gym/wiki/BipedalWalker-v2) which is continuous action space task.
 
-Fig 1. BipedalWalker-v3 inference (cumulative reward - PPO: 240):
+Fig 1. BipedalWalker-v3 inference (cumulative reward - PPO: 248):
 
-![](images/BipedalWalker-v3_PPO-episode0.gif)
+![](images/BipedalWalker-v3_PPO.gif)
 
 * [experiment](experiments/bipedal_walker_v3/)
 * [PPO configuration](config/experiments/bipedal_walker_v3_ppo.yaml)
@@ -79,11 +79,11 @@ If paging file error happens, see [Paging File Error](#paging-file-error).
 
 Compare [Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO) (using LSTM) and [Naive PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO) in OpenAI Gym [CartPole-v1](https://github.com/openai/gym/wiki/CartPole-v0) with No Velocity, which is [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process) setting. Specifically, we remove **"cart velocity"** and **"pole velocity at tip"** from the observation space. This experiment shows to require memory ability in POMDP setting.
 
-Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference (cumulative reward - Recurrent PPO: 500, Naive PPO: 56):
+Fig 2. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) inference (cumulative reward - Recurrent PPO: 500, Naive PPO: 41):
 
 |Recurrent PPO|Naive PPO|
 |:---:|:---:|
-|![](images/CartPole-v1-NoVelocity_RecurrentPPO-episode2.gif)|![](images/CartPole-v1-NoVelocity_NaivePPO-episode2.gif)|
+|![](images/CartPole-v1-NoVelocity_RecurrentPPO.gif)|![](images/CartPole-v1-NoVelocity_NaivePPO.gif)|
 
 Fig 3. [CartPole-v1 with No Velocity](https://github.com/openai/gym/wiki/CartPole-v0) cumulative reward (black: Recurrent PPO, cyan: Naive PPO):
 

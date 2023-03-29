@@ -14,4 +14,4 @@ CartPole-v1-NoVelocity_RecurrentPPO:
     n_steps: 256
     epoch: 4
     seq_len: 8
-    seq_mini_batch_size: 16
+    seq_mini_batch_size: 8

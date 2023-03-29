@@ -18,7 +18,7 @@ class InferenceError(Exception):
 class InferenceConfig:
     episodes: int
     export: str | None = "render_only"
-    gif_duration_per_frame: float = 33.0
+    gif_duration: float = 33.0
     agent_file_path: str | None = None
     
 class Inference:
@@ -92,8 +92,8 @@ class Inference:
                         not_terminated = not terminated[self._trace_env].item()
                         cumulative_reward += reward[self._trace_env].item()
 
-                    logger.print(f"inference - episode: {e}, cumulative reward: {cumulative_reward:.2f}")
                     self._export(e)
+                    logger.print(f"inference - episode: {e}, cumulative reward: {cumulative_reward:.2f}")
                 logger.print(f"Inference is finished.")
             except KeyboardInterrupt:
                 logger.print(f"Inference interrupted.")
@@ -130,8 +130,8 @@ class Inference:
                     f"{exports_dir}/{self._id}-episode{episode}.gif",
                     save_all=True,
                     append_images=images[1:],
-                    optimize=False,
-                    duration=self._config.gif_duration_per_frame,
+                    optimize=True,
+                    duration=self._config.gif_duration,
                     loop=0
                 )
             case "picture":

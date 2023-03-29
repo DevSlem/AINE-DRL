@@ -21,7 +21,7 @@ from aine_drl.factory import (AgentFactory, AINEInferenceFactory,
                               AINETrainFactory)
 from aine_drl.policy import CategoricalPolicy
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 3e-4
 GRAD_CLIP_MAX_NORM = 5.0
 
 class CartPoleNoVel(ObservationWrapper):
@@ -44,16 +44,16 @@ class CartPoleNoVelRecurrentPPONet(nn.Module, agent.RecurrentPPOSharedNetwork):
     def __init__(self, obs_features, num_actions) -> None:
         super().__init__()
         
-        self.recurrent_layer_in_features = 128
-        self.hiddeen_features = 64
+        self.recurrent_layer_in_features = 64
+        self.hiddeen_features = 128
         self.num_recurrent_layers = 1
         
         # encoding linear layer for feature extraction
         self.encoding_layer = nn.Sequential(
-            nn.Linear(obs_features, 64),
+            nn.Linear(obs_features, self.recurrent_layer_in_features),
             nn.ReLU(),
-            nn.Linear(64, self.recurrent_layer_in_features),
-            nn.ReLU()
+            # nn.Linear(128, self.recurrent_layer_in_features),
+            # nn.ReLU()
         )
         
         # recurrent layer for memory ability
@@ -98,12 +98,10 @@ class CartPoleNoVelNaivePPO(nn.Module, agent.PPOSharedNetwork):
         
         # encoding layer for feature extraction
         self.encoding_layer = nn.Sequential(
-            nn.Linear(obs_features, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
+            nn.Linear(obs_features, 128),
             nn.ReLU(),
             nn.Linear(128, self.hidden_features),
-            nn.ReLU()
+            nn.ReLU(),
         )
         
         # actor-critic layer
@@ -146,7 +144,7 @@ class NaivePPOFactory(AgentFactory):
         config = agent.PPOConfig(**config_dict)
         
         network = CartPoleNoVelNaivePPO(
-            obs_features=env.obs_spaces[0],
+            obs_features=env.obs_spaces[0][0],
             num_actions=env.action_space.discrete[0]
         ).to(device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
         
