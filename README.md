@@ -6,7 +6,7 @@ A project for the DRL baseline framework. **AINE** means "Agent IN Environment".
 
 ## Implementation
 
-AINE-DRL provides below things.
+AINE-DRL provides below things:
 
 * deep reinforcement learning agents
 * compatible with [OpenAI Gym](https://github.com/openai/gym)
@@ -15,11 +15,11 @@ AINE-DRL provides below things.
 * model save/load
 * YAML configuration
 
-If you want to know how to use, see [Getting Started](https://devslem.github.io/AINE-DRL/getting-started).
+If you want to know how to use, see [AINE-DRL Documentation](https://devslem.github.io/AINE-DRL/).
 
 ### Agent
 
-AINE-DRL provides deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read agent [docs](https://devslem.github.io/AINE-DRL/agent). 
+AINE-DRL provides deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read [Agent](https://devslem.github.io/AINE-DRL/agent) docs. 
 
 |Agent|Source Code|
 |:---:|:---:|
