@@ -103,7 +103,8 @@ class RecurrentPPORND(Agent):
             action_log_prob=self._action_log_prob,
             ext_state_value=self._ext_state_value,
             int_state_value=self._int_state_value,
-            hidden_state=self._hidden_state
+            hidden_state=self._hidden_state,
+            next_hidden_state=self._next_hidden_state
         ))
         
         if self._trajectory.reached_n_steps:
@@ -151,10 +152,6 @@ class RecurrentPPORND(Agent):
     def _train(self):
         exp_batch = self._trajectory.sample()
         
-        # get next hidden state
-        final_next_hidden_state = self._next_hidden_state * (1.0 - self._prev_terminated)
-        next_hidden_state = torch.concat((exp_batch.hidden_state[:, self._num_envs:], final_next_hidden_state), dim=1)
-        
         # compute advantage and target state value
         advantage, ext_target_state_value, int_target_state_value = self._compute_adv_target(exp_batch)
         
@@ -170,7 +167,7 @@ class RecurrentPPORND(Agent):
             seq_generator.add(batch2perenv(batch, self._num_envs), start_idx=start_idx, seq_len=seq_len)
             
         add_to_seq_gen(exp_batch.hidden_state.swapaxes(0, 1), seq_len=1)
-        add_to_seq_gen(next_hidden_state.swapaxes(0, 1))
+        add_to_seq_gen(exp_batch.next_hidden_state.swapaxes(0, 1))
         for obs in exp_batch.next_obs.items:
             add_to_seq_gen(obs)
         for next_obs in exp_batch.next_obs.items:
@@ -263,7 +260,7 @@ class RecurrentPPORND(Agent):
                 # compute RND loss
                 rnd_loss = L.rnd_loss(
                     sample_predicted_feature, 
-                    sample_target_feature,
+                    sample_target_feature.detach(),
                     proportion=self._config.rnd_pred_exp_proportion
                 )
                 
