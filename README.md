@@ -133,6 +133,12 @@ conda create -n aine-drl python=3.10.8 -y
 conda activate aine-drl
 ```
 
+Note that **Windows** users may happen to Numpy dependency error. It's because [Numpy 1.21.2](https://numpy.org/doc/stable/release/1.21.1-notes.html) does not support Python 3.10. To solve this problem, it's highly recommended to install Numpy 1.21.2 from the Anaconda command (**Linux** users can skip this step):
+
+```bash
+conda install numpy==1.21.2
+```
+
 Install the packages by entering the command below:
 
 ```bash
@@ -145,7 +151,9 @@ pip install mlagents==0.30.0
 pip install 'protobuf==3.20.*'
 ```
 
-> This installation guide is based on Anaconda environment. Please give me a pull request if you have a better installation guide.
+The **quote** marks are based on [zsh](https://www.zsh.org/) shell. If you use another shell (e.g., [powershell](https://learn.microsoft.com/en-us/powershell/)), you may need to remove the quote marks.
+
+> This installation guide is based on Linux and Anaconda environment. Please give me a pull request if you have a better installation guide.
 
 ### Run
 
