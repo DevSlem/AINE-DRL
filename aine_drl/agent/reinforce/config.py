@@ -5,9 +5,7 @@ class REINFORCEConfig:
     """
     REINFORCE configuration.
 
-    Args:
-        `gamma (float, optional)`: discount factor. Defaults to 0.99.
-        `entropy_coef (float, optional)`: entropy multiplier used to compute loss. It adjusts exploration/exploitation balance. Defaults to 0.001.
+    Docs: https://devslem.github.io/AINE-DRL/agent/reinforce#configuration
     """
     gamma: float = 0.99
     entropy_coef: float = 0.001
