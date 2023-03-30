@@ -136,7 +136,7 @@ class PPORND(Agent):
                 # compute actor loss
                 sample_new_action_log_prob = sample_policy_dist.joint_log_prob(exp_batch.action[sample_batch_idx])
                 actor_loss = L.ppo_clipped_loss(
-                    advantage,
+                    advantage[sample_batch_idx],
                     old_action_log_prob[sample_batch_idx],
                     sample_new_action_log_prob,
                     self._config.epsilon_clip
@@ -157,7 +157,7 @@ class PPORND(Agent):
                 # compute RND loss
                 rnd_loss = L.rnd_loss(
                     sample_predicted_feature,
-                    sample_target_feature,
+                    sample_target_feature.detach(),
                     proportion=self._config.rnd_pred_exp_proportion
                 )
                 

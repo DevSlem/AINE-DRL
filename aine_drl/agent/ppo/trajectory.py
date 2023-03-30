@@ -141,6 +141,7 @@ class PPORNDExperience:
 class PPORNDTrajectory:
     def __init__(self, n_steps: int) -> None:
         self._n_steps = n_steps
+        self.reset()
         
     @property
     def reached_n_steps(self) -> int:
