@@ -127,6 +127,72 @@ class RecurrentPPOTrajectory:
         return [None] * self._n_steps
     
 @dataclass(frozen=True)
+class PPORNDExperience:
+    obs: Observation
+    action: Action
+    next_obs: Observation
+    ext_reward: torch.Tensor
+    int_reward: torch.Tensor
+    terminated: torch.Tensor
+    action_log_prob: torch.Tensor
+    ext_state_value: torch.Tensor
+    int_state_value: torch.Tensor
+    
+class PPORNDTrajectory:
+    def __init__(self, n_steps: int) -> None:
+        self._n_steps = n_steps
+        
+    @property
+    def reached_n_steps(self) -> int:
+        return self._recent_idx == self._n_steps - 1
+    
+    def reset(self):
+        self._recent_idx = -1
+        
+        self._obs_buffer = self._make_buffer()
+        self._action_buffer = self._make_buffer()
+        self._ext_reward_buffer = self._make_buffer()
+        self._int_reward_buffer = self._make_buffer()
+        self._terminated_buffer = self._make_buffer()
+        self._action_log_prob_buffer = self._make_buffer()
+        self._ext_state_value_buffer = self._make_buffer()
+        self._int_state_value_buffer = self._make_buffer()
+        
+        self._final_next_obs = None
+        
+    def add(self, exp: PPORNDExperience):
+        self._recent_idx += 1
+        
+        self._obs_buffer[self._recent_idx] = exp.obs
+        self._action_buffer[self._recent_idx] = exp.action
+        self._ext_reward_buffer[self._recent_idx] = exp.ext_reward
+        self._int_reward_buffer[self._recent_idx] = exp.int_reward
+        self._terminated_buffer[self._recent_idx] = exp.terminated
+        self._action_log_prob_buffer[self._recent_idx] = exp.action_log_prob
+        self._ext_state_value_buffer[self._recent_idx] = exp.ext_state_value
+        self._int_state_value_buffer[self._recent_idx] = exp.int_state_value
+        self._final_next_obs = exp.next_obs
+        
+    def sample(self) -> PPORNDExperience:
+        self._obs_buffer.append(self._final_next_obs)
+        exp_batch = PPORNDExperience(
+            Observation.from_iter(self._obs_buffer[:-1]),
+            Action.from_iter(self._action_buffer),
+            Observation.from_iter(self._obs_buffer[1:]),
+            torch.cat(self._ext_reward_buffer, dim=0),
+            torch.cat(self._int_reward_buffer, dim=0),
+            torch.cat(self._terminated_buffer, dim=0),
+            torch.cat(self._action_log_prob_buffer, dim=0),
+            torch.cat(self._ext_state_value_buffer, dim=0),
+            torch.cat(self._int_state_value_buffer, dim=0),
+        )
+        self.reset()
+        return exp_batch
+        
+    def _make_buffer(self) -> list:
+        return [None] * self._n_steps
+    
+@dataclass(frozen=True)
 class RecurrentPPORNDExperience:
     obs: Observation
     action: Action

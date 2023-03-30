@@ -15,7 +15,10 @@ class PPOSharedNetwork(Network):
     the encoding layer must be shared between Actor and Critic. 
     """
     @abstractmethod
-    def forward(self, obs: Observation) -> tuple[PolicyDist, torch.Tensor]:
+    def forward(
+        self, 
+        obs: Observation
+    ) -> tuple[PolicyDist, torch.Tensor]:
         """
         ## Summary
         
@@ -56,7 +59,11 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
     the encoding layer must be shared between Actor and Critic. 
     """
     @abstractmethod
-    def forward(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDist, torch.Tensor, torch.Tensor]:
+    def forward(
+        self, 
+        obs_seq: Observation, 
+        hidden_state: torch.Tensor
+    ) -> tuple[PolicyDist, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -104,6 +111,92 @@ class RecurrentPPOSharedNetwork(RecurrentNetwork):
         """
         raise NotImplementedError
     
+class PPORNDNetwork(Network):
+    """
+    Proximal Policy Optimization (PPO) shared network. 
+    
+    Note that since PPO uses the Actor-Critic architecure and the parameter sharing, 
+    the encoding layer must be shared between Actor and Critic. 
+    Be careful not to share parameters between PPO and RND networks.
+    
+    RND uses extrinsic and intrinsic reward streams. 
+    Each stream can be different episodic or non-episodic, and can have different discount factors. 
+    RND constitutes of the predictor and target networks. 
+    Both of them should have the similar architectures (not must same) but their initial parameters should not be the same.
+    The target network is determinsitic, which means it will be never updated. 
+    """
+    @abstractmethod
+    def forward_actor_critic(
+        self, 
+        obs_seq: Observation
+    ) -> tuple[PolicyDist, torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Feed forward method to compute policy distribution and state value.
+
+        Args:
+            obs (Observation): observation batch
+
+        Returns:
+            policy_dist (PolicyDist): policy distribution
+            ext_state_value (Tensor): extrinsic state value
+            int_state_value (Tensor): intrinsic state value
+            
+        ## Input/Output Details
+        
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |obs|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+        
+        Output:
+        
+        |Output|Shape|
+        |:---|:---|
+        |policy_dist|`*batch_shape` = `(batch_size,)`, details in `PolicyDist` docs|
+        |ext_state_value|`(batch_size, 1)`|
+        |int_state_value|`(batch_size, 1)`|
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    def forward_rnd(
+        self, 
+        obs: Observation, 
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        ## Summary
+        
+        Feed forward method to compute both predicted feature and target feature. 
+        
+        Args:
+            obs (Observation): observation batch
+
+        Returns:
+            predicted_feature (Tensor): predicted feature whose gradient flows
+            target_feature (Tensor): target feature whose gradient doesn't flow
+            
+        ## Input/Output Details
+        
+        The value of `out_features` depends on you.
+        
+        Input:
+        
+        |Input|Shape|
+        |:---|:---|
+        |obs|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+        
+        Output:
+        
+        |Input|Shape|
+        |:---|:---|
+        |predicted_feature|`(batch_size, out_features)`|
+        |target_feature|`(batch_size, out_features)`|
+        """
+        raise NotImplementedError
+    
 class RecurrentPPORNDNetwork(RecurrentNetwork):
     """
     Recurrent Proximal Policy Optimization (PPO) shared network with Random Network Distillation (RND).
@@ -117,11 +210,15 @@ class RecurrentPPORNDNetwork(RecurrentNetwork):
     RND uses extrinsic and intrinsic reward streams. 
     Each stream can be different episodic or non-episodic, and can have different discount factors. 
     RND constitutes of the predictor and target networks. 
-    Both of them must have the same architectures but their initial parameters should not be the same.
+    Both of them should have the similar architectures (not must same) but their initial parameters should not be the same.
     The target network is determinsitic, which means it will be never updated. 
     """
     @abstractmethod
-    def forward_actor_critic(self, obs_seq: Observation, hidden_state: torch.Tensor) -> tuple[PolicyDist, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward_actor_critic(
+        self, 
+        obs_seq: Observation, 
+        hidden_state: torch.Tensor
+    ) -> tuple[PolicyDist, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         ## Summary
         
@@ -172,7 +269,11 @@ class RecurrentPPORNDNetwork(RecurrentNetwork):
         raise NotImplementedError
 
     @abstractmethod
-    def forward_rnd(self, obs: Observation, hidden_state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward_rnd(
+        self, 
+        obs: Observation, 
+        hidden_state: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         ## Summary
         

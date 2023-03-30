@@ -54,6 +54,23 @@ class RecurrentPPOConfig:
     epsilon_clip: float = 0.2
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
+    
+@dataclass(frozen=True)
+class PPORNDConfig:
+    n_steps: int
+    epoch: int
+    mini_batch_size: int
+    ext_gamma: float = 0.999
+    int_gamma: float = 0.99
+    ext_adv_coef: float = 1.0
+    int_adv_coef: float = 1.0
+    lam: float = 0.95
+    epsilon_clip: float = 0.2
+    value_loss_coef: float = 0.5
+    entropy_coef: float = 0.001
+    rnd_pred_exp_proportion: float = 0.25
+    init_norm_steps: int | None = 50
+    obs_norm_clip_range: tuple[float, float] = (-5.0, 5.0)
 
 @dataclass(frozen=True)
 class RecurrentPPORNDConfig:
