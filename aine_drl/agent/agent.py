@@ -33,7 +33,6 @@ class Agent(ABC):
         self._num_envs = num_envs
         self._behavior_type = behavior_type
         
-        self._using_behavior_type_scope = False
         self._training_steps = 0
         
     def select_action(self, obs: Observation) -> Action:
