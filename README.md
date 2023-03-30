@@ -15,20 +15,21 @@ AINE-DRL provides below things.
 * model save/load
 * YAML configuration
 
-If you want to know how to use, see details in [sample codes](samples/) and [Wiki](https://github.com/DevSlem/AINE-DRL/wiki).
+If you want to know how to use, see [Getting Started](https://devslem.github.io/AINE-DRL/getting-started).
 
 ### Agent
 
-AINE-DRL provides deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read documentations in [Wiki](https://github.com/DevSlem/AINE-DRL/wiki). 
+AINE-DRL provides deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read agent [docs](https://devslem.github.io/AINE-DRL/agent). 
 
 |Agent|Source Code|
 |:---:|:---:|
-|[REINFORCE](https://github.com/DevSlem/AINE-DRL/wiki/REINFORCE)|[reinforce](aine_drl/agent/reinforce/)|
-|[A2C](https://github.com/DevSlem/AINE-DRL/wiki/A2C)|[a2c](aine_drl/agent/a2c/)|
-|[PPO](https://github.com/DevSlem/AINE-DRL/wiki/PPO)|[ppo](aine_drl/agent/ppo)|
-|[Recurrent PPO](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO)|[ppo](aine_drl/agent/ppo/)|
-|[Recurrent PPO RND](https://github.com/DevSlem/AINE-DRL/wiki/Recurrent-PPO-RND)|[ppo](aine_drl/agent/ppo/)|
-|[Double DQN](https://github.com/DevSlem/AINE-DRL/wiki/Double-DQN)|[dqn](aine_drl/agent/dqn/)|
+|[REINFORCE](https://devslem.github.io/AINE-DRL/agent/reinforce)|[reinforce](aine_drl/agent/reinforce/)|
+|[A2C](https://devslem.github.io/AINE-DRL/agent/a2c)|[a2c](aine_drl/agent/a2c/)|
+|[Double DQN](https://devslem.github.io/AINE-DRL/agent/double-dqn)|[dqn](aine_drl/agent/dqn/)|
+|[PPO](https://devslem.github.io/AINE-DRL/agent/ppo)|[ppo](aine_drl/agent/ppo)|
+|[Recurrent PPO](https://devslem.github.io/AINE-DRL/recurrent-ppo)|[ppo](aine_drl/agent/ppo/)|
+|[PPO RND](https://devslem.github.io/AINE-DRL/agent/ppo-rnd)|[ppo](aine_drl/agent/ppo/)|
+|[Recurrent PPO RND](https://devslem.github.io/AINE-DRL/agent/recurrent-ppo-rnd)|[ppo](aine_drl/agent/ppo/)|
 
 
 <details>
@@ -133,7 +134,7 @@ conda create -n aine-drl python=3.10.8 -y
 conda activate aine-drl
 ```
 
-Note that **Windows** users may happen to Numpy dependency error. It's because [Numpy 1.21.2](https://numpy.org/doc/stable/release/1.21.1-notes.html) does not support Python 3.10. To solve this problem, it's highly recommended to install Numpy 1.21.2 from the Anaconda command (**Linux** users can skip this step):
+Note that **Windows** users may happen to Numpy dependency error. It's because [Numpy 1.21.2](https://numpy.org/doc/stable/release/1.21.1-notes.html) does not support Python 3.10. To solve this problem, it's highly recommended to first install Numpy 1.21.2 from the Anaconda command. (**Linux** users can skip this step):
 
 ```bash
 conda install numpy==1.21.2
