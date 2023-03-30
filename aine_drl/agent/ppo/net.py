@@ -128,7 +128,7 @@ class PPORNDNetwork(Network):
     @abstractmethod
     def forward_actor_critic(
         self, 
-        obs_seq: Observation
+        obs: Observation
     ) -> tuple[PolicyDist, torch.Tensor, torch.Tensor]:
         """
         ## Summary

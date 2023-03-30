@@ -205,6 +205,7 @@ class RecurrentPPORNDExperience:
     ext_state_value: torch.Tensor
     int_state_value: torch.Tensor
     hidden_state: torch.Tensor
+    next_hidden_state: torch.Tensor
 
 class RecurrentPPORNDTrajectory:
     def __init__(self, n_steps: int) -> None:
@@ -229,6 +230,7 @@ class RecurrentPPORNDTrajectory:
         self._hidden_state_buffer = self._make_buffer()
         
         self._final_next_obs = None
+        self._final_next_hidden_state = None
         
     def add(self, exp: RecurrentPPORNDExperience):
         self._recent_idx += 1
@@ -243,9 +245,11 @@ class RecurrentPPORNDTrajectory:
         self._int_state_value_buffer[self._recent_idx] = exp.int_state_value
         self._hidden_state_buffer[self._recent_idx] = exp.hidden_state
         self._final_next_obs = exp.next_obs
+        self._final_next_hidden_state = exp.next_hidden_state
     
     def sample(self) -> RecurrentPPORNDExperience:
         self._obs_buffer.append(self._final_next_obs)
+        self._hidden_state_buffer.append(self._final_next_hidden_state)
         exp_batch = RecurrentPPORNDExperience(
             Observation.from_iter(self._obs_buffer[:-1]),
             Action.from_iter(self._action_buffer),
@@ -256,7 +260,8 @@ class RecurrentPPORNDTrajectory:
             torch.cat(self._action_log_prob_buffer, dim=0),
             torch.cat(self._ext_state_value_buffer, dim=0),
             torch.cat(self._int_state_value_buffer, dim=0),
-            torch.cat(self._hidden_state_buffer, dim=1),
+            torch.cat(self._hidden_state_buffer[:-1], dim=1),
+            torch.cat(self._hidden_state_buffer[1:], dim=1),
         )
         self.reset()
         return exp_batch
