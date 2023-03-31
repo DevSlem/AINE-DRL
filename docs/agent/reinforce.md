@@ -7,7 +7,7 @@ sort: 1
 
 **REINFORCE** is a simple and basic policy gradient method based on Monte Carlo (MC) method. Differnt from value-based method, it has a simple idea: policy is a parameterized function itself!
 
-Paper: https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf
+Paper: [Policy Gradient Methods for Reinforcement Learning with Function Approximation ](https://proceedings.neurips.cc/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf)
 
 REINFORCE has below features:
 
