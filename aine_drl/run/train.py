@@ -160,11 +160,15 @@ class Train:
             .add_text(f"    summary frequency: {self._config.summary_freq}") \
             .add_text(f"    agent save frequency: {self._config.agent_save_freq}") \
             .add_line() \
-            .add_text(f"Agent INFO:") \
-            .add_text(f"    name: {self._agent.name}") \
-            .add_text(f"    device: {self._agent.device}") \
-            .make()
-        logger.print(text_info_box, prefix="")
+            .add_text(f"{self._agent.name} Agent:") \
+            
+        agent_config_dict = self._agent.config_dict
+        agent_config_dict["device"] = self._device
+            
+        for key, value in self._agent.config_dict.items():
+            text_info_box.add_text(f"    {key}: {value}")
+            
+        logger.print(text_info_box.make(), prefix="")
         logger.print("", prefix="")
         
     def _summary_train(self):
