@@ -15,7 +15,10 @@ class A2CSharedNetwork(Network):
     the encoding layer must be shared between Actor and Critic.
     """
     @abstractmethod
-    def forward(self, obs: Observation) -> tuple[PolicyDist, torch.Tensor]:
+    def forward(
+        self, 
+        obs: Observation
+    ) -> tuple[PolicyDist, torch.Tensor]:
         """
         ## Summary
         

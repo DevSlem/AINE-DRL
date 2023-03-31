@@ -10,7 +10,10 @@ class REINFORCENetwork(Network):
     REINFORCE policy network.    
     """
     @abstractmethod
-    def forward(self, obs: Observation) -> PolicyDist:
+    def forward(
+        self, 
+        obs: Observation
+    ) -> PolicyDist:
         """
         ## Summary
         
