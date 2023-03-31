@@ -31,17 +31,14 @@ class DoubleDQN(Agent):
         if not isinstance(network, DoubleDQNNetwork):
             raise NetworkTypeError(DoubleDQNNetwork)
         
-        super().__init__(num_envs, network, behavior_type)
+        super().__init__(num_envs, network, config.device, behavior_type)
         
         self._config = config
         self._network = network
         self._target_net = copy.deepcopy(network)
         self._trainer = trainer
         
-        if self._config.replay_buffer_device == "auto":
-            replay_buffer_device = self._network.device
-        else:
-            replay_buffer_device = torch.device(self._config.replay_buffer_device)
+        replay_buffer_device = self._network.device if self._config.replay_buffer_device is None else torch.device(self._config.replay_buffer_device)
         
         self._trajectory = DQNTrajectory(
             config.n_steps, 
@@ -64,6 +61,10 @@ class DoubleDQN(Agent):
     @property
     def name(self) -> str:
         return "Double DQN"
+    
+    @property
+    def config_dict(self) -> dict:
+        return self._config.__dict__
     
     def _update_train(self, exp: Experience):
         self._trajectory.add(DQNExperience(

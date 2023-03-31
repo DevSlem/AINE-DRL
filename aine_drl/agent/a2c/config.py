@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class A2CConfig:
     """
@@ -12,3 +13,4 @@ class A2CConfig:
     lam: float = 0.95
     value_loss_coef: float = 0.5
     entropy_coef: float = 0.001
+    device: str | None = None
