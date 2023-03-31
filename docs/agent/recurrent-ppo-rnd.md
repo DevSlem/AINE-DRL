@@ -15,12 +15,12 @@ sort: 7
 |`seq_len`|(`int`) The sequence length of the experience sequence batches when **training**. T1he entire experience batch is split by `seq_len` unit to the experience sequence batches with `padding_value`. This is why the entire sequence batch size (`entire_seq_batch_size`) is greater than `entire_batch_size`. Typically `8` or greater value are recommended.|
 |`seq_mini_batch_size`|(`int`) The sequence mini-batches are selected randomly and independently from the entire experience sequence batch during one epoch. The number of parameters updates at each epoch is the integer value of `entire_seq_batch_size` / `seq_mini_batch_size`.|
 |`padding_value`|(`float`, default = `0.0`) Pad sequences to the value for the same `seq_len`.|
-|`ext_gamma`|(`float`, default = `0.999`) Discount factor $\gamma_E$ of future extrinsic rewards.|
-|`int_gamma`|(`float`, default = `0.99`) Discount factor $\gamma_I$ of future intrinsic rewards.|
+|`ext_gamma`|(`float`, default = `0.999`) Discount factor $$\gamma_E$$ of future extrinsic rewards.|
+|`int_gamma`|(`float`, default = `0.99`) Discount factor $$\gamma_I$$ of future intrinsic rewards.|
 |`ext_adv_coef`|(`float`, default = `1.0`) Extrinsic advantage multiplier.|
 |`int_adv_coef`|(`float`, default = `1.0`) Intrinsic advantage multiplier.|
-|`lam`|(`float`, default = `0.95`) Regularization parameter $\lambda$ which controls the bias-variance trade-off of Generalized Advantage Estimation (GAE).|
-|`epsilon_clip`|(`float`, default = `0.2`) Clamps the probability ratio ($\dfrac{\pi_{\text{new}}}{\pi_{\text{old}}}$) into the range $[1 - \epsilon, 1 + \epsilon]$.|
+|`lam`|(`float`, default = `0.95`) Regularization parameter $$\lambda$$ which controls the bias-variance trade-off of Generalized Advantage Estimation (GAE).|
+|`epsilon_clip`|(`float`, default = `0.2`) Clamps the probability ratio ($$\dfrac{\pi_{\text{new}}}{\pi_{\text{old}}}$$) into the range $$[1 - \epsilon, 1 + \epsilon]$$.|
 |`value_loss_coef`|(`float`, default = `0.5`) State value loss (critic loss) multiplier.|
 |`entropy_coef`|(`float`, default = `0.001`) Entropy multiplier used to compute loss. It adjusts exploration-exploitation trade-off.|
 |`rnd_pred_exp_proportion`|(`float`, default = `0.25`) The proportion of experiences used to train RND predictor to keep the effective batch size.|
@@ -58,9 +58,9 @@ def forward_actor_critic(
 
 |Output|Description|Shape|
 |---|---|---|
-|policy_dist_seq (`PolicyDist`)|policy distribution $\pi(a \vert s)$ sequences|`*batch_shape` = `(seq_batch_size, seq_len)` details in `PolicyDist` docs|
-|ext_state_value_seq (`Tensor`)|extrinsic state value $V_E(s)$ sequences|`(seq_batch_size, seq_len, 1)`|
-|int_state_value_seq (`Tensor`)|intrinsic state value $V_I(s)$ sequences|`(seq_batch-size, seq_len, 1)`|
+|policy_dist_seq (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$ sequences|`*batch_shape` = `(seq_batch_size, seq_len)` details in `PolicyDist` docs|
+|ext_state_value_seq (`Tensor`)|extrinsic state value $$V_E(s)$$ sequences|`(seq_batch_size, seq_len, 1)`|
+|int_state_value_seq (`Tensor`)|intrinsic state value $$V_I(s)$$ sequences|`(seq_batch-size, seq_len, 1)`|
 |next_seq_hidden_state (`Tensor`)|hidden states which will be used for the next sequence|`(D x num_layers, seq_batch_size, H)`|
 
 Refer to the following explanation:
@@ -94,5 +94,5 @@ The value of `out_features` depends on you.
 
 |Output|Description|Shape|
 |---|---|---|
-|predicted_feature (`Tensor`)|predicted feature $\hat{f}(s)$ whose gradient flows|`(batch_size, out_features)`|
-|target_feature (`Tensor`)|target feature $f(s)$ whose gradient doesn't flow|`(batch_size, out_features)`|
+|predicted_feature (`Tensor`)|predicted feature $$\hat{f}(s)$$ whose gradient flows|`(batch_size, out_features)`|
+|target_feature (`Tensor`)|target feature $$f(s)$$ whose gradient doesn't flow|`(batch_size, out_features)`|
