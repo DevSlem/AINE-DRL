@@ -16,9 +16,9 @@ REINFORCE has below features:
 * on-policy
 * no bias, high variance
 
-Since REINFORCE is MC method, it computes return $G_t$ which is used to update policy parameters. It must wait to update parameters until an episode is terminated to compute return $G_t$. 
+Since REINFORCE is MC method, it computes return \$$G_t$$ which is used to update policy parameters. It must wait to update parameters until an episode is terminated to compute return \$$G_t$$. 
 
-REINFORCE high variance can be reduced using baseline $b(s)$. It's called **REINFORCE with Baseline**. REINFORCE agent uses $G_t - b(s)$ instead of just $G_t$, and baseline $b(s)$ is the mean of returns.
+REINFORCE high variance can be reduced using baseline \$$b(s)$$. It's called **REINFORCE with Baseline**. REINFORCE agent uses \$$G_t - b(s)$$ instead of just \$$G_t$$, and baseline \$$b(s)$$ is the mean of returns.
 
 You can see source code in [reinforce](https://github.com/DevSlem/AINE-DRL/tree/main/aine_drl/agent/reinforce).
 
@@ -30,7 +30,7 @@ Since it has simple hyperparameters, you don't need to understand deeply reinfor
 
 |Setting|Description|
 |---|---|
-|`gamma`|(`float`, default = `0.99`) Discount factor $\gamma$ of future rewards.|
+|`gamma`|(`float`, default = `0.99`) Discount factor \$$\gamma$$ of future rewards.|
 |`entropy_coef`|(`float`, default = `0.001`) Entropy multiplier used to compute loss. It adjusts exploration/exploitation balance.|
 
 ## Network
@@ -55,4 +55,4 @@ def forward(
 
 |Output|Description|Shape|
 |---|---|---|
-|policy_dist (`PolicyDist`)|policy distribution $\pi(a \vert s)$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
+|policy_dist (`PolicyDist`)|policy distribution \$$\pi(a \vert s)$$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
