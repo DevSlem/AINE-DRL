@@ -4,7 +4,7 @@ sort: 3
 
 # Double DQN
 
-**Double Deep Q Network (DQN)** is a value-based off-policy TD method. It estimates action value \$$Q(s,a)$$ and sample actions from the values using policy (e.g., \$$\epsilon$$-greedy policy). Double DQN is improved version of DQN. It uses Double Q-learning idea in a tabular setting so that it reduces the observed overestimations. 
+**Double Deep Q Network (DQN)** is a value-based off-policy TD method. It estimates action value $$Q(s,a)$$ and sample actions from the values using policy (e.g., $$\epsilon$$-greedy policy). Double DQN is improved version of DQN. It uses Double Q-learning idea in a tabular setting so that it reduces the observed overestimations. 
 
 Paper: [Deep Reinforcement Learning with Double Q-learning](https://arxiv.org/abs/1509.06461)
 
@@ -29,9 +29,9 @@ Double DQN is simple but you need to consider carefully some hyperparameters. It
 |`batch_size`|(`int`) The size of experience batch from the replay buffer|
 |`capacity`|(`int`) The number of experineces to be stored in replay buffer. If it exceeds the capacity, the oldest experience is removed (FIFO).|
 |`epoch`|(`int`) The number of parameters updates at each `n_steps`|
-|`gamma`|(`float`, default = `0.99`) Discount factor \$$\gamma$$ of future rewards.|
-|`replace_freq`|(`int \| None`, default = `None`) The frequency of entirely replacing the target network with the update network. It can stabilize training since the target \$$Q$$ value is fixed. |
-|`polyak_ratio`|(`float \| None`, default = `None`) The target network is weighted replaced with the update network. The higher the value, the more replaced with the update network parameters. The value \$$\tau$$ must be \$$0 < \tau \leq 1$$.|
+|`gamma`|(`float`, default = `0.99`) Discount factor $$\gamma$$ of future rewards.|
+|`replace_freq`|(`int \| None`, default = `None`) The frequency of entirely replacing the target network with the update network. It can stabilize training since the target $$Q$$ value is fixed. |
+|`polyak_ratio`|(`float \| None`, default = `None`) The target network is weighted replaced with the update network. The higher the value, the more replaced with the update network parameters. The value $$\tau$$ must be $$0 < \tau \leq 1$$.|
 |`replay_buffer_device`|(`str`, default = `"auto"`) What device the replay buffer uses. Since replay buffer may use a lot of memory space, you need to consider which device to store the experiences on. Default is network device. <br><br> Options: `auto`, `cpu`, `cuda`, `cuda:0` and etc|
 
 If both `replace_freq` and `polyak_ratio` are `None`, it uses `replace_freq` as `1`. If both of them are set any value, it uses `replace_freq`.
@@ -40,7 +40,7 @@ If both `replace_freq` and `polyak_ratio` are `None`, it uses `replace_freq` as 
 
 class: `DoubleDQNNetwork`:
 
-Note that policy distribution according to the action value is allowed (e.g., \$$\epsilon$$-greedy policy, Boltzmann policy).
+Note that policy distribution according to the action value is allowed (e.g., $$\epsilon$$-greedy policy, Boltzmann policy).
 
 You need to implement below methods.
 
@@ -60,5 +60,5 @@ def forward(
 
 |Output|Description|Shape|
 |---|---|---|
-|policy_dist (`PolicyDist`)|policy distribution \$$\pi(a \vert s)$$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
-|action_value (`ActionValue`)|action value \$$Q(s,a)$$ batch tuple|`(batch_size, num_discrete_actions)` x `num_discrete_branches`|
+|policy_dist (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
+|action_value (`ActionValue`)|action value $$Q(s,a)$$ batch tuple|`(batch_size, num_discrete_actions)` x `num_discrete_branches`|
