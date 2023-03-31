@@ -13,7 +13,10 @@ class DoubleDQNNetwork(Network):
     Double Deep Q Network.     
     """
     @abstractmethod
-    def forward(self, obs: Observation) -> tuple[PolicyDist, ActionValue]:
+    def forward(
+        self, 
+        obs: Observation
+    ) -> tuple[PolicyDist, ActionValue]:
         """
         ## Summary
         
