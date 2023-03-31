@@ -31,3 +31,30 @@ Double DQN is simple but you need to consider carefully some hyperparameters. It
 |`replay_buffer_device`|(`str`, default = `"auto"`) What device the replay buffer uses. Since replay buffer may use a lot of memory space, you need to consider which device to store the experiences on. Default is network device. <br><br> Options: `auto`, `cpu`, `cuda`, `cuda:0` and etc|
 
 If both `replace_freq` and `polyak_ratio` are `None`, it uses `replace_freq` as `1`. If both of them are set any value, it uses `replace_freq`.
+
+## Network
+
+class: `DoubleDQNNetwork`:
+
+Note that policy distribution according to the action value is allowed (e.g., $\epsilon$-greedy policy, Boltzmann policy).
+
+You need to implement below methods.
+
+### Forward
+
+```python
+@abstractmethod
+def forward(
+    self, 
+    obs: Observation
+) -> tuple[PolicyDist, ActionValue]
+```
+
+|Input|Description|Shape|
+|---|---|---|
+|obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+
+|Output|Description|Shape|
+|---|---|---|
+|policy_dist (`PolicyDist`)|policy distribution $\pi(a \vert s)$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
+|action_value (`ActionValue`)|action value $Q(s,a)$ batch tuple|`(batch_size, num_discrete_actions)` x `num_discrete_branches`|

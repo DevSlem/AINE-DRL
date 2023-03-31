@@ -1,8 +1,8 @@
 # PPO RND
 
-**Proximal Policy Optimization (PPO)** is one of the most powerful actor-critic methods. It can stably update policy parameters in trust region using surrogate objective function.
+**PPO RND** is combined version of [PPO](./ppo.md) and **Random Network Distillation (RND)**. RND is a method to generate intrinsic reward by prediction error of next state feature. If state space is huge or reward setting is sparse, the agent should be able to explore enough to find better policy. The intrinsic reward can help train the agent to explore the environment.
 
-PPO suggests two objective functions. We use clipped surrogate objective function of them, which is known to have better performance.
+Paper: [Exploration by Random Network Distillation](https://arxiv.org/abs/1810.12894)
 
 ## Configuration
 
@@ -23,3 +23,54 @@ PPO suggests two objective functions. We use clipped surrogate objective functio
 |`init_norm_steps`|(`int \| None`, default = `50`) The initial time steps to initialize normalization parameters of both observation and hidden state. When the value is `None`, the algorithm never normalize them during training.|
 |`obs_norm_clip_range`|([`float`, `float`], default = [`-5.0`, `5.0`]) Clamps the normalized observation into the range [`min`, `max`].|
 |`hidden_state_norm_clip_range`|([`float`, `float`], default = [`-5.0`, `5.0`]) Clamps the normalized hidden state into the range [`min`, `max`].|
+
+## Network
+
+class: `PPORNDNetwork`
+
+Note that since it uses the Actor-Critic architecture and the parameter sharing, the encoding layer must be shared between Actor and Critic.
+
+RND uses extrinsic and intrinsic reward streams. Each stream can be different episodic or non-episodic, and can have different discount factors. RND constitutes of the predictor and target networks. Both of them should have the similar architectures (not must same) but their initial parameters should not be the same. The target network is deterministic, which means it will be never updated. 
+
+You need to implement below methods.
+
+### Forward Actor-Critic
+
+```python
+@abstractmethod
+def forward_actor_critic(
+    self, 
+    obs: Observation
+) -> tuple[PolicyDist, Tensor, Tensor]
+```
+
+|Input|Description|Shape|
+|---|---|---|
+|obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+
+|Output|Description|Shape|
+|---|---|---|
+|policy_dist (`PolicyDist`)|policy distribution $\pi(a \vert s)$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
+|ext_state_value (`Tensor`)|extrinsic state value $V_E(s)$|`(batch_size, 1)`|
+|int_state_value (`Tensor`)|intrinsic state value $V_I(s)$|`(batch_size, 1)`|
+
+### Forward RND
+
+```python
+@abstractmethod
+def forward_rnd(
+    self, 
+    obs: Observation, 
+) -> tuple[Tensor, Tensor]
+```
+
+The value of `out_features` depends on you.
+
+|Input|Description|Shape|
+|---|---|---|
+|obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+
+|Output|Description|Shape|
+|---|---|---|
+|predicted_feature (`Tensor`)|predicted feature $\hat{f}(s)$ whose gradient flows|`(batch_size, out_features)`|
+|target_feature (`Tensor`)|target feature $f(s)$ whose gradient doesn't flow|`(batch_size, out_features)`|

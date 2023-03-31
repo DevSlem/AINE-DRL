@@ -23,8 +23,6 @@ Since it has simple hyperparameters, you don't need to understand deeply reinfor
 
 > Note if the setting has default value, you can skip it.
 
-### A2C
-
 |Setting|Description|
 |---|---|
 |`n_steps`|(`int`) The number of time steps to collect experiences until training. The number of total experiences (`entire_batch_size`) which is used to training is `num_envs` x `n_steps`. Since PPO is on-policy method, the experiences are discarded after training.|
@@ -32,3 +30,30 @@ Since it has simple hyperparameters, you don't need to understand deeply reinfor
 |`lam`|(`float`, default = `0.95`) Regularization parameter $\lambda$ which controls the bias-variance trade-off of Generalized Advantage Estimation (GAE).|
 |`value_loss_coef`|(`float`, default = `0.5`) State value loss (critic loss) multiplier.|
 |`entropy_coef`|(`float`, default = `0.001`) Entropy multiplier used to compute loss. It adjusts exploration/exploitation balance.|
+
+## Network
+
+class: `A2CSharedNetwork`
+
+Note that since it uses the Actor-Critic architecure and the parameter sharing, the encoding layer must be shared between Actor and Critic.
+
+You need to implement below methods.
+
+### Forward
+
+```python
+@abstractmethod
+def forward(
+    self, 
+    obs: Observation
+) -> tuple[PolicyDist, Tensor]
+```
+
+|Input|Description|Shape|
+|---|---|---|
+|obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+
+|Output|Description|Shape|
+|---|---|---|
+|policy_dist (`PolicyDist`)|policy distribution $\pi(a \vert s)$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
+|state_value (`Tensor`)|state value $V(s)$|`(batch_size, 1)`|

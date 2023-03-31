@@ -37,7 +37,17 @@ class: `PPOSharedNetwork`
 
 Note that since it uses the Actor-Critic architecure and the parameter sharing, the encoding layer must be shared between Actor and Critic.
 
+You need to implement below methods.
+
 ### Forward
+
+```python
+@abstractmethod
+def forward(
+    self, 
+    obs: Observation
+) -> tuple[PolicyDist, Tensor]
+```
 
 |Input|Description|Shape|
 |---|---|---|
@@ -45,5 +55,5 @@ Note that since it uses the Actor-Critic architecure and the parameter sharing, 
 
 |Output|Description|Shape|
 |---|---|---|
-|policy_dist (`PolicyDist`)|policy distribution|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
+|policy_dist (`PolicyDist`)|policy distribution $\pi(a \vert s)$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
 |state_value (`Tensor`)|state value $V(s)$|`(batch_size, 1)`|

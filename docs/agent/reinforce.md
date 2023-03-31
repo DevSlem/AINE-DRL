@@ -32,3 +32,27 @@ Since it has simple hyperparameters, you don't need to understand deeply reinfor
 |---|---|
 |`gamma`|(`float`, default = `0.99`) Discount factor $\gamma$ of future rewards.|
 |`entropy_coef`|(`float`, default = `0.001`) Entropy multiplier used to compute loss. It adjusts exploration/exploitation balance.|
+
+## Network
+
+class: `REINFORCENetwork`
+
+You need to implement below methods.
+
+### Forward
+
+```python
+@abstractmethod
+def forward(
+    self, 
+    obs: Observation
+) -> PolicyDist
+```
+
+|Input|Description|Shape|
+|---|---|---|
+|obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+
+|Output|Description|Shape|
+|---|---|---|
+|policy_dist (`PolicyDist`)|policy distribution $\pi(a \vert s)$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
