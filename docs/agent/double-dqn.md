@@ -1,3 +1,7 @@
+---
+sort: 3
+---
+
 # Double DQN
 
 **Double Deep Q Network (DQN)** is a value-based off-policy TD method. It estimates action value $Q(s,a)$ and sample actions from the values using policy (e.g., $\epsilon$-greedy policy). Double DQN is improved version of DQN. It uses Double Q-learning idea in a tabular setting so that it reduces the observed overestimations. 

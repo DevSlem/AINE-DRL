@@ -1,3 +1,7 @@
+---
+sort: 4
+---
+
 # PPO
 
 **Proximal Policy Optimization (PPO)** is one of the most powerful actor-critic methods. It can stably update policy parameters in trust region using surrogate objective function.

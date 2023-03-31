@@ -1,3 +1,7 @@
+---
+sort: 7
+---
+
 # Recurrent PPO RND
 
 **Recurrent PPO RND** is modified version of [PPO RND](./ppo-rnd.md) to use recurrent network like [LSTM](https://en.wikipedia.org/wiki/Long_short-term_memory) or [GRU](https://en.wikipedia.org/wiki/Gated_recurrent_unit). You can see why recurrent network is useful in [Recurrent PPO](./recurrent-ppo.md).

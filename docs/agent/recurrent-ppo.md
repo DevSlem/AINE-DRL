@@ -1,3 +1,7 @@
+---
+sort: 5
+---
+
 # Recurrent PPO
 
 **Recurrent PPO** is modified version of [PPO](./ppo.md) to use recurrent network like [LSTM](https://en.wikipedia.org/wiki/Long_short-term_memory) or [GRU](https://en.wikipedia.org/wiki/Gated_recurrent_unit). It's useful when you train an agent in [Partially Observable Markov Decision Process (POMDP)](https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process). In this setting, the agent can't fully observe the state space. That's why the agent requires action-observation history. The hidden state of recurrent network can achieve this because of memory ability!

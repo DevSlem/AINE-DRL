@@ -1,3 +1,7 @@
+---
+sort: 6
+---
+
 # PPO RND
 
 **PPO RND** is combined version of [PPO](./ppo.md) and **Random Network Distillation (RND)**. RND is a method to generate intrinsic reward by prediction error of next state feature. If state space is huge or reward setting is sparse, the agent should be able to explore enough to find better policy. The intrinsic reward can help train the agent to explore the environment.
