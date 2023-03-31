@@ -10,3 +10,5 @@ AINE-DRL provides below things:
 * inference (rendering, gif, picture)
 * model save/load
 * YAML configuration
+
+If you use AINE-DRL first, please read [Getting Started](./getting-started/index.md).
