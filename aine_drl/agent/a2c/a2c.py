@@ -26,7 +26,7 @@ class A2C(Agent):
         if not isinstance(network, A2CSharedNetwork):
             raise NetworkTypeError(A2CSharedNetwork)
         
-        super().__init__(num_envs, network, behavior_type)
+        super().__init__(num_envs, network, config.device, behavior_type)
         
         self._config = config
         self._network = network
@@ -43,6 +43,10 @@ class A2C(Agent):
     @property
     def name(self) -> str:
         return "A2C"
+    
+    @property
+    def config_dict(self) -> dict:
+        return self._config.__dict__
                 
     def _update_train(self, exp: Experience):
         self._trajectory.add(A2CExperience(

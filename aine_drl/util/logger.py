@@ -2,6 +2,7 @@ import warnings
 
 warnings.filterwarnings(action="ignore")
 from torch.utils.tensorboard.writer import SummaryWriter
+
 warnings.filterwarnings(action="default")
 
 import builtins
@@ -9,6 +10,7 @@ from dataclasses import dataclass
 from io import TextIOWrapper
 
 import torch
+import yaml
 
 import aine_drl.util.func as util_f
 
@@ -111,6 +113,14 @@ class logger:
             specific_agent_dir = f"{cls.log_dir()}/agents"
             util_f.create_dir(specific_agent_dir)
             torch.save(state_dict, f"{specific_agent_dir}/agent_{time_steps}.pt")
+            
+    @classmethod
+    def save_config_dict_to_yaml(cls, config: dict):
+        if cls._log_dir is None:
+            raise Exception("you must enable the logger")
+        util_f.create_dir(cls._log_dir)
+        with open(f"{cls._log_dir}/config.yaml", "w") as f:
+            yaml.dump(config, f)
 
 class TextInfoBox:
     def __init__(self, right_margin: int = 10) -> None:

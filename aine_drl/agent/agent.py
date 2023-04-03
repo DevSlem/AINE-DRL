@@ -14,22 +14,20 @@ class BehaviorType(Enum):
 class Agent(ABC):
     """
     Deep reinforcement learning agent.
-    
-    Args:
-        network (Network): deep neural network
-        policy (Policy): policy
-        num_envs (int): number of environments
     """
     def __init__(
         self,
         num_envs: int,
         network: Network,
+        device: str | None = None,
         behavior_type: BehaviorType = BehaviorType.TRAIN
     ) -> None:
         assert num_envs >= 1, "The number of environments must be greater than or euqal to 1."
         
-        self._device = network.device
         self._model = network.model()
+        if device is not None:
+            self._model = self._model.to(device=torch.device(device))
+        self._device = network.device
         self._num_envs = num_envs
         self._behavior_type = behavior_type
         
@@ -83,6 +81,11 @@ class Agent(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def config_dict(self) -> dict:
         raise NotImplementedError
     
     @property
