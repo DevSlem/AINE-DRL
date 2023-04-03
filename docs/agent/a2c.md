@@ -54,11 +54,11 @@ Parameters:
 
 |Name|Description|Shape|
 |---|---|---|
-|obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+|obs (`Observation`)|Observation batch tuple.|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
 
 Returns:
 
 |Name|Description|Shape|
 |---|---|---|
-|policy_dist (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
-|state_value (`Tensor`)|state value $$V(s)$$|`(batch_size, 1)`|
+|policy_dist (`PolicyDist`)|Policy distribution $$\pi(a \vert s)$$.|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
+|state_value (`Tensor`)|State value $$V(s)$$|`(batch_size, 1)`|
