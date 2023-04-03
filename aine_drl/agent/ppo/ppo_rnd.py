@@ -29,7 +29,7 @@ class PPORND(Agent):
         if not isinstance(network, PPORNDNetwork):
             raise NetworkTypeError(PPORNDNetwork)
         
-        super().__init__(num_envs, network, behavior_type)
+        super().__init__(num_envs, network, config.device, behavior_type)
         
         self._config = config
         self._network = network

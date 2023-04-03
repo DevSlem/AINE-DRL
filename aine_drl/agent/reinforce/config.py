@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class REINFORCEConfig:
     """
@@ -9,3 +10,4 @@ class REINFORCEConfig:
     """
     gamma: float = 0.99
     entropy_coef: float = 0.001
+    device: str | None = None

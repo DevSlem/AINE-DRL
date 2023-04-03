@@ -17,3 +17,4 @@ GridWorld_PPO:
     n_steps: 16
     epoch: 3
     mini_batch_size: 8
+    device: cuda

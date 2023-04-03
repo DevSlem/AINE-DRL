@@ -9,6 +9,7 @@ from aine_drl.agent.agent import Agent
 from aine_drl.env import Env, GymEnv, GymRenderableEnv, MLAgentsEnv
 from aine_drl.run.inference import Inference, InferenceConfig
 from aine_drl.run.train import Train, TrainConfig
+from aine_drl.util.logger import logger
 
 
 class AgentFactory(ABC):
@@ -32,6 +33,11 @@ class AINEFactory(Generic[T]):
         
         self._env: Env | None = None
         self._agent = None
+        
+        if not logger.enabled():
+            logger.enable(self._id, enable_log_file=False)
+        logger.save_config_dict_to_yaml(config)
+        logger.disable()
     
     @abstractmethod
     def make_env(self) -> "AINEFactory[T]":

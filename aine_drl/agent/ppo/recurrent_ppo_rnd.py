@@ -30,7 +30,7 @@ class RecurrentPPORND(Agent):
         if not isinstance(network, RecurrentPPORNDNetwork):
             raise NetworkTypeError(RecurrentPPORNDNetwork)
         
-        super().__init__(num_envs, network, behavior_type)
+        super().__init__(num_envs, network, config.device, behavior_type)
         
         self._config = config
         self._network = network
@@ -68,6 +68,10 @@ class RecurrentPPORND(Agent):
     @property
     def name(self) -> str:
         return "Recurrent PPO RND"
+    
+    @property
+    def config_dict(self) -> dict:
+        return self._config.__dict__
     
     def _update_train(self, exp: Experience):
         self._prev_terminated = exp.terminated

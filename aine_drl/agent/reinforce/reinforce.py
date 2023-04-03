@@ -32,7 +32,7 @@ class REINFORCE(Agent):
         if not isinstance(network, REINFORCENetwork):
             raise NetworkTypeError(REINFORCENetwork)
         
-        super().__init__(1, network, behavior_type)
+        super().__init__(1, network, config.device, behavior_type)
                 
         self._config = config
         self._network = network
@@ -47,6 +47,10 @@ class REINFORCE(Agent):
     @property
     def name(self) -> str:
         return "REINFORCE"
+    
+    @property
+    def config_dict(self) -> dict:
+        return self._config.__dict__
           
     def _update_train(self, exp: Experience):
         # add the experience        

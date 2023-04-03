@@ -19,3 +19,4 @@ BipedalWalker-v3_PPO:
     epoch: 10
     mini_batch_size: 64
     gamma: 0.98
+    device: cuda

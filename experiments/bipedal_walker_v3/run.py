@@ -49,7 +49,7 @@ class PPOFactory(AgentFactory):
         network = BipedalWalkerPPONet(
             obs_features=env.obs_spaces[0][0],
             num_actions=env.action_space.continuous
-        ).to(device=torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
+        )
         
         trainer = aine_drl.Trainer(optim.Adam(
             network.parameters(),
