@@ -52,17 +52,21 @@ def forward_actor_critic(
 ) -> tuple[PolicyDist, Tensor, Tensor, Tensor]
 ```
 
-|Input|Description|Shape|
-|---|---|---|
-|obs_seq (`Observation`)|observation sequence batch tuple|`*batch_shape` = `(seq_batch_size, seq_len)` details in `Observation` docs|
-|hidden_state (`Tensor`)|hidden states at the beginning of each sequence|`(D x num_layers, seq_batch_size, H)`|
+Parameters:
 
-|Output|Description|Shape|
+|Name|Description|Shape|
 |---|---|---|
-|policy_dist_seq (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$ sequences|`*batch_shape` = `(seq_batch_size, seq_len)` details in `PolicyDist` docs|
-|ext_state_value_seq (`Tensor`)|extrinsic state value $$V_E(s)$$ sequences|`(seq_batch_size, seq_len, 1)`|
-|int_state_value_seq (`Tensor`)|intrinsic state value $$V_I(s)$$ sequences|`(seq_batch-size, seq_len, 1)`|
-|next_seq_hidden_state (`Tensor`)|hidden states which will be used for the next sequence|`(D x num_layers, seq_batch_size, H)`|
+|obs_seq (`Observation`)|Observation sequence batch tuple.|`*batch_shape` = `(seq_batch_size, seq_len)` details in `Observation` docs|
+|hidden_state (`Tensor`)|Hidden states at the beginning of each sequence.|`(D x num_layers, seq_batch_size, H)`|
+
+Returns:
+
+|Name|Description|Shape|
+|---|---|---|
+|policy_dist_seq (`PolicyDist`)|Policy distribution $$\pi(a \vert s)$$ sequences.|`*batch_shape` = `(seq_batch_size, seq_len)` details in `PolicyDist` docs|
+|ext_state_value_seq (`Tensor`)|Extrinsic state value $$V_E(s)$$ sequences.|`(seq_batch_size, seq_len, 1)`|
+|int_state_value_seq (`Tensor`)|Intrinsic state value $$V_I(s)$$ sequences.|`(seq_batch-size, seq_len, 1)`|
+|next_seq_hidden_state (`Tensor`)|Hidden states which will be used for the next sequence.|`(D x num_layers, seq_batch_size, H)`|
 
 Refer to the following explanation:
         
@@ -88,12 +92,16 @@ def forward_rnd(
 
 The value of `out_features` depends on you.
 
-|Input|Description|Shape|
-|---|---|---|
-|obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
-|hidden_state (`Tensor`)|hidden state batch with flattened features|`(batch_size, D x num_layers x H)`|
+Parameters:
 
-|Output|Description|Shape|
+|Name|Description|Shape|
 |---|---|---|
-|predicted_feature (`Tensor`)|predicted feature $$\hat{f}(s)$$ whose gradient flows|`(batch_size, out_features)`|
-|target_feature (`Tensor`)|target feature $$f(s)$$ whose gradient doesn't flow|`(batch_size, out_features)`|
+|obs (`Observation`)|Observation batch tuple.|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
+|hidden_state (`Tensor`)|Hidden state batch with flattened features.|`(batch_size, D x num_layers x H)`|
+
+Returns:
+
+|Name|Description|Shape|
+|---|---|---|
+|predicted_feature (`Tensor`)|Predicted feature $$\hat{f}(s)$$ whose gradient flows.|`(batch_size, out_features)`|
+|target_feature (`Tensor`)|Target feature $$f(s)$$ whose gradient doesn't flow.|`(batch_size, out_features)`|
