@@ -89,7 +89,11 @@ class Train:
                     
                     # update the agent
                     next_obs = next_obs.transform(self._agent_tensor)
-                    real_next_obs = next_obs if real_final_next_obs is None else real_final_next_obs.transform(self._agent_tensor)
+                    real_next_obs = next_obs.clone()
+                    
+                    if real_final_next_obs is not None:
+                        real_next_obs[terminated.squeeze(dim=-1)] = real_final_next_obs.transform(self._agent_tensor)
+                    
                     exp = Experience(
                         obs,
                         action,
