@@ -26,7 +26,7 @@ sort: 7
 |`rnd_pred_exp_proportion`|(`float`, default = `0.25`) The proportion of experiences used to train RND predictor to keep the effective batch size.|
 |`init_norm_steps`|(`int | None`, default = `50`) The initial time steps to initialize normalization parameters of both observation and hidden state. When the value is `None`, the algorithm never normalize them during training.|
 |`obs_norm_clip_range`|(`[float, float]`, default = `[-5.0, 5.0]`) Clamps the normalized observation into the range `[min, max]`.|
-|`hidden_state_norm_clip_range`|([`float`, `float`], default = `[-5.0, 5.0]`) Clamps the normalized hidden state into the range `[min, max]`.|
+|`hidden_state_norm_clip_range`|(`[float, float]`, default = `[-5.0, 5.0]`) Clamps the normalized hidden state into the range `[min, max]`.|
 |`device`|(`str | None`, default = `None`) Device on which the agent works. If this setting is `None`, the agent device is same as your network's one. Otherwise, the network device changes to this device. <br><br> Options: `None`, `cpu`, `cuda`, `cuda:0` and other devices of `torch.device()` argument|
 
 ## Network
