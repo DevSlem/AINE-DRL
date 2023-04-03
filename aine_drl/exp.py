@@ -39,6 +39,9 @@ class Observation:
         """
         return Observation(tuple(func(obs_tensor) for obs_tensor in self.items))
     
+    def clone(self) -> "Observation":
+        return self.transform(lambda o: o.clone())
+    
     def __getitem__(self, idx) -> "Observation":
         """
         Note that it's recommended to use range slicing instead of indexing.
@@ -134,6 +137,9 @@ class Action:
         discrete_action = func(self.discrete_action)
         continuous_action = func(self.continuous_action)
         return Action(discrete_action, continuous_action)
+    
+    def clone(self) -> "Action":
+        return self.transform(lambda a: a.clone())
     
     def __getitem__(self, idx) -> "Action":
         """
