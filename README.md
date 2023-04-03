@@ -117,28 +117,9 @@ Follow the instructions.
 
 ### Installation
 
-Required packages:
+Since this guide is simple and if you're not a Linux user, see details in [Installation](https://devslem.github.io/AINE-DRL/installation.html) docs.
 
-* [Python](https://www.python.org/) 3.10.8
-* [Pytorch](https://pytorch.org/) 1.11.0 - CUDA 11.3
-* [Tensorboard](https://github.com/tensorflow/tensorboard) 2.12.0
-* [PyYAML](https://pyyaml.org/) 6.0
-* [Gym](https://github.com/openai/gym) 0.26.2
-* [ML-Agents](https://github.com/Unity-Technologies/ml-agents/tree/release_20) 0.30.0
-* [Protocol Buffer](https://protobuf.dev/getting-started/pythontutorial/) 3.20
-
-If you use Anaconda, create an anaconda environment first by entering the command below:
-
-```bash
-conda create -n aine-drl python=3.10.8 -y
-conda activate aine-drl
-```
-
-Note that **Windows** users may happen to Numpy dependency error. It's because [Numpy 1.21.2](https://numpy.org/doc/stable/release/1.21.1-notes.html) does not support Python 3.10. To solve this problem, it's highly recommended to first install Numpy 1.21.2 from the Anaconda command. (**Linux** users can skip this step):
-
-```bash
-conda install numpy==1.21.2
-```
+First, install [Python 3.10.8](https://www.python.org/) version.
 
 Install the packages by entering the command below:
 
@@ -147,14 +128,10 @@ pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --e
 pip install tensorboard==2.12.0
 pip install PyYAML==6.0
 pip install gym==0.26.2
-pip install 'gym[all]'
+pip install gym[all]
 pip install mlagents==0.30.0
-pip install 'protobuf==3.20.*'
+pip install protobuf==3.20.*
 ```
-
-The **quote** marks are based on [zsh](https://www.zsh.org/) shell. If you use another shell (e.g., [powershell](https://learn.microsoft.com/en-us/powershell/)), you may need to remove the quote marks.
-
-> This installation guide is based on Linux and Anaconda environment. Please give me a pull request if you have a better installation guide.
 
 ### Run
 
@@ -170,54 +147,7 @@ Example:
 python samples/cartpole_v1_ppo.py
 ```
 
-then, you can see the training information in your shell:
-
-```
-+----------------------------------------------+
-| AINE-DRL Training Start!                     |
-|==============================================|
-| ID: CartPole-v1_PPO                          |
-| Output Path: results/CartPole-v1_PPO         |
-|----------------------------------------------|
-| Training INFO:                               |
-|     number of environments: 3                |
-|     total time steps: 20000                  |
-|     summary frequency: 1000                  |
-|     agent save frequency: 10000              |
-|----------------------------------------------|
-| Agent INFO:                                  |
-|     name: PPO                                |
-|     device: cpu                              |
-+----------------------------------------------+
-
-[AINE-DRL] training time: 1.30, time steps: 1000, cumulated reward: 30.00
-[AINE-DRL] training time: 2.57, time steps: 2000, cumulated reward: 115.00
-[AINE-DRL] training time: 3.88, time steps: 3000, cumulated reward: 133.00
-```
-
-When the training is finished, you can see the results (tensorboard, log message, agent save file) in `results` directory.
-
-Open the tensorboard result by entering the command:
-
-```bash
-tensorboard --logdir=results
-```
-
-or
-
-```bash
-tensorboard --logdir=results/<SUB_DIRECTORY>
-```
-
-If you want to change the inference export format like gif, png (default: real-time rendering), you need to change the `Inference` setting in the configuration file. Follow the example:
-
-```yaml
-Inference:
-  Config:
-    export: gif # default: render_only
-```
-
-`export` detail options: `None`, `render_only`, `gif`, `png`
+See details in [Getting Started](https://devslem.github.io/AINE-DRL/getting-started/) docs.
 
 ### Paging File Error
 
