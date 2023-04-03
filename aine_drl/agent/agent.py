@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import Any
 
 import torch
 
@@ -124,7 +125,7 @@ class Agent(ABC):
         return tuple()
         
     @property
-    def log_data(self) -> dict[str, tuple]:
+    def log_data(self) -> dict[str, tuple[Any, float]]:
         """
         Returns log data and reset it.
 
