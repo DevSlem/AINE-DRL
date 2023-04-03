@@ -32,6 +32,7 @@ Since it has simple hyperparameters, you don't need to understand deeply reinfor
 |---|---|
 |`gamma`|(`float`, default = `0.99`) Discount factor $$\gamma$$ of future rewards.|
 |`entropy_coef`|(`float`, default = `0.001`) Entropy multiplier used to compute loss. It adjusts exploration/exploitation balance.|
+|`device`|(`str | None`, default = `None`) Device on which the agent works. If this setting is `None`, the agent device is same as your network's one. Otherwise, the network device changes to this device. <br><br> Options: `None`, `cpu`, `cuda`, `cuda:0` and other devices of `torch.device()` argument.
 
 ## Network
 
