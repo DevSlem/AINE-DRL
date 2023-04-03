@@ -31,14 +31,22 @@ then, you can see the training information in your shell:
 |     summary frequency: 1000                  |
 |     agent save frequency: 10000              |
 |----------------------------------------------|
-| Agent INFO:                                  |
-|     name: PPO                                |
+| PPO Agent:                                   |
+|     n_steps: 16                              |
+|     epoch: 3                                 |
+|     mini_batch_size: 8                       |
+|     gamma: 0.99                              |
+|     lam: 0.95                                |
+|     advantage_normalization: False           |
+|     epsilon_clip: 0.2                        |
+|     value_loss_coef: 0.5                     |
+|     entropy_coef: 0.001                      |
 |     device: cpu                              |
 +----------------------------------------------+
 
-[AINE-DRL] training time: 1.30, time steps: 1000, cumulated reward: 30.00
-[AINE-DRL] training time: 2.57, time steps: 2000, cumulated reward: 115.00
-[AINE-DRL] training time: 3.88, time steps: 3000, cumulated reward: 133.00
+[AINE-DRL] training time: 1.18, time steps: 1000, cumulated reward: 36.15
+[AINE-DRL] training time: 2.28, time steps: 2000, cumulated reward: 90.64
+[AINE-DRL] training time: 3.38, time steps: 3000, cumulated reward: 94.22
 ```
 
 When the training is finished, you can see the results (tensorboard, log message, agent save file) in `results` directory.

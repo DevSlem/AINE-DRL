@@ -153,14 +153,15 @@ then you can see the training information in your shell:
 |     summary frequency: 1000                        |
 |     agent save frequency: 10000                    |
 |----------------------------------------------------|
-| Agent INFO:                                        |
-|     name: REINFORCE                                |
+| REINFORCE Agent:                                   |
+|     gamma: 0.99                                    |
+|     entropy_coef: 0.001                            |
 |     device: cpu                                    |
 +----------------------------------------------------+
 
-[AINE-DRL] training time: 0.43, time steps: 1000, cumulated reward: 22.23
-[AINE-DRL] training time: 0.91, time steps: 2000, cumulated reward: 33.30
-[AINE-DRL] training time: 1.35, time steps: 3000, cumulated reward: 48.10
+[AINE-DRL] training time: 0.47, time steps: 1000, cumulated reward: 22.23
+[AINE-DRL] training time: 0.99, time steps: 2000, cumulated reward: 33.30
+[AINE-DRL] training time: 1.47, time steps: 3000, cumulated reward: 48.10
 ```
 
 When the training is finished, you can see the training result files (tensorboard, log message, agent save file) in the `results/CartPole-v1_REINFORCE` directory.
