@@ -48,11 +48,15 @@ def forward_actor_critic(
 ) -> tuple[PolicyDist, Tensor, Tensor]
 ```
 
-|Input|Description|Shape|
+Parameters:
+
+|Name|Description|Shape|
 |---|---|---|
 |obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
 
-|Output|Description|Shape|
+Returns:
+
+|Name|Description|Shape|
 |---|---|---|
 |policy_dist (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
 |ext_state_value (`Tensor`)|extrinsic state value $$V_E(s)$$|`(batch_size, 1)`|
@@ -70,11 +74,15 @@ def forward_rnd(
 
 The value of `out_features` depends on you.
 
-|Input|Description|Shape|
+Parameters:
+
+|Name|Description|Shape|
 |---|---|---|
 |obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
 
-|Output|Description|Shape|
+Returns:
+
+|Name|Description|Shape|
 |---|---|---|
 |predicted_feature (`Tensor`)|predicted feature $$\hat{f}(s)$$ whose gradient flows|`(batch_size, out_features)`|
 |target_feature (`Tensor`)|target feature $$f(s)$$ whose gradient doesn't flow|`(batch_size, out_features)`|

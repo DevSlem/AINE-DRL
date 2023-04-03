@@ -55,11 +55,15 @@ def forward(
 ) -> tuple[PolicyDist, ActionValue]
 ```
 
-|Input|Description|Shape|
+Parameters:
+
+|Name|Description|Shape|
 |---|---|---|
 |obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
 
-|Output|Description|Shape|
+Returns:
+
+|Name|Description|Shape|
 |---|---|---|
 |policy_dist (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
 |action_value (`ActionValue`)|action value $$Q(s,a)$$ batch tuple|`(batch_size, num_discrete_actions)` x `num_discrete_branches`|

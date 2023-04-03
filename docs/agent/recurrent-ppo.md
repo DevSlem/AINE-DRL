@@ -45,12 +45,16 @@ def forward(
 ) -> tuple[PolicyDist, Tensor, Tensor]
 ```
 
-|Input|Description|Shape|
+Parameters:
+
+|Name|Description|Shape|
 |---|---|---|
 |obs_seq (`Observation`)|observation sequence batch tuple|`*batch_shape` = `(seq_batch_size, seq_len)` details in `Observation` docs|
 |hidden_state (`Tensor`)|hidden states at the beginning of each sequence|`(D x num_layers, seq_batch_size, H)`|
 
-|Output|Description|Shape|
+Returns:
+
+|Name|Description|Shape|
 |---|---|---|
 |policy_dist_seq (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$ sequences|`*batch_shape` = `(seq_batch_size, seq_len)` details in `PolicyDist` docs|
 |state_value_seq (`Tensor`)|state value $$V(s)$$ sequences|`(seq_batch_size, seq_len, 1)`|

@@ -50,10 +50,14 @@ def forward(
 ) -> PolicyDist
 ```
 
-|Input|Description|Shape|
+Parameters:
+
+|Name|Description|Shape|
 |---|---|---|
 |obs (`Observation`)|observation batch tuple|`*batch_shape` = `(batch_size,)` details in `Observation` docs|
 
-|Output|Description|Shape|
+Returns:
+
+|Name|Description|Shape|
 |---|---|---|
 |policy_dist (`PolicyDist`)|policy distribution $$\pi(a \vert s)$$|`*batch_shape` = `(batch_size,)` details in `PolicyDist` docs|
