@@ -43,7 +43,7 @@ class ActionSpace:
         return Action(discrete_actions, continuous_actions)
 
 class Env(ABC):
-    """AINE-DRL compatiable reinforcement learning environmnet inferface."""
+    """AINE-DRL compatible reinforcement learning environment interface."""
     @abstractmethod
     def reset(self) -> Observation:
         """
@@ -64,9 +64,9 @@ class Env(ABC):
 
         Returns:
             next_obs (Observation): next observation `(num_envs, *obs_shape)` which is automatically reset to the first observation of the next episode
-            reward (Tensor): reward `(num_envs, 1en)`
+            reward (Tensor): reward `(num_envs, 1)`
             terminated (Tensor): whether the episode is terminated `(num_envs, 1)`
-            real_final_next_obs (Observation): next observation `(num_envs, *obs_shape)` which includes the "real" final observation of the episode. 
+            real_final_next_obs (Observation | None): "real" final next observation `(num_terminated_envs, *obs_shape)` of the episode. 
             You can access only if any environment is terminated.
         """
         raise NotImplementedError
@@ -130,13 +130,11 @@ class GymEnv(Env):
             final_obs_mask = info["_final_observation"]
             
             if type(next_obs) == np.ndarray:
-                real_final_next_obs = next_obs.copy()
-                real_final_next_obs[final_obs_mask] = np.stack(info["final_observation"][final_obs_mask], axis=0)
+                real_final_next_obs = np.stack(info["final_observation"][final_obs_mask], axis=0)
             else:
                 real_final_next_obs = []
                 for i in range(len(next_obs)):
-                    temp = next_obs[i].copy()
-                    temp[final_obs_mask] = np.stack(info["final_observation"][final_obs_mask][i], axis=0)
+                    temp = np.stack(info["final_observation"][final_obs_mask][i], axis=0)
                     real_final_next_obs.append(temp)
         if self._truncate_episode:
             terminated |= truncated
