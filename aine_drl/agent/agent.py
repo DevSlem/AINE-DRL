@@ -24,8 +24,10 @@ class Agent(ABC):
     ) -> None:
         assert num_envs >= 1, "The number of environments must be greater than or euqal to 1."
         
-        self._device = network.device if device is None else torch.device(device)
-        self._model = network.model().to(device=self._device)
+        self._model = network.model()
+        if device is not None:
+            self._model = self._model.to(device=torch.device(device))
+        self._device = network.device
         self._num_envs = num_envs
         self._behavior_type = behavior_type
         

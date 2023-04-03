@@ -24,3 +24,4 @@ CartPole-v1_PPO:
     epsilon_clip: 0.2
     value_loss_coef: 0.5
     entropy_coef: 0.001
+    device: null

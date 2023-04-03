@@ -125,7 +125,7 @@ class RecurrentPPOFactory(AgentFactory):
         network = CartPoleNoVelRecurrentPPONet(
             obs_features=env.obs_spaces[0][0],
             num_actions=env.action_space.discrete[0]
-        ).to(device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        )
         
         trainer = aine_drl.Trainer(optim.Adam(
             network.parameters(),
@@ -146,7 +146,7 @@ class NaivePPOFactory(AgentFactory):
         network = CartPoleNoVelNaivePPO(
             obs_features=env.obs_spaces[0][0],
             num_actions=env.action_space.discrete[0]
-        ).to(device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        )
         
         trainer = aine_drl.Trainer(optim.Adam(
             network.parameters(),

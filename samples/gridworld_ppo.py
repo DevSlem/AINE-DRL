@@ -73,7 +73,7 @@ class PPOFactory(AgentFactory):
         network = GridWorldPPONet(
             obs_shape=env.obs_spaces[0],
             num_actions=env.action_space.discrete[0]
-        ).to(device=torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"))
+        )
         
         trainer = aine_drl.Trainer(optim.Adam(
             network.parameters(),
