@@ -8,9 +8,30 @@ An agent is an actor that can observe and interact with the environment. Dependi
 
 If you want to implement your own agent, you can inherit from the abstract class `Agent` and implement the abstract methods.
 
+**Module**: `aine_drl.agent`
+
 ```python
 class Agent(ABC)
 ```
+
+## Constructor
+
+```python
+def __init__(
+    self,
+    num_envs: int,
+    network: Network,
+    behavior_type: BehaviorType = BehaviorType.TRAIN,
+)
+```
+
+Parameters:
+
+|Name|Description|
+|---|---|
+|num_envs (`int`)|The number of environments the agent is interacting with.|
+|network (`Network`)|The network of the agent.|
+|behavior_type (`BehaviorType`)|(default = `BehaviorType.TRAIN`) The behavior type of the agent.|
 
 ## Properties
 
@@ -35,7 +56,7 @@ def device(self) -> torch.device
 
 ### num_envs
 
-The number of environments the agent is interacting with when training. This is the number of environments in the vectorized environment.
+The number of environments the agent is interacting with. This is the number of environments in the vectorized environment.
 
 ```python
 @property
@@ -53,7 +74,7 @@ def training_steps(self) -> int
 
 ### behavior_type
 
-The behavior type of the agent. When you train the agent, the behavior type is `BehaviorType.TRAINING`. When you inference the agent, the behavior type is `BehaviorType.INFERENCE`.
+The behavior type of the agent. When you train the agent, the behavior type is `BehaviorType.TRAIN`. When you inference the agent, the behavior type is `BehaviorType.INFERENCE`.
 
 ```python
 @property
@@ -94,7 +115,7 @@ def state_dict(self) -> dict
 
 ## Methods
 
-### select_action(Observation)
+### select_action()
 
 Select actions from the `Observation`.
 
@@ -104,17 +125,17 @@ def select_action(self, obs: Observation) -> Action
 
 Parameters:
 
-|Name|Dsescription|Shape|
+|Name|Description|Shape|
 |---|---|---|
-|obs (`Observation`)|one-step observation batch tuple|`*batch_shape` = `(num_envs,)` details in `Observation` docs|
+|obs (`Observation`)|One-step observation batch tuple.|`*batch_shape` = `(num_envs,)` details in `Observation` docs|
 
 Returns:
 
 |Name|Description|Shape|
 |---|---|---|
-|action (`Action`)|one-step action batch|`*batch_shape` = `(num_envs,)` details in `Action` docs|
+|action (`Action`)|One-step action batch.|`*batch_shape` = `(num_envs,)` details in `Action` docs|
 
-### _select_action_train(Observation)
+### _select_action_train()
 
 Select actions from the `Observation` when training. You need to implement this method when you inherit from `Agent`.
 
@@ -125,7 +146,7 @@ def _select_action_train(self, obs: Observation) -> Action
 
 The parameters and return values are the same as `select_action()`.
 
-### _select_action_inference(Observation)
+### _select_action_inference()
 
 Select actions from the `Observation` when inference. You need to implement this method when you inherit from `Agent`.
 
@@ -136,7 +157,7 @@ def _select_action_inference(self, obs: Observation) -> Action
 
 The parameters and return values are the same as `select_action()`.
 
-### update(Experience)
+### update()
 
 Update and train the agent.
 
@@ -148,9 +169,9 @@ Parameters:
 
 |Name|Description|Shape|
 |---|---|---|
-|exp (`Experience`)|one-step experience tuple|`*batch_shape` = `(num_envs,)` details in `Experience` docs|
+|exp (`Experience`)|One-step experience tuple.|`*batch_shape` = `(num_envs,)` details in `Experience` docs|
 
-### _update_train(Experience)
+### _update_train()
 
 Update and train the agent when training. You need to implement this method when you inherit from `Agent`.
 
@@ -161,7 +182,7 @@ def _update_train(self, exp: Experience)
 
 The parameters are the same as `update()`.
 
-### _update_inference(Experience)
+### _update_inference()
 
 Update and train the agent when inference. You need to implement this method when you inherit from `Agent`.
 
@@ -180,7 +201,7 @@ Tick the training steps.
 def _tick_training_steps(self)
 ```
 
-### load_state_dict(dict)
+### load_state_dict()
 
 Load the state dictionary of the agent. You need to override this method when you want to load the state of the agent.
 
