@@ -6,6 +6,13 @@ sort: 6
 
 Experience tuple at time step $$t$$. It contains the observation, action, next observation, reward, terminated. Each item shape is `(num_envs, *item_shape)`. `*item_shape` depends on the item. 
 
+**Module**: `aine_drl.exp`
+
+```python
+@dataclass(frozen=True)
+class Experience
+```
+
 ## Fields
 
 ### obs
