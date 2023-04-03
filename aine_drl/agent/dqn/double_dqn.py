@@ -38,7 +38,7 @@ class DoubleDQN(Agent):
         self._target_net = copy.deepcopy(network)
         self._trainer = trainer
         
-        replay_buffer_device = self._network.device if self._config.replay_buffer_device is None else torch.device(self._config.replay_buffer_device)
+        replay_buffer_device = self.device if self._config.replay_buffer_device is None else torch.device(self._config.replay_buffer_device)
         
         self._trajectory = DQNTrajectory(
             config.n_steps, 
