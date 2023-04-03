@@ -22,6 +22,7 @@ PPO is TD method so it's not desirable to work episodic. Our Recurrent PPO uses 
 |`epsilon_clip`|(`float`, default = `0.2`) Clamps the probability ratio ($$\dfrac{\pi_{\text{new}}}{\pi_{\text{old}}}$$) into the range $$[1 - \epsilon, 1 + \epsilon]$$.|
 |`value_loss_coef`|(`float`, default = `0.5`) State value loss (critic loss) multiplier.|
 |`entropy_coef`|(`float`, default = `0.001`) Entropy multiplier used to compute loss. It adjusts exploration-exploitation trade-off.|
+|`device`|(`str | None`, default = `None`) Device on which the agent works. If this setting is `None`, the agent device is same as your network's one. Otherwise, the network device changes to this device. <br><br> Options: `None`, `cpu`, `cuda`, `cuda:0` and other devices of `torch.device()` argument|
 
 ## Network
 

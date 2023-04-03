@@ -30,11 +30,25 @@ pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --e
 pip install tensorboard==2.12.0
 pip install PyYAML==6.0
 pip install gym==0.26.2
-pip install 'gym[all]'
+pip install gym[all]
 pip install mlagents==0.30.0
-pip install 'protobuf==3.20.*'
+pip install protobuf==3.20.*
 ```
 
-The **quote** marks are based on [zsh](https://www.zsh.org/) shell. If you use another shell (e.g., [powershell](https://learn.microsoft.com/en-us/powershell/)), you may need to remove the quote marks.
+Depending on the shell you are using (e.g., [Zsh](https://www.zsh.org/)), you may need to add quotes like `'gym[all]'` and `'protobuf==3.20.*'`.
 
 > This installation guide is based on Linux and Anaconda environment. Please give me a pull request if you have a better installation guide.
+
+## Local Installation
+
+If you intend to use it in your own project, you can install only `aine_drl` python module locally. Go to your project directory and enter the command below:
+
+```bash
+git init
+git remote add -f origin https://github.com/DevSlem/AINE-DRL.git
+git config core.sparseCheckout true
+echo "aine_drl/" >> .git/info/sparse-checkout
+git pull origin main
+```
+
+Of course, you need to install required python packages to use this module.
