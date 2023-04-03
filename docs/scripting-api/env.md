@@ -12,6 +12,38 @@ AINE-DRL compatible reinforcement learning environment interface.
 class Env(ABC)
 ```
 
+## Properties
+
+### num_envs
+
+Returns the number of environments.
+
+```python
+@property
+@abstractmethod
+def num_envs(self) -> int
+```
+
+### obs_spaces
+
+Returns the shapes of the observation spaces.
+
+```python
+@property
+@abstractmethod
+def obs_spaces(self) -> tuple[ObservationSpace, ...]
+```
+
+### action_space
+
+Returns action space of the environment.
+
+```python
+@property
+@abstractmethod
+def action_space(self) -> ActionSpace
+```
+
 ## Methods
 
 ### reset()
@@ -55,3 +87,12 @@ Returns:
 |reward (`Tensor`)|Scalar reward values|`(num_envs, 1)`|
 |terminated (`Tensor`)|Whether the episode is terminated|`(num_envs, 1)`|
 |real_final_next_obs (`Observation | None`)|"Real" final next observation of the episode. You can access only if any environment is terminated.|`*batch_shape` = `(num_terminated_envs,)` details in `Observation` docs|
+
+### close()
+
+Close all environments and release resources.
+
+```python
+@abstractmethod
+def close(self)
+```
