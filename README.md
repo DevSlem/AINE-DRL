@@ -17,6 +17,8 @@ AINE-DRL provides below things:
 * model save/load
 * YAML configuration
 
+If you're using AINE-DRL for the first time, please read [Getting Started](https://devslem.github.io/AINE-DRL/getting-started/).
+
 ### Agent
 
 AINE-DRL provides deep reinforcement learning (DRL) agents. If you want to use them, it's helpful to read [Agent](https://devslem.github.io/AINE-DRL/agent) docs. 

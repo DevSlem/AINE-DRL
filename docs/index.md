@@ -15,4 +15,4 @@ AINE-DRL provides below things:
 * model save/load
 * YAML configuration
 
-If you use AINE-DRL first, please read [Getting Started](./getting-started/index.md).
+If you're using AINE-DRL for the first time, please read [Getting Started](./getting-started/index.md).
