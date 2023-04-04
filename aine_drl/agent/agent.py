@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any
@@ -44,11 +45,12 @@ class Agent(ABC):
         Returns:
             action (Tensor): `*batch_shape` = `(num_envs,)`
         """
-        match self.behavior_type:
-            case BehaviorType.TRAIN:
-                return self._select_action_train(obs).transform(torch.detach)
-            case BehaviorType.INFERENCE:
-                return self._select_action_inference(obs).transform(torch.detach)
+        if self.behavior_type == BehaviorType.TRAIN:
+            return self._select_action_train(obs).transform(torch.detach)
+        elif self.behavior_type == BehaviorType.INFERENCE:
+            return self._select_action_inference(obs).transform(torch.detach)
+        else:
+            raise ValueError(f"Invalid behavior type: {self.behavior_type}")
             
     def update(self, exp: Experience):
         """
@@ -57,11 +59,10 @@ class Agent(ABC):
         Args:
             exp (Experience): one-step experience tuple
         """ 
-        match self.behavior_type:
-            case BehaviorType.TRAIN:
-                self._update_train(exp)
-            case BehaviorType.INFERENCE:
-                self._update_inference(exp)
+        if self.behavior_type == BehaviorType.TRAIN:
+            self._update_train(exp)
+        elif self.behavior_type == BehaviorType.INFERENCE:
+            self._update_inference(exp)
                 
     @abstractmethod
     def _update_train(self, exp: Experience):
@@ -113,11 +114,10 @@ class Agent(ABC):
     def behavior_type(self, value: BehaviorType):
         """Set behavior type."""
         self._behavior_type = value
-        match self._behavior_type:
-            case BehaviorType.TRAIN:
-                self._model.train()
-            case BehaviorType.INFERENCE:
-                self._model.eval()
+        if self._behavior_type == BehaviorType.TRAIN:
+            self._model.train()
+        elif self._behavior_type == BehaviorType.INFERENCE:
+            self._model.eval()
     
     @property
     def log_keys(self) -> tuple[str, ...]:

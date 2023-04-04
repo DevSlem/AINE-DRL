@@ -1,6 +1,7 @@
+from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Iterable
 
 import yaml
 
@@ -107,11 +108,10 @@ class AINETrainFactory(AINEFactory[Train]):
             raise AINEFactoryError("environment is already set")
         env_dict: dict = self._config_dict["Env"]
         seed = self.seed
-        match seed:
-            case int():
-                util_f.seed(seed)
-            case list() if len(seed) > 0:
-                util_f.seed(seed[0])
+        if isinstance(seed, int):
+            util_f.seed(seed)
+        elif isinstance(seed, Iterable) and len(seed) > 0:
+            util_f.seed(seed[0])
         self._env = self._make_train_env(env_dict, self.num_envs, seed)
         return self
     
@@ -124,18 +124,18 @@ class AINETrainFactory(AINEFactory[Train]):
         config_dict: dict = env_dict["Config"]
         if "seed" not in config_dict.keys():
             config_dict["seed"] = seed
-        match env_dict["type"]:
-            case "Gym":
-                return GymEnv.from_gym_make(num_envs=num_envs, **config_dict)
-            case "ML-Agents":
-                if "id" in config_dict.keys():
-                    return MLAgentsEnv.from_registry(num_envs=num_envs, **config_dict)
-                elif "file_name" in config_dict.keys():
-                    return MLAgentsEnv.from_unity_env(num_envs=num_envs, **config_dict)
-                else:
-                    raise AINEFactoryError("you must specify either `id` or `file_name` in the configuration")
-            case _:
-                raise AINEFactoryError("invalid environment type")
+        env_type = env_dict["type"]
+        if env_type == "Gym":
+            return GymEnv.from_gym_make(num_envs=num_envs, **config_dict)
+        elif env_type == "ML-Agents":
+            if "id" in config_dict.keys():
+                return MLAgentsEnv.from_registry(num_envs=num_envs, **config_dict)
+            elif "file_name" in config_dict.keys():
+                return MLAgentsEnv.from_unity_env(num_envs=num_envs, **config_dict)
+            else:
+                raise AINEFactoryError("you must specify either `id` or `file_name` in the configuration")
+        else:
+            raise AINEFactoryError("invalid environment type")
     
     def ready(self) -> Train:
         if self._env is None:
@@ -188,11 +188,10 @@ class AINEInferenceFactory(AINEFactory[Inference]):
         env_dict: dict = self._config_dict["Env"]
         inference_dict: dict = self._config_dict["Inference"]
         seed = self.seed
-        match seed:
-            case int():
-                util_f.seed(seed)
-            case list() if len(seed) > 0:
-                util_f.seed(seed[0])
+        if isinstance(seed, int):
+            util_f.seed(seed)
+        elif isinstance(seed, Iterable) and len(seed) > 0:
+            util_f.seed(seed[0])
         inference_config = InferenceConfig(**inference_dict["Config"])
         self._env = self._make_inference_env(env_dict, inference_config.export, seed)
         return self
@@ -208,23 +207,22 @@ class AINEInferenceFactory(AINEFactory[Inference]):
     
     def _make_inference_env(self, env_dict: dict, export: str | None, seed: int | list[int] | None) -> Env:
         config_dict: dict = env_dict["Config"]
-        match env_dict["type"]:
-            case "Gym":
-                match export:
-                    case None:
-                        render_mode = None
-                    case "render_only":
-                        render_mode = "human"
-                    case _:
-                        render_mode = "rgb_array"
-                config_dict["render_mode"] = render_mode
-                if "seed" not in config_dict.keys():
-                    config_dict["seed"] = seed
-                return GymRenderableEnv.from_gym_make(**config_dict)
-            case "ML-Agents":
-                raise NotImplementedError("ML-Agents environment is not implemented yet")
-            case _:
-                raise AINEFactoryError("invalid environment type")
+        env_type = env_dict["type"]
+        if env_type == "Gym":
+            if export is None:
+                render_mode = None
+            elif export == "render_only":
+                render_mode = "human"
+            else:
+                render_mode = "rgb_array"
+            config_dict["render_mode"] = render_mode
+            if "seed" not in config_dict.keys():
+                config_dict["seed"] = seed
+            return GymRenderableEnv.from_gym_make(**config_dict)
+        elif env_type == "ML-Agents":
+            raise NotImplementedError("ML-Agents environment for inference is not implemented yet")
+        else:
+            raise AINEFactoryError("invalid environment type")
             
     @property
     def num_envs(self) -> int:

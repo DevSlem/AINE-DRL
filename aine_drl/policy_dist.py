@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 
 import torch
@@ -80,7 +81,7 @@ class CategoricalDist(PolicyDist):
         if probs is not None:
             self._dist = tuple(D.Categorical(probs=prob) for prob in probs)
         else:
-            self._dist = tuple(D.Categorical(logits=logit) for logit in logits)
+            self._dist = tuple(D.Categorical(logits=logit) for logit in logits) # type: ignore
         
     def sample(self, _: bool = False) -> Action:
         sampled_discrete_action = [dist.sample() for dist in self._dist]
