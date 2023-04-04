@@ -17,7 +17,7 @@ pip install torch==1.11.0+cu113 --extra-index-url https://download.pytorch.org/w
 
 Now, install AINE-DRL package by entering the command below:
 
-```
+```bash
 pip install aine-drl
 ```
 
@@ -57,7 +57,7 @@ Depending on the shell you are using (e.g., [Zsh](https://www.zsh.org/)), you ma
 
 If you intend to make modifications to AINE-DRL package, you should install the package from the cloned repository rather than PyPi. From the repository's root directory, use:
 
-```
+```bash
 pip install -e .
 ```
 
