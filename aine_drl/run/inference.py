@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 
 import torch
@@ -122,34 +123,32 @@ class Inference:
             
     def _export(self, episode: int):
         images = tuple(Image.fromarray(frame) for frame in self._frame_collection)
-        match self._config.export:
-            case "render_only":
-                pass
-            case "gif":
-                if self._renderable_env is None:
-                    raise InferenceError("renderable environment is required for gif export")
-                exports_dir = f"{logger.log_dir()}/exports/gifs"
-                create_dir(exports_dir)
-                images[0].save(
-                    f"{exports_dir}/{self._id}-episode{episode}.gif",
-                    save_all=True,
-                    append_images=images[1:],
-                    optimize=True,
-                    duration=self._config.gif_duration,
-                    loop=0
-                )
-            case "picture":
-                if self._renderable_env is None:
-                    raise InferenceError("renderable environment is required for picture export")
-                exports_dir = f"{logger.log_dir()}/exports/pictures/episode{episode}"
-                create_dir(exports_dir)
-                for i, image in enumerate(images):
-                    image.save(f"{exports_dir}/{self._id}-episode{episode}-({i}).png")
-            case "video":
-                raise NotImplementedError("video export is not implemented yet")
-            case _:
-                raise NotImplementedError(f"export type {self._config.export} is not supported")
-            
+        export = self._config.export
+        if export == "render_only":
+            pass
+        elif export == "gif":
+            if self._renderable_env is None:
+                raise InferenceError("renderable environment is required for gif export")
+            exports_dir = f"{logger.log_dir()}/exports/gifs"
+            create_dir(exports_dir)
+            images[0].save(
+                f"{exports_dir}/{self._id}-episode{episode}.gif",
+                save_all=True,
+                append_images=images[1:],
+                optimize=True,
+                duration=self._config.gif_duration,
+                loop=0
+            )
+        elif export == "picture":
+            if self._renderable_env is None:
+                raise InferenceError("renderable environment is required for picture export")
+            exports_dir = f"{logger.log_dir()}/exports/pictures/episode{episode}"
+            create_dir(exports_dir)
+            for i, image in enumerate(images):
+                image.save(f"{exports_dir}/{self._id}-episode{episode}-({i}).png")
+        else:
+            raise NotImplementedError(f"export type {export} is not supported")
+
         self._frame_collection.clear()
         
     def _load_inference(self):

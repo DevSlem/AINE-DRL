@@ -1,3 +1,4 @@
+from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -175,26 +176,26 @@ class GymEnv(Env):
         num_discrete_actions = tuple()
         num_continuous_actions = 0
         action_space = self._env.single_action_space
-        match type(action_space):
-            case gym.spaces.Discrete:
-                num_discrete_actions = (action_space.n,) # type: ignore
-            case gym.spaces.MultiDiscrete:
-                num_discrete_actions = tuple(action_space.nvec) # type: ignore
-            case gym.spaces.Box:
-                num_continuous_actions = action_space.shape[0] # type: ignore
-            case gym.spaces.Tuple:
-                if type(action_space[0]) == gym.spaces.Discrete: # type: ignore
-                    num_discrete_actions = (action_space[0],) # type: ignore
-                elif type(action_space[0]) == gym.spaces.MultiDiscrete: # type: ignore
-                    num_discrete_actions = tuple(action_space[0].nvec.tolist()) # type: ignore
-                else:
-                    raise RuntimeError(f"unsupported action space: {action_space[0]}") # type: ignore
-                if type(action_space[1]) == gym.spaces.Box: # type: ignore
-                    num_continuous_actions = action_space[1].shape[0] # type: ignore
-                else:
-                    raise RuntimeError(f"unsupported action space: {action_space[1]}") # type: ignore
-            case _:
-                raise NotImplementedError(f"{self._env.single_action_space} action space is not supported yet.")
+        if isinstance(action_space, gym.spaces.Discrete):
+            num_discrete_actions = (action_space.n,)
+        elif isinstance(action_space, gym.spaces.MultiDiscrete):
+            num_discrete_actions = tuple(action_space.nvec)
+        elif isinstance(action_space, gym.spaces.Box):
+            num_continuous_actions = action_space.shape[0]
+        elif isinstance(action_space, gym.spaces.Tuple):
+            if isinstance(action_space[0], gym.spaces.Discrete):
+                num_discrete_actions = (action_space[0].n,)
+            elif isinstance(action_space[0], gym.spaces.MultiDiscrete):
+                num_discrete_actions = tuple(action_space[0].nvec.tolist())
+            else:
+                raise RuntimeError(f"unsupported action space: {action_space[0]}")
+            
+            if isinstance(action_space[1], gym.spaces.Box):
+                num_continuous_actions = action_space[1].shape[0]
+            else:
+                raise RuntimeError(f"unsupported action space: {action_space[1]}")
+        else:
+            raise NotImplementedError(f"{action_space} action space is not supported yet.")
         return ActionSpace(num_discrete_actions, num_continuous_actions)
     
     def _wrap_obs(self, obs) -> Observation:
@@ -204,22 +205,22 @@ class GymEnv(Env):
             return Observation(tuple(torch.from_numpy(o) for o in obs))
     
     def _gym_action_converter(self) -> Callable[[Action], Any]:
-        match type(self._env.action_space):
-            case gym.spaces.Discrete | gym.spaces.MultiDiscrete:
-                action_space_shape: tuple[int, ...] = self._env.action_space.shape # type: ignore
-                return lambda a: a.discrete_action.reshape(action_space_shape).detach().cpu().numpy()
-            case gym.spaces.Box:
-                action_space_shape: tuple[int, ...] = self._env.action_space.shape # type: ignore
-                return lambda a: a.continuous_action.reshape(action_space_shape).detach().cpu().numpy()
-            case gym.spaces.Tuple:
-                discrete_action_shape: tuple[int, ...] = self._env.action_space[0].shape # type: ignore
-                continuous_action_shape = self._env.action_space[1].shape # type: ignore
-                return lambda a: (
-                    a.discrete_action.reshape(discrete_action_shape).detach().cpu().numpy(), 
-                    a.continuous_action.reshape(continuous_action_shape).detach().cpu().numpy()
-                )
-            case _:
-                raise NotImplementedError(f"{self._env.single_action_space} action space is not supported yet.")
+        action_space = self._env.action_space
+        if isinstance(action_space, gym.spaces.Discrete) or isinstance(action_space, gym.spaces.MultiDiscrete):
+            action_space_shape: tuple[int, ...] = self._env.action_space.shape # type: ignore
+            return lambda a: a.discrete_action.reshape(action_space_shape).detach().cpu().numpy()
+        elif isinstance(action_space, gym.spaces.Box):
+            action_space_shape: tuple[int, ...] = self._env.action_space.shape # type: ignore
+            return lambda a: a.continuous_action.reshape(action_space_shape).detach().cpu().numpy()
+        elif isinstance(action_space, gym.spaces.Tuple):
+            discrete_action_shape: tuple[int, ...] = self._env.action_space[0].shape # type: ignore
+            continuous_action_shape = self._env.action_space[1].shape # type: ignore
+            return lambda a: (
+                a.discrete_action.reshape(discrete_action_shape).detach().cpu().numpy(), 
+                a.continuous_action.reshape(continuous_action_shape).detach().cpu().numpy()
+            )
+        else:
+            raise NotImplementedError(f"{self._env.single_action_space} action space is not supported yet.")
             
     @staticmethod
     def from_gym_make(
@@ -250,15 +251,14 @@ class GymRenderableEnv(GymEnv, Renderable):
         truncate_episode: bool = True, 
         seed: int | list[int] | None = None
     ) -> None:
-        match env.render_mode:
-            case "human":
-                self._renderer = lambda e: None
-            case "rgb_array":
-                self._renderer = lambda e: e.render()
-            case "rgb_array_list":
-                self._renderer = lambda e: e.render()[0]
-            case _:
-                raise NotImplementedError(f"{env.render_mode} render mode is not supported yet.")
+        if env.render_mode == "human":
+            self._renderer = lambda e: None
+        elif env.render_mode == "rgb_array":
+            self._renderer = lambda e: e.render()
+        elif env.render_mode == "rgb_array_list":
+            self._renderer = lambda e: e.render()[0]
+        else:
+            raise NotImplementedError(f"{env.render_mode} render mode is not supported yet.")
                 
         self._renderable_env = env
         super().__init__(env, truncate_episode, seed)

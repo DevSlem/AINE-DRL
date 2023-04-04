@@ -171,15 +171,14 @@ if __name__ == "__main__":
     recurrent_ppo_config_path = "config/experiments/cartpole_v1_no_velocity_recurrent_ppo.yaml"
     naive_ppo_config_path = "config/experiments/cartpole_v1_no_velocity_naive_ppo.yaml"
     
-    match agent_type:
-        case "recurrent_ppo":
-            config_path = recurrent_ppo_config_path
-            agent_factory = RecurrentPPOFactory()
-        case "naive_ppo":
-            config_path = naive_ppo_config_path
-            agent_factory = NaivePPOFactory()
-        case _:
-            raise ValueError("invalid agent type")
+    if agent_type == "recurrent_ppo":
+        config_path = recurrent_ppo_config_path
+        agent_factory = RecurrentPPOFactory()
+    elif agent_type == "naive_ppo":
+        config_path = naive_ppo_config_path
+        agent_factory = NaivePPOFactory()
+    else:
+        raise ValueError("invalid agent type")
     
     if not is_inference:
         aine_factory =  AINETrainFactory.from_yaml(config_path)
