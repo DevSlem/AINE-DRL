@@ -6,7 +6,21 @@ setup(
     description="AINE-DRL is a deep reinforcement learning (DRL) baseline framework. AINE means \"Agent IN Environment\".",
     author="DevSlem",
     author_email="devslem12@gmail.com",
-    packages=find_packages(include=["aine_drl"]),
+    url="https://github.com/DevSlem/AINE-DRL",
+    license="MIT",
+    keywords=[
+        "deep reinforcement learning",
+        "reinforcement learning",
+        "drl",
+        "deep learning",
+        "rl",
+        "game",
+        "ppo",
+        "gym",
+        "mlagents",
+        "pytorch"
+    ],
+    packages=find_packages(include=["aine_drl", "aine_drl.*"]),
     install_requires=[
         "torch==1.11.0",
         "tensorboard==2.12.0",
