@@ -1,3 +1,7 @@
+r"""
+AINE-DRL is a deep reinforcement learning (DRL) baseline framework. AINE means "Agent IN Environment".
+"""
+
 from .exp import (
     Observation,
     Action,
