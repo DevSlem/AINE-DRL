@@ -9,7 +9,7 @@ conda create -n aine-drl python=3.9 -y
 conda activate aine-drl
 ```
 
-You may prefer to use NVIDIA CUDA due to the training speed. In this case, you need to install manually PyTorch with CUDA (this step can be skipped if cpu is only used):
+You may prefer to use NVIDIA CUDA due to the training speed. In this case, you need to install PyTorch with CUDA manually (this step can be skipped if cpu is only used):
 
 ```bash
 pip install torch==1.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
