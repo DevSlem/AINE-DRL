@@ -1,8 +1,10 @@
 # AINE-DRL
 
-A project for the DRL baseline framework. **AINE** means "Agent IN Environment".
+[AINE-DRL](https://github.com/DevSlem/AINE-DRL) is a deep reinforcement learning (DRL) baseline framework. **AINE** means "Agent IN Environment". If you want to know how to use, see [AINE-DRL Documentation](https://devslem.github.io/AINE-DRL/).
 
-[Implementation](#implementation) | [Experiments](#experiments) | [Setup](#setup) |
+| [Implementation](#implementation) | [Experiments](#experiments) | [Setup](#setup) |
+
+> We always welcome your contributions! Please feel free to open an issue or pull request.
 
 ## Implementation
 
@@ -14,8 +16,6 @@ AINE-DRL provides below things:
 * inference (rendering, gif, picture)
 * model save/load
 * YAML configuration
-
-If you want to know how to use, see [AINE-DRL Documentation](https://devslem.github.io/AINE-DRL/).
 
 ### Agent
 
