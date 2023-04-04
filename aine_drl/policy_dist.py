@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 
 import torch
@@ -31,22 +32,21 @@ class PolicyDist(ABC):
     @abstractmethod
     def log_prob(self, action: Action) -> torch.Tensor:
         """
-        Returns the log of the porability mass/density function accroding to the `action`.
+        Returns the log of the probability mass/density function according to the `action`.
         
         Returns:
             log_prob (Tensor): `(*batch_shape, num_branches)`
         """
         raise NotImplementedError
     
-    @abstractmethod
     def joint_log_prob(self, action: Action) -> torch.Tensor:
         """
-        Returns the joint log of the porability mass/density function accroding to the `action`.
+        Returns the joint log of the probability mass/density function according to the `action`.
         
         Returns:
             joint_log_prob (Tensor): `(*batch_shape, 1)`
         """
-        raise NotImplementedError
+        return self.log_prob(action).sum(dim=-1, keepdim=True)
     
     @abstractmethod
     def entropy(self) -> torch.Tensor:
@@ -58,7 +58,6 @@ class PolicyDist(ABC):
         """
         raise NotImplementedError
     
-    @abstractmethod
     def joint_entropy(self) -> torch.Tensor:
         """
         Returns the joint entropy of this distribution. 
@@ -66,7 +65,7 @@ class PolicyDist(ABC):
         Returns:
             joint_entropy (Tensor): `(*batch_shape, 1)`
         """
-        raise NotImplementedError
+        return self.entropy().sum(dim=-1, keepdim=True)
 
 class CategoricalDist(PolicyDist):
     """
@@ -82,7 +81,7 @@ class CategoricalDist(PolicyDist):
         if probs is not None:
             self._dist = tuple(D.Categorical(probs=prob) for prob in probs)
         else:
-            self._dist = tuple(D.Categorical(logits=logit) for logit in logits)
+            self._dist = tuple(D.Categorical(logits=logit) for logit in logits) # type: ignore
         
     def sample(self, _: bool = False) -> Action:
         sampled_discrete_action = [dist.sample() for dist in self._dist]
@@ -95,15 +94,9 @@ class CategoricalDist(PolicyDist):
             action_log_prob.append(dist.log_prob(action.discrete_action[..., i]))
         return torch.stack(action_log_prob, dim=-1)
     
-    def joint_log_prob(self, action: Action) -> torch.Tensor:
-        return self.log_prob(action).sum(dim=-1, keepdim=True)
-    
     def entropy(self) -> torch.Tensor:
         entropies = [dist.entropy() for dist in self._dist]
         return torch.stack(entropies, dim=-1)
-    
-    def joint_entropy(self) -> torch.Tensor:
-        return self.entropy().sum(dim=-1, keepdim=True)
 
 class GaussianDist(PolicyDist):
     """
@@ -122,14 +115,8 @@ class GaussianDist(PolicyDist):
     def log_prob(self, action: Action) -> torch.Tensor:
         return self._dist.log_prob(action.continuous_action)
     
-    def joint_log_prob(self, action: Action) -> torch.Tensor:
-        return self.log_prob(action).sum(dim=-1, keepdim=True)
-    
     def entropy(self) -> torch.Tensor:
         return self._dist.entropy()
-    
-    def joint_entropy(self) -> torch.Tensor:
-        return self.entropy().sum(dim=-1, keepdim=True)
     
 class CategoricalGaussianDist(PolicyDist):
     """
@@ -157,16 +144,10 @@ class CategoricalGaussianDist(PolicyDist):
         continuous_log_prob = self._gaussian_dist.log_prob(action)
         return torch.cat((discrete_log_prob, continuous_log_prob), dim=-1)
     
-    def joint_log_prob(self, action: Action) -> torch.Tensor:
-        return self.log_prob(action).sum(dim=-1, keepdim=True)
-    
     def entropy(self) -> torch.Tensor:
         discrete_entropy = self._categorical_dist.entropy()
         continuous_entropy = self._gaussian_dist.entropy()
         return torch.cat((discrete_entropy, continuous_entropy), dim=-1)
-
-    def joint_entropy(self) -> torch.Tensor:
-        return self.entropy().sum(dim=-1, keepdim=True)
 
 class EpsilonGreedyDist(CategoricalDist):
     """

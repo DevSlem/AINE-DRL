@@ -117,20 +117,14 @@ Follow the instructions.
 
 ### Installation
 
-Since this guide is simple and if you're not a Linux user, see details in [Installation](https://devslem.github.io/AINE-DRL/installation.html) docs.
+This installation guide is simple. If you have a problem or want to see details, refer to [Installation](https://devslem.github.io/AINE-DRL/installation.html) docs.
 
-First, install [Python 3.10.8](https://www.python.org/) version.
+First, install [Python 3.9](https://www.python.org/) version.
 
-Install the packages by entering the command below:
+Install AINE-DRL package by entering the command below:
 
 ```bash
-pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
-pip install tensorboard==2.12.0
-pip install PyYAML==6.0
-pip install gym==0.26.2
-pip install gym[all]
-pip install mlagents==0.30.0
-pip install protobuf==3.20.*
+pip install aine-drl
 ```
 
 ### Run
