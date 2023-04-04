@@ -218,7 +218,7 @@ then you can see the inference information in your shell:
 
 You can see the real-time rendering where the cart moves!
 
-> You may not satisfy the inference result, because cumulative reward is not high. It is because the training is not enough. You can increase the training time steps by changing the `Train/Config/time_steps` setting in the configuration file.
+> You may not satisfy the inference result, because cumulative reward is not high. The reason why is the training is not enough. You can increase the training time steps by changing the `Train/Config/time_steps` setting in the configuration file.
 
 AINE-DRL provides different inference options. You can export the inference result as a GIF file or pictures (video is not currently supported). Change the `Inference/Config` section in the configuration file:
 

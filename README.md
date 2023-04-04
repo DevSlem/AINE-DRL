@@ -1,8 +1,10 @@
 # AINE-DRL
 
-A project for the DRL baseline framework. **AINE** means "Agent IN Environment".
+[AINE-DRL](https://github.com/DevSlem/AINE-DRL) is a deep reinforcement learning (DRL) baseline framework. **AINE** means "Agent IN Environment". If you want to know how to use, see [AINE-DRL Documentation](https://devslem.github.io/AINE-DRL/).
 
-[Implementation](#implementation) | [Experiments](#experiments) | [Setup](#setup) |
+| [Implementation](#implementation) | [Experiments](#experiments) | [Setup](#setup) |
+
+> We always welcome your contributions! Please feel free to open an issue or pull request.
 
 ## Implementation
 
@@ -15,7 +17,7 @@ AINE-DRL provides below things:
 * model save/load
 * YAML configuration
 
-If you want to know how to use, see [AINE-DRL Documentation](https://devslem.github.io/AINE-DRL/).
+If you're using AINE-DRL for the first time, please read [Getting Started](https://devslem.github.io/AINE-DRL/getting-started/).
 
 ### Agent
 
@@ -121,7 +123,13 @@ This installation guide is simple. If you have a problem or want to see details,
 
 First, install [Python 3.9](https://www.python.org/) version.
 
-Install AINE-DRL package by entering the command below:
+If you want to use NVIDIA CUDA, install [PyTorch](https://pytorch.org/) with CDUA manually:
+
+```bash
+pip install torch==1.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
+```
+
+Now, install AINE-DRL package by entering the command below:
 
 ```bash
 pip install aine-drl

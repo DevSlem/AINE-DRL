@@ -1,8 +1,29 @@
 # Installation
 
+First, you need to install [Python](https://www.python.org/) 3.9 or higher but we recommend to install Python 3.9 version. 
+
+If you use Anaconda, create an Anaconda environment first by entering the command below (optional):
+
+```bash
+conda create -n aine-drl python=3.9 -y
+conda activate aine-drl
+```
+
+You may prefer to use NVIDIA CUDA due to the training speed. In this case, you need to install PyTorch with CUDA manually (this step can be skipped if cpu is only used):
+
+```bash
+pip install torch==1.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
+```
+
+Now, install AINE-DRL package by entering the command below:
+
+```
+pip install aine-drl
+```
+
 Required packages:
 
-* [Python](https://www.python.org/) 3.10.8
+* [Python](https://www.python.org/) 3.9 or higher
 * [Pytorch](https://pytorch.org/) 1.11.0 - CUDA 11.3
 * [Tensorboard](https://github.com/tensorflow/tensorboard) 2.12.0
 * [PyYAML](https://pyyaml.org/) 6.0
@@ -10,20 +31,15 @@ Required packages:
 * [ML-Agents](https://github.com/Unity-Technologies/ml-agents/tree/release_20) 0.30.0
 * [Protocol Buffer](https://protobuf.dev/getting-started/pythontutorial/) 3.20
 
-If you use Anaconda, create an anaconda environment first by entering the command below:
+## Manual Installation
+
+If you fail to install from PyPi, you should clone the repository and install the required packages manually. First, clone the repository:
 
 ```bash
-conda create -n aine-drl python=3.10.8 -y
-conda activate aine-drl
+git clone https://github.com/DevSlem/AINE-DRL.git
 ```
 
-Note that **Windows** users may happen to Numpy dependency error. It's because [Numpy 1.21.2](https://numpy.org/doc/stable/release/1.21.1-notes.html) does not support Python 3.10. To solve this problem, it's highly recommended to first install Numpy 1.21.2 from the Anaconda command. (**Linux** users can skip this step):
-
-```bash
-conda install numpy==1.21.2
-```
-
-Install the packages by entering the command below:
+Then, install the required packages:
 
 ```bash
 pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
@@ -37,11 +53,15 @@ pip install protobuf==3.20.*
 
 Depending on the shell you are using (e.g., [Zsh](https://www.zsh.org/)), you may need to add quotes like `'gym[all]'` and `'protobuf==3.20.*'`.
 
-> This installation guide is based on Linux and Anaconda environment. Please give me a pull request if you have a better installation guide.
-
 ## Local Installation
 
-If you intend to use it in your own project, you can install only `aine_drl` python module locally. Go to your project directory and enter the command below:
+If you intend to make modifications to AINE-DRL package, you should install the package from the cloned repository rather than PyPi. From the repository's root directory, use:
+
+```
+pip install -e .
+```
+
+Another way is to install `aine_drl` module locally in your own project. From your project directory, use:
 
 ```bash
 git init
