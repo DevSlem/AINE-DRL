@@ -125,7 +125,7 @@ class DQNTrajectory:
         next_obs = Observation.from_iter(util_f.get_items(self._obs_buffer, next_obs_idx))
         if do_replace:
             # replace them
-            next_obs[not_exsists_next_obs] = Observation.from_iter(util_f.get_items(self._final_next_obs, final_next_obs_idx))
+            next_obs[not_exsists_next_obs] = Observation.from_iter(util_f.get_items(self._final_next_obs, final_next_obs_idx)) # type: ignore
         return next_obs
 
     def _make_buffer(self) -> list:

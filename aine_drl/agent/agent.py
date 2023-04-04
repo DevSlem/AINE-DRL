@@ -49,6 +49,8 @@ class Agent(ABC):
             return self._select_action_train(obs).transform(torch.detach)
         elif self.behavior_type == BehaviorType.INFERENCE:
             return self._select_action_inference(obs).transform(torch.detach)
+        else:
+            raise ValueError(f"Invalid behavior type: {self.behavior_type}")
             
     def update(self, exp: Experience):
         """

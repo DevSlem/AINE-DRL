@@ -184,14 +184,14 @@ class GymEnv(Env):
             num_continuous_actions = action_space.shape[0]
         elif isinstance(action_space, gym.spaces.Tuple):
             if isinstance(action_space[0], gym.spaces.Discrete):
-                num_discrete_actions = (action_space[0].n,)
+                num_discrete_actions = (action_space[0].n,) # type: ignore
             elif isinstance(action_space[0], gym.spaces.MultiDiscrete):
-                num_discrete_actions = tuple(action_space[0].nvec.tolist())
+                num_discrete_actions = tuple(action_space[0].nvec.tolist()) # type: ignore
             else:
                 raise RuntimeError(f"unsupported action space: {action_space[0]}")
             
             if isinstance(action_space[1], gym.spaces.Box):
-                num_continuous_actions = action_space[1].shape[0]
+                num_continuous_actions = action_space[1].shape[0] # type: ignore
             else:
                 raise RuntimeError(f"unsupported action space: {action_space[1]}")
         else:
