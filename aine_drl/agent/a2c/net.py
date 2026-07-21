@@ -11,7 +11,7 @@ class A2CSharedNetwork(Network):
     """
     Advantage Actor Critic (A2C) shared network. 
     
-    Note that since it uses the Actor-Critic architecure and the parameter sharing, 
+    Note that since it uses the Actor-Critic architecture and the parameter sharing, 
     the encoding layer must be shared between Actor and Critic.
     """
     @abstractmethod
